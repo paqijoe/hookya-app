@@ -105,14 +105,14 @@ const DEFAULT_PERSONA_PROFILE = {
 }
 
 export default function HookyaMainApp() {
-  // Mode Layar Utama: 'auth' (Login/Daftar Fullscreen) | 'user' (Dashboard Pengguna) | 'dev' (Dashboard Manajerial Developer Terpisah)
+  // Mode Layar Utama: 'auth' (Login/Daftar Fullscreen) | 'user' (Dashboard Pengguna) | 'dev' (Dashboard Developer Terpisah)
   const [viewMode, setViewMode] = useState("auth")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [desktopMinimized, setDesktopMinimized] = useState(false)
   const [showProfilePopup, setShowProfilePopup] = useState(false)
   const [activeMenu, setActiveMenu] = useState("produksi")
 
-  // Modal PIN untuk masuk ke Dashboard Developer Terpisah
+  // Modal PIN untuk beralih ke Dashboard Developer Terpisah
   const [showPinModal, setShowPinModal] = useState(false)
   const [inputPinDev, setInputPinDev] = useState("")
   const pinAdminResmi = "123456"
@@ -168,6 +168,42 @@ export default function HookyaMainApp() {
       nuansa: "Tips Praktis",
       ringkasan: "Langkah kecil yang konsisten mengalahkan niat besar.",
     },
+    {
+      judul: "Kenapa Terlalu Banyak Nonton Tutorial Bikin Gagal Mulai",
+      nuansa: "Membongkar Mitos",
+      ringkasan: "Praktik langsung jauh lebih berharga daripada sekadar teori.",
+    },
+    {
+      judul: "3 Kebiasaan Pagi yang Diam-diam Menguras Energi Harian",
+      nuansa: "Kesalahan Umum",
+      ringkasan: "Cara sederhana menjaga fokus sejak bangun tidur.",
+    },
+    {
+      judul: "Cara Mengatur Gaji Bulanan Biar Nggak Habis di Minggu Pertama",
+      nuansa: "Tips Praktis",
+      ringkasan: "Strategi memisahkan rekening tabungan dan belanja harian.",
+    },
+    {
+      judul: "Jebakan Beli Barang Murah Tapi Malah Rugi Dua Kali",
+      nuansa: "Pengalaman Pribadi",
+      ringkasan: "Memilih barang berkualitas yang awet dipakai bertahun-tahun.",
+    },
+    {
+      judul: "Cara Tetap Konsisten Olahraga di Tengah Kesibukan Kerja",
+      nuansa: "Tips Praktis",
+      ringkasan: "Menjaga kebugaran tubuh tanpa harus ke tempat gym mahal.",
+    },
+    {
+      judul: "Bedanya Sibuk Produktif vs Sibuk yang Bikin Jalan di Tempat",
+      nuansa: "Membongkar Mitos",
+      ringkasan: "Fokus mengerjakan 1 prioritas utama setiap hari.",
+    },
+    {
+      judul: "Satu Prinsip Sederhana yang Mengubah Cara Mengambil Keputusan",
+      nuansa: "Cerita Keseharian",
+      ringkasan:
+        "Belajar dari kesalahan masa lalu untuk hasil yang lebih baik.",
+    },
   ])
 
   const [stage, setStage] = useState(0)
@@ -179,7 +215,12 @@ export default function HookyaMainApp() {
   const [formKinerja, setFormKinerja] = useState({})
   const [semuaUserDB, setSemuaUserDB] = useState([])
   const [daftarTransaksi, setDaftarTransaksi] = useState([])
+
   const [checkoutModal, setCheckoutModal] = useState(null)
+  const [metodeBayarPilihan, setMetodeBayarPilihan] = useState(
+    "QRIS Instan (Semua E-Wallet & M-Banking)",
+  )
+  const [sedangProsesBayar, setSedangProsesBayar] = useState(false)
   const [inputKodeVoucherUser, setInputKodeVoucherUser] = useState("")
 
   const [pengaturanPayment, setPengaturanPayment] = useState({
@@ -191,6 +232,7 @@ export default function HookyaMainApp() {
 
   const [daftarVoucher, setDaftarVoucher] = useState([
     { kode: "HOOKYA100", koin: 100, kuota: 50, terpakai: 0 },
+    { kode: "GRATIS50", koin: 50, kuota: 100, terpakai: 0 },
   ])
 
   const [customPrompts, setCustomPrompts] = useState({
@@ -227,6 +269,12 @@ export default function HookyaMainApp() {
           if (activeUser.profil_dna?.personaProfile) {
             setPersonaProfile(activeUser.profil_dna.personaProfile)
           }
+          if (Array.isArray(activeUser.profil_dna?.daftarVoucher)) {
+            setDaftarVoucher(activeUser.profil_dna.daftarVoucher)
+          }
+          if (activeUser.profil_dna?.pengaturanPayment) {
+            setPengaturanPayment(activeUser.profil_dna.pengaturanPayment)
+          }
           setViewMode("user")
         }
       }
@@ -244,7 +292,9 @@ export default function HookyaMainApp() {
             judul: row.judul,
             kategori: row.kategori,
             bentuk: row.bentuk_konten,
-            waktuDibuat: new Date(row.created_at).toLocaleDateString("id-ID"),
+            waktuDibuat:
+              row.segmen_skrip?.meta?.waktuDibuat ||
+              new Date(row.created_at).toLocaleDateString("id-ID"),
             segmen: Array.isArray(row.segmen_skrip)
               ? row.segmen_skrip
               : row.segmen_skrip?.segmen || [],
@@ -253,6 +303,7 @@ export default function HookyaMainApp() {
             views: row.segmen_skrip?.meta?.views ?? null,
             likes: row.segmen_skrip?.meta?.likes ?? null,
             komen: row.segmen_skrip?.meta?.komen ?? null,
+            sudahEvaluasi: Boolean(row.segmen_skrip?.meta?.sudahEvaluasi),
             evaluasiAI: row.segmen_skrip?.meta?.evaluasiAI || "",
           })),
         )
@@ -264,7 +315,7 @@ export default function HookyaMainApp() {
         .order("created_at", { ascending: false })
       if (trxRows) setDaftarTransaksi(trxRows)
     } catch {
-      // Abaikan
+      // Abaikan jika koneksi awal belum siap
     }
   }
 
@@ -313,6 +364,7 @@ export default function HookyaMainApp() {
         views: skripObj.views,
         likes: skripObj.likes,
         komen: skripObj.komen,
+        sudahEvaluasi: skripObj.sudahEvaluasi,
         evaluasiAI: skripObj.evaluasiAI,
       },
     }
@@ -349,8 +401,183 @@ export default function HookyaMainApp() {
     return skripObj
   }
 
+  // Handler Pembelian Paket Koin (Midtrans Snap + Fallback QRIS)
+  const bukaLayarCheckoutPaket = async (paketObj) => {
+    const kodeUnik = Math.floor(101 + Math.random() * 890)
+    const nomorInvoice = `INV-${Date.now().toString().slice(-6)}`
+
+    try {
+      const res = await fetch("/api/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_gateway_invoice",
+          invoiceId: nomorInvoice,
+          userId,
+          namaUser: profil.nama,
+          namaPaket: paketObj.nama,
+          jumlahKoin: paketObj.koin,
+          nominal: paketObj.nominalAngka,
+        }),
+      })
+      const data = await res.json()
+      if (data.mode === "midtrans" && data.redirectUrl) {
+        window.open(data.redirectUrl, "_blank")
+      }
+    } catch {
+      // Lanjut buka modal QRIS
+    }
+
+    setCheckoutModal({
+      invoiceId: nomorInvoice,
+      namaPaket: paketObj.nama,
+      koin: paketObj.koin,
+      nominalAsli: paketObj.nominalAngka,
+      kodeUnik,
+      nominalBayar: paketObj.nominalAngka + kodeUnik,
+    })
+  }
+
+  const handleKonfirmasiSudahBayar = async () => {
+    if (!checkoutModal) return
+    setSedangProsesBayar(true)
+    const statusAwal =
+      pengaturanPayment.modeVerifikasi === "otomatis" ? "lunas" : "pending"
+
+    const trxBaru = {
+      invoice_id: checkoutModal.invoiceId,
+      user_id: userId,
+      nama_user: profil.nama,
+      nama_paket: checkoutModal.namaPaket,
+      jumlah_koin: checkoutModal.koin,
+      nominal_asli: checkoutModal.nominalAsli,
+      nominal_bayar: checkoutModal.nominalBayar,
+      metode_bayar: metodeBayarPilihan,
+      status: statusAwal,
+    }
+
+    try {
+      const { data } = await supabase
+        .from("transactions")
+        .insert([trxBaru])
+        .select()
+        .single()
+      setDaftarTransaksi([
+        data || { ...trxBaru, id: Date.now() },
+        ...daftarTransaksi,
+      ])
+      if (statusAwal === "lunas") {
+        await updateKoinDatabase(coins + checkoutModal.koin)
+        setPaket(checkoutModal.namaPaket)
+        showToast(
+          `Pembayaran terverifikasi! +${checkoutModal.koin} Koin berhasil ditambahkan.`,
+        )
+      } else {
+        showToast(
+          "Konfirmasi pembayaran diterima dan sedang diverifikasi Admin.",
+        )
+      }
+    } finally {
+      setSedangProsesBayar(false)
+      setCheckoutModal(null)
+    }
+  }
+
+  const handleKlaimVoucherUser = async () => {
+    const kodeBersih = inputKodeVoucherUser.trim().toUpperCase()
+    if (!kodeBersih) return
+    const ditemukan = daftarVoucher.find(
+      (v) => v.kode.toUpperCase() === kodeBersih,
+    )
+    if (!ditemukan || ditemukan.terpakai >= ditemukan.kuota) {
+      alert("Kode voucher tidak ditemukan atau kuota sudah habis.")
+      return
+    }
+    const tambahan = parseInt(ditemukan.koin) || 50
+    await updateKoinDatabase(coins + tambahan)
+    setDaftarVoucher(
+      daftarVoucher.map((v) =>
+        v.kode.toUpperCase() === kodeBersih
+          ? { ...v, terpakai: v.terpakai + 1 }
+          : v,
+      ),
+    )
+    setInputKodeVoucherUser("")
+    showToast(`Voucher berhasil diklaim! +${tambahan} Koin ditambahkan.`)
+  }
+
+  // Handler Ceklis Upload & Evaluasi Kinerja VT Sepekan
+  const handleToggleSudahUpload = async (item, checked) => {
+    const tglDefault = checked
+      ? item.tanggalUpload || new Date().toISOString().split("T")[0]
+      : ""
+    const updated = {
+      ...item,
+      sudahUpload: checked,
+      tanggalUpload: tglDefault,
+    }
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((s) => (s.id === item.id ? updated : s)),
+    )
+    await simpanAtauUpdateSkripDatabase(updated)
+  }
+
+  const handleKirimLaporanKinerjaVT = async (item) => {
+    const input = formKinerja[item.id] || {}
+    const views = parseInt(input.views ?? item.views ?? 0) || 0
+    const likes = parseInt(input.likes ?? item.likes ?? 0) || 0
+    const komen = parseInt(input.komen ?? item.komen ?? 0) || 0
+
+    setIsGenerating(true)
+    let catatanEvaluasi = `Dalam sepekan, konten ini meraih ${views} views, ${likes} like, dan ${komen} komentar.`
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "evaluasi_kinerja_vt",
+          userId,
+          namaUser: profil.nama,
+          dataKinerja: {
+            judul: item.judul,
+            waktuDibuat: item.waktuDibuat,
+            tanggalUpload: item.tanggalUpload,
+            views,
+            likes,
+            komen,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.evaluasiAI) catatanEvaluasi = data.evaluasiAI
+    } catch {
+      // Fallback
+    }
+
+    const updated = {
+      ...item,
+      sudahUpload: true,
+      tanggalUpload:
+        item.tanggalUpload || new Date().toISOString().split("T")[0],
+      views,
+      likes,
+      komen,
+      sudahEvaluasi: true,
+      evaluasiAI: catatanEvaluasi,
+    }
+
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((s) => (s.id === item.id ? updated : s)),
+    )
+    await simpanAtauUpdateSkripDatabase(updated)
+    if (!item.sudahEvaluasi) await updateKoinDatabase(coins + 2)
+    setIsGenerating(false)
+    showToast("Laporan kinerja disimpan & bonus +2 Koin ditambahkan!")
+  }
+
   // ============================================================================
-  // 1. JIKA MODE = 'auth' -> TAMPILKAN LAMAN LOGIN / PENDAFTARAN FULLSCREEN
+  // 1. LAYAR LOGIN & PENDAFTARAN FULLSCREEN ALA INSTAGRAM
   // ============================================================================
   if (viewMode === "auth") {
     return (
@@ -376,7 +603,7 @@ export default function HookyaMainApp() {
   }
 
   // ============================================================================
-  // 2. JIKA MODE = 'dev' -> TAMPILKAN DASHBOARD DEVELOPER TERPISAH (MURNI MANAJERIAL)
+  // 2. LAYAR DASHBOARD DEVELOPER TERPISAH (FOKUS MANAJERIAL)
   // ============================================================================
   if (viewMode === "dev") {
     return (
@@ -407,11 +634,11 @@ export default function HookyaMainApp() {
               t.id === trx.id ? { ...t, status: "lunas" } : t,
             ),
           )
-          showToast("Transaksi disetujui & koin dikirim!")
+          showToast("Transaksi disetujui & koin berhasil dikirim!")
         }}
         simpanPengaturanDevKeDB={() => {
           simpanPersonaKeSupabase(personaProfile)
-          showToast("Pengaturan manajerial disimpan!")
+          showToast("Seluruh pengaturan manajerial Developer disimpan!")
         }}
         muatUlangDataSupabase={muatUlangDataSupabase}
         showToast={showToast}
@@ -420,7 +647,7 @@ export default function HookyaMainApp() {
   }
 
   // ============================================================================
-  // 3. JIKA MODE = 'user' -> TAMPILKAN DASHBOARD PENGGUNA (FOKUS KREATOR)
+  // 3. LAYAR DASHBOARD UTAMA PENGGUNA
   // ============================================================================
   const daftarMenuUser = [
     { id: "dna", label: "Profil & Gaya Bicara", icon: "dna" },
@@ -449,7 +676,21 @@ export default function HookyaMainApp() {
       harga: "Rp10.000",
       nominalAngka: 10000,
       koin: 120,
-      ket: "Untuk mulai rutin membuat konten.",
+      ket: "Untuk mulai rutin membuat konten mingguan.",
+    },
+    {
+      nama: "Paket Rutin",
+      harga: "Rp15.000",
+      nominalAngka: 15000,
+      koin: 200,
+      ket: "Untuk kreator yang konsisten upload harian.",
+    },
+    {
+      nama: "Paket Aktif",
+      harga: "Rp20.000",
+      nominalAngka: 20000,
+      koin: 300,
+      ket: "Termasuk bonus koin eksplorasi ide.",
     },
     {
       nama: "Paket Kreator (Terlaris)",
@@ -458,6 +699,13 @@ export default function HookyaMainApp() {
       koin: 400,
       ket: "Kuota melimpah untuk kreator aktif.",
       populer: true,
+    },
+    {
+      nama: "Paket Sultan",
+      harga: "Rp50.000",
+      nominalAngka: 50000,
+      koin: 1000,
+      ket: "Untuk produksi konten masif.",
     },
     {
       nama: "Paket Produser VIP",
@@ -477,7 +725,7 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* HEADER STICKY: KIRI = BURGER | TENGAH = LOGO HOOKYA | KANAN = PROFIL + KOIN */}
+      {/* HEADER STICKY: KIRI = BURGER | TENGAH = LOGO HOOKYA | KANAN = PROFIL USER + KOIN */}
       <header className="sticky top-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10 relative">
         <div className="flex items-center gap-2">
           <button
@@ -495,7 +743,6 @@ export default function HookyaMainApp() {
           </button>
         </div>
 
-        {/* TENGAH: LOGO HOOKYA */}
         <div
           onClick={() => setActiveMenu("produksi")}
           className="cursor-pointer absolute left-1/2 -translate-x-1/2 flex items-center gap-2"
@@ -508,7 +755,6 @@ export default function HookyaMainApp() {
           </span>
         </div>
 
-        {/* KANAN: PROFIL USER + KOIN */}
         <div className="relative flex items-center gap-2">
           <button
             type="button"
@@ -586,7 +832,7 @@ export default function HookyaMainApp() {
               <div>
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
                   <span className="text-base font-bold text-[#d4f34a]">
-                    Menu Navigasi
+                    Menu Hookya
                   </span>
                   <button
                     type="button"
@@ -628,7 +874,7 @@ export default function HookyaMainApp() {
                 }}
                 className="cursor-pointer w-full bg-white/10 text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
               >
-                ⚙️ Mode Developer
+                Buka Dashboard Developer
               </button>
             </aside>
           </div>
@@ -679,7 +925,7 @@ export default function HookyaMainApp() {
           )}
         </aside>
 
-        {/* AREA KONTEN UTAMA USER */}
+        {/* AREA KONTEN UTAMA */}
         <main className="flex-1 p-3 sm:p-5 md:pl-0 max-w-5xl">
           {activeMenu === "dna" && (
             <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
@@ -825,70 +1071,196 @@ export default function HookyaMainApp() {
           {(activeMenu === "tersimpan" || activeMenu === "rapor") && (
             <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
               <h2 className="text-lg font-bold">
-                Daftar Skrip Tersimpan & Laporan Kinerja VT
+                Daftar Skrip Tersimpan & Laporan Kinerja VT Sepekan
               </h2>
-              {koleksiSkripTersimpan.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex items-center justify-between"
-                >
-                  <div>
-                    <span className="text-xs text-slate-500">
-                      {item.waktuDibuat} • {item.bentuk}
-                    </span>
-                    <h4 className="font-bold text-sm">{item.judul}</h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHasilSkrip(item)
-                      setStage(5)
-                      setActiveMenu("produksi")
-                    }}
-                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-xl"
-                  >
-                    Buka Skrip
-                  </button>
-                </div>
-              ))}
+              {koleksiSkripTersimpan.length === 0 ? (
+                <p className="text-xs text-slate-500 py-8 text-center">
+                  Belum ada skrip yang disimpan.
+                </p>
+              ) : (
+                koleksiSkripTersimpan.map((item) => {
+                  const inputSaatIni = formKinerja[item.id] || {
+                    views: item.views ?? "",
+                    likes: item.likes ?? "",
+                    komen: item.komen ?? "",
+                  }
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs text-slate-500">
+                            Dibuat: {item.waktuDibuat} • {item.bentuk}
+                          </span>
+                          <h4 className="font-bold text-sm">{item.judul}</h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHasilSkrip(item)
+                            setStage(5)
+                            setActiveMenu("produksi")
+                          }}
+                          className="cursor-pointer bg-white border border-slate-300 text-xs font-bold px-3.5 py-2 rounded-xl"
+                        >
+                          Buka Skrip
+                        </button>
+                      </div>
+
+                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <label className="cursor-pointer flex items-center gap-2 text-xs font-bold">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(item.sudahUpload)}
+                            onChange={(e) =>
+                              handleToggleSudahUpload(item, e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#14141f]"
+                          />
+                          <span>Sudah Diupload Menjadi Konten VT</span>
+                        </label>
+                        {item.sudahUpload && (
+                          <input
+                            type="date"
+                            value={item.tanggalUpload || ""}
+                            onChange={(e) => {
+                              const updated = {
+                                ...item,
+                                tanggalUpload: e.target.value,
+                              }
+                              setKoleksiSkripTersimpan((prev) =>
+                                prev.map((s) =>
+                                  s.id === item.id ? updated : s,
+                                ),
+                              )
+                              simpanAtauUpdateSkripDatabase(updated)
+                            }}
+                            className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold"
+                          />
+                        )}
+                      </div>
+
+                      {item.sudahUpload && (
+                        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                            <input
+                              type="number"
+                              value={inputSaatIni.views}
+                              onChange={(e) =>
+                                setFormKinerja({
+                                  ...formKinerja,
+                                  [item.id]: {
+                                    ...inputSaatIni,
+                                    views: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder="Jumlah Views..."
+                              className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                            />
+                            <input
+                              type="number"
+                              value={inputSaatIni.likes}
+                              onChange={(e) =>
+                                setFormKinerja({
+                                  ...formKinerja,
+                                  [item.id]: {
+                                    ...inputSaatIni,
+                                    likes: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder="Jumlah Like..."
+                              className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                            />
+                            <input
+                              type="number"
+                              value={inputSaatIni.komen}
+                              onChange={(e) =>
+                                setFormKinerja({
+                                  ...formKinerja,
+                                  [item.id]: {
+                                    ...inputSaatIni,
+                                    komen: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder="Jumlah Komentar..."
+                              className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleKirimLaporanKinerjaVT(item)}
+                              className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold text-xs py-2 rounded-xl"
+                            >
+                              Laporkan Kinerja
+                            </button>
+                          </div>
+                          {item.evaluasiAI && (
+                            <p className="text-xs bg-[#f4f5f7] p-3 rounded-xl">
+                              <strong>Evaluasi AI:</strong> {item.evaluasiAI}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           )}
 
           {activeMenu === "topup" && (
             <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-              <h2 className="text-lg font-bold">Pilih Paket Koin Hookya</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold">
+                  Pilih Paket Koin & Klaim Voucher
+                </h2>
+                <div className="flex items-center gap-2 bg-[#f4f5f7] p-1.5 rounded-2xl border border-slate-200">
+                  <input
+                    type="text"
+                    value={inputKodeVoucherUser}
+                    onChange={(e) => setInputKodeVoucherUser(e.target.value)}
+                    placeholder="Kode Voucher..."
+                    className="bg-white rounded-xl px-3 py-2 text-xs font-bold uppercase outline-none w-36"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleKlaimVoucherUser}
+                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-xl"
+                  >
+                    Klaim
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {daftarPaketKoin.map((p) => (
                   <div
                     key={p.nama}
                     className={`p-5 rounded-3xl flex flex-col justify-between ${
                       p.populer
-                        ? "bg-[#14141f] text-white"
-                        : "bg-[#f4f5f7] text-[#14141f]"
+                        ? "bg-[#14141f] text-white shadow-xl"
+                        : "bg-[#f4f5f7] text-[#14141f] border border-slate-200"
                     }`}
                   >
                     <div>
                       <h3 className="font-bold text-sm">{p.nama}</h3>
                       <div className="text-2xl font-bold mt-1">{p.harga}</div>
-                      <span className="text-xs font-bold bg-[#d4f34a] text-[#14141f] px-2 py-0.5 rounded mt-2 inline-block">
+                      <span className="text-xs font-bold bg-[#d4f34a] text-[#14141f] px-2.5 py-0.5 rounded mt-2 inline-block">
                         {p.koin} Koin
                       </span>
+                      <p className="text-xs opacity-80 mt-2">{p.ket}</p>
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
-                        setCheckoutModal({
-                          invoiceId: `INV-${Date.now().toString().slice(-5)}`,
-                          namaPaket: p.nama,
-                          koin: p.koin,
-                          nominalBayar:
-                            p.nominalAngka +
-                            Math.floor(100 + Math.random() * 800),
-                        })
-                      }
+                      onClick={() => bukaLayarCheckoutPaket(p)}
                       className="cursor-pointer mt-5 w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs py-3 rounded-xl"
                     >
-                      Beli Paket
+                      Beli Paket ({p.harga})
                     </button>
                   </div>
                 ))}
@@ -897,6 +1269,54 @@ export default function HookyaMainApp() {
           )}
         </main>
       </div>
+
+      {/* MODAL CHECKOUT QRIS / MIDTRANS */}
+      {checkoutModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4">
+            <h3 className="text-base font-bold">
+              Tagihan {checkoutModal.invoiceId} — {checkoutModal.namaPaket}
+            </h3>
+            <div className="bg-[#f4f5f7] p-4 rounded-2xl text-center space-y-2">
+              {pengaturanPayment.qrisImageUrl ? (
+                <img
+                  src={pengaturanPayment.qrisImageUrl}
+                  alt="QRIS Merchant"
+                  className="w-44 h-44 mx-auto rounded-xl object-contain bg-white p-2 border border-slate-200"
+                />
+              ) : (
+                <FlatIcon
+                  name="qr"
+                  className="w-24 h-24 mx-auto text-[#14141f]"
+                />
+              )}
+              <div className="text-xl font-bold">
+                Rp{checkoutModal.nominalBayar.toLocaleString("id-ID")}
+              </div>
+              <p className="text-xs text-slate-500">
+                {pengaturanPayment.infoRekening}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCheckoutModal(null)}
+                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3 rounded-xl"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={sedangProsesBayar}
+                onClick={handleKonfirmasiSudahBayar}
+                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-xl"
+              >
+                Saya Sudah Bayar ➔
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL PIN UNTUK BERALIH KE DASHBOARD DEVELOPER TERPISAH */}
       {showPinModal && (
