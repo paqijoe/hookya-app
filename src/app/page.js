@@ -882,7 +882,7 @@ export default function HookyaMainApp() {
       )}
 
       {/* HEADER STICKY: KIRI = BURGER | TENGAH = LOGO HOOKYA | KANAN = PROFIL USER + KOIN */}
-      <header className="sticky top-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10 relative">
+      <header className="sticky top-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1098,7 +1098,7 @@ export default function HookyaMainApp() {
 
         {/* SIDEBAR DESKTOP */}
         <aside
-          className={`hidden md:flex flex-col justify-between bg-[#14141f] text-white m-4 rounded-[2rem] p-4 shrink-0 shadow-xl transition-all duration-300 self-start sticky top-20 ${
+          className={`hidden md:flex flex-col justify-between bg-[#14141f] text-white m-4 rounded-4xl p-4 shrink-0 shadow-xl transition-all duration-300 self-start sticky top-20 ${
             desktopMinimized ? "w-20 items-center" : "w-60"
           }`}
         >
@@ -1224,7 +1224,7 @@ export default function HookyaMainApp() {
 
           {/* MENU 4: SKRIP TERSIMPAN & STATUS UPLOAD */}
           {activeMenu === "tersimpan" && (
-            <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
+            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
@@ -1326,7 +1326,7 @@ export default function HookyaMainApp() {
 
           {/* MENU 5: LAPORAN KINERJA VT SEPEKAN SETELAH UPLOAD */}
           {activeMenu === "rapor" && (
-            <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
+            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
               <div className="border-b border-slate-100 pb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
                   Laporan Kinerja VT Sepekan Setelah Upload (+2 Koin)
@@ -1489,7 +1489,7 @@ export default function HookyaMainApp() {
 
           {/* MENU 6: PAKET KOIN & VOUCHER */}
           {activeMenu === "topup" && (
-            <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <h2 className="text-lg font-bold">
                   Pilih Paket Koin & Klaim Voucher
