@@ -4,12 +4,11 @@ import { supabase } from "../lib/supabase"
 import { FlatIcon } from "./SharedUI"
 
 export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
-  // mode: 'login' | 'register' | 'verify_gmail' | 'forgot_password'
+  // mode: 'login' | 'register' | 'verify_gmail' | 'forgot_request' | 'forgot_verify'
   const [mode, setMode] = useState("login")
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // State Form (Tidak pernah di-reset paksa saat validasi gagal!)
   const [form, setForm] = useState({
     namaLengkap: "",
     username: "",
@@ -19,13 +18,11 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     password: "",
   })
 
-  // State Pesan Peringatan Spesifik per Kolom
   const [errors, setErrors] = useState({})
-  const [kodeVerifikasiDikirim, setKodeVerifikasiDikirim] = useState("")
   const [inputKodeOTP, setInputKodeOTP] = useState("")
-  const [resetPasswordTerkirim, setResetPasswordTerkirim] = useState(false)
+  const [infoPesanHijau, setInfoPesanHijau] = useState("")
 
-  // Fungsi Otomatis Menambahkan @gmail.com
+  // Otomatis melengkapi @gmail.com
   const formatOtomatisGmail = (nilai) => {
     const bersih = nilai.trim().toLowerCase().replace(/\s+/g, "")
     if (!bersih) return ""
@@ -36,11 +33,11 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     return `${depan}@gmail.com`
   }
 
-  // Validasi Spesifik Nomor WhatsApp (Wajib 08 / 628 dan 11-13 Angka)
+  // Validasi Spesifik Nomor WhatsApp (Wajib 11-13 Angka, Diawali 08 atau 628)
   const cekValidasiWhatsApp = (nomor) => {
     if (!nomor) return "Nomor WhatsApp wajib diisi."
     if (!/^\d+$/.test(nomor)) {
-      return "Nomor WhatsApp hanya boleh berisi angka tanpa spasi atau tanda hubung."
+      return "Nomor WhatsApp hanya boleh berisi angka tanpa spasi atau tanda baca."
     }
     if (!nomor.startsWith("08") && !nomor.startsWith("628")) {
       return "Format salah: Nomor WhatsApp wajib diawali angka 08 atau 628."
@@ -54,7 +51,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     return ""
   }
 
-  // Validasi Spesifik Password (Minimal 8 Karakter/Angka)
+  // Validasi Spesifik Password (Minimal 8 Angka/Karakter)
   const cekValidasiPassword = (pass) => {
     if (!pass) return "Password wajib diisi."
     if (pass.length < 8) {
@@ -63,10 +60,11 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     return ""
   }
 
-  // Handler Saat Tombol Daftar Diklik
+  // 1. MULAI PENDAFTARAN & KIRIM KONFIRMASI OTOMATIS KE GMAIL
   const handleMulaiDaftar = async (e) => {
     e.preventDefault()
     const errBaru = {}
+    setInfoPesanHijau("")
 
     const emailFinal = formatOtomatisGmail(form.gmail)
     const konfirmasiFinal = formatOtomatisGmail(form.konfirmasiGmail)
@@ -88,7 +86,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     }
     if (emailFinal !== konfirmasiFinal) {
       errBaru.konfirmasiGmail =
-        "Konfirmasi Gmail tidak sama dengan Gmail yang kamu ketik di atas."
+        "Konfirmasi Gmail tidak sama dengan alamat Gmail di atas."
     }
 
     const pesanErrWA = cekValidasiWhatsApp(form.whatsapp)
@@ -102,7 +100,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
     setIsSubmitting(true)
     try {
-      // 1. Cek apakah username atau email sudah terdaftar di tabel users
+      // Cek duplikasi username atau email di tabel users
       const { data: existingUsers } = await supabase
         .from("users")
         .select("id, username, email")
@@ -119,12 +117,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         return
       }
 
-      // 2. Kirim email konfirmasi otomatis melalui Supabase Auth + Siapkan Kode Verifikasi Gmail
-      const kode6Digit = Math.floor(100000 + Math.random() * 900000).toString()
-      setKodeVerifikasiDikirim(kode6Digit)
-
-      try {
-        await supabase.auth.signUp({
+      // Kirim email konfirmasi otomatis lewat Supabase Auth
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp(
+        {
           email: emailFinal,
           password: form.password,
           options: {
@@ -134,75 +129,118 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               whatsapp: form.whatsapp,
             },
           },
-        })
-      } catch {
-        // Lanjut ke layar konfirmasi Gmail
+        },
+      )
+
+      if (signUpErr) {
+        throw new Error(signUpErr.message)
+      }
+
+      // Jika di pengaturan Supabase fitur "Confirm Email" dimatikan (langsung mendapat session),
+      // otomatis daftarkan ke tabel users dan langsung masuk
+      if (signUpData?.session) {
+        await simpanAkunBaruKeTabelUsers(emailFinal)
+        return
       }
 
       setMode("verify_gmail")
+      setInfoPesanHijau(
+        `Kode/Tautan konfirmasi telah dikirim otomatis ke ${emailFinal}. Silakan cek kotak masuk atau folder Spam Gmail kamu.`,
+      )
       if (onNotify) {
-        onNotify(
-          `Permintaan konfirmasi telah dikirim ke ${emailFinal}. Silakan konfirmasi untuk mengaktifkan akun.`,
-        )
+        onNotify(`Email konfirmasi dikirim ke ${emailFinal}`)
       }
+    } catch (err) {
+      setErrors({
+        gmail:
+          "Gagal mengirim email konfirmasi (" +
+          err.message +
+          "). Pastikan penulisan Gmail benar.",
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Handler Konfirmasi Gmail & Penyelesaian Pendaftaran
-  const handleSelesaikanKonfirmasiGmail = async (e) => {
-    e.preventDefault()
-    if (
-      inputKodeOTP.trim() !== kodeVerifikasiDikirim &&
-      inputKodeOTP.trim().toUpperCase() !== "KONFIRMASI"
-    ) {
-      setErrors({
-        otp: "Kode konfirmasi belum sesuai. Periksa kotak masuk Gmail kamu atau gunakan kode verifikasi di layar.",
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const { data: newUser, error } = await supabase
-        .from("users")
-        .insert([
-          {
+  const simpanAkunBaruKeTabelUsers = async (emailTerverifikasi) => {
+    const { data: newUser, error } = await supabase
+      .from("users")
+      .insert([
+        {
+          nama: form.namaLengkap.trim(),
+          username: form.username.trim().toLowerCase(),
+          email: emailTerverifikasi,
+          whatsapp: form.whatsapp,
+          password_hash: form.password,
+          email_verified: true,
+          koin: 50,
+          profil_dna: {
             nama: form.namaLengkap.trim(),
             username: form.username.trim().toLowerCase(),
-            email: form.gmail,
+            kontak: emailTerverifikasi,
             whatsapp: form.whatsapp,
-            password_hash: form.password,
             email_verified: true,
-            koin: 50,
-            profil_dna: {
-              nama: form.namaLengkap.trim(),
-              username: form.username.trim().toLowerCase(),
-              kontak: form.gmail,
-              whatsapp: form.whatsapp,
-              email_verified: true,
-            },
           },
-        ])
-        .select()
-        .single()
+        },
+      ])
+      .select()
+      .single()
 
-      if (error) throw error
+    if (error) throw error
+    if (onNotify) {
+      onNotify(
+        `Gmail terkonfirmasi! Selamat datang di Hookya, ${form.namaLengkap}.`,
+      )
+    }
+    onAuthSuccess(newUser)
+  }
 
-      if (onNotify)
-        onNotify(
-          `Gmail terkonfirmasi! Selamat datang di Hookya, ${form.namaLengkap}.`,
+  // 2. VERIFIKASI KODE OTP GMAIL ATAU CEK STATUS KLIK LINK KONFIRMASI GMAIL
+  const handleSelesaikanKonfirmasiGmail = async (e) => {
+    e.preventDefault()
+    setErrors({})
+    setIsSubmitting(true)
+
+    try {
+      // Jika pengguna memasukkan kode OTP 6 digit dari email
+      if (inputKodeOTP.trim().length >= 6) {
+        const { error: otpErr } = await supabase.auth.verifyOtp({
+          email: form.gmail,
+          token: inputKodeOTP.trim(),
+          type: "signup",
+        })
+        if (otpErr) {
+          throw new Error(
+            "Kode OTP tidak sesuai atau sudah kedaluwarsa. Silakan cek kembali Gmail kamu.",
+          )
+        }
+        await simpanAkunBaruKeTabelUsers(form.gmail)
+        return
+      }
+
+      // Jika pengguna mengklik tautan "Confirm your mail" di dalam Gmail mereka,
+      // kita uji dengan mencoba signIn menggunakan email & password yang baru didaftarkan
+      const { data: signInData, error: signInErr } =
+        await supabase.auth.signInWithPassword({
+          email: form.gmail,
+          password: form.password,
+        })
+
+      if (signInErr || !signInData?.session) {
+        throw new Error(
+          "Akun Gmail kamu belum dikonfirmasi. Silakan buka aplikasi Gmail dan klik tautan konfirmasi, atau masukkan 6 angka kode OTP.",
         )
-      onAuthSuccess(newUser)
+      }
+
+      await simpanAkunBaruKeTabelUsers(form.gmail)
     } catch (err) {
-      setErrors({ otp: "Gagal menyimpan akun: " + err.message })
+      setErrors({ otp: err.message })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Handler Login
+  // 3. LOGIN PENGGUNA
   const handleLogin = async (e) => {
     e.preventDefault()
     const errBaru = {}
@@ -242,7 +280,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
       if (passTersimpan && passTersimpan !== form.password) {
         setErrors({
           password:
-            "Password yang kamu masukkan salah. Silakan cek kembali atau klik Lupa Password.",
+            "Password yang kamu masukkan belum sesuai. Silakan cek kembali atau klik Lupa Password.",
         })
         setIsSubmitting(false)
         return
@@ -255,10 +293,13 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     }
   }
 
-  // Handler Lupa Password Otomatis via Gmail
-  const handleLupaPasswordGmail = async (e) => {
+  // 4. LUPA PASSWORD TAHAP A: KIRIM OTP / LINK PEMULIHAN KE GMAIL
+  const handleKirimPermintaanLupaPassword = async (e) => {
     e.preventDefault()
+    setErrors({})
     const emailTarget = formatOtomatisGmail(form.gmail)
+    setForm((prev) => ({ ...prev, gmail: emailTarget }))
+
     if (!emailTarget.endsWith("@gmail.com")) {
       setErrors({
         gmail: "Masukkan alamat @gmail.com yang terdaftar pada akunmu.",
@@ -268,29 +309,92 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
     setIsSubmitting(true)
     try {
-      // Kirim tautan reset password otomatis via Supabase Auth ke Gmail
-      await supabase.auth.resetPasswordForEmail(emailTarget, {
-        redirectTo:
-          typeof window !== "undefined" ? window.location.origin : undefined,
+      const { data: rows } = await supabase.from("users").select("id, email")
+      const akunAda = (rows || []).find(
+        (u) => u.email?.toLowerCase() === emailTarget,
+      )
+
+      if (!akunAda) {
+        setErrors({
+          gmail: "Alamat Gmail ini belum terdaftar di sistem Hookya.",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      // Kirim OTP / email pemulihan resmi lewat Supabase Auth ke Gmail
+      const { error: resetErr } = await supabase.auth.signInWithOtp({
+        email: emailTarget,
       })
 
-      // Jika pengguna langsung memasukkan password baru di form pemulihan Gmail
-      if (form.password && form.password.length >= 8) {
-        const { data: rows } = await supabase.from("users").select("*")
-        const target = (rows || []).find(
-          (u) => u.email?.toLowerCase() === emailTarget,
-        )
-        if (target) {
-          await supabase
-            .from("users")
-            .update({ password_hash: form.password })
-            .eq("id", target.id)
+      if (resetErr) {
+        await supabase.auth.resetPasswordForEmail(emailTarget)
+      }
+
+      setMode("forgot_verify")
+      setInfoPesanHijau(
+        `Kode pemulihan keamanan telah dikirim ke ${emailTarget}. Silakan cek kotak masuk Gmail kamu.`,
+      )
+    } catch (err) {
+      setErrors({ gmail: "Gagal mengirim email pemulihan: " + err.message })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 5. LUPA PASSWORD TAHAP B: VERIFIKASI KODE GMAIL & SIMPAN PASSWORD BARU
+  const handleVerifikasiDanSimpanPasswordBaru = async (e) => {
+    e.preventDefault()
+    const errBaru = {}
+
+    if (!inputKodeOTP.trim() || inputKodeOTP.trim().length < 6) {
+      errBaru.otp =
+        "Masukkan 6 angka kode pemulihan yang dikirim ke Gmail kamu."
+    }
+    const errPass = cekValidasiPassword(form.password)
+    if (errPass) errBaru.password = errPass
+
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
+
+    setIsSubmitting(true)
+    try {
+      const emailTarget = formatOtomatisGmail(form.gmail)
+
+      // Verifikasi OTP ke Supabase Auth
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        email: emailTarget,
+        token: inputKodeOTP.trim(),
+        type: "email",
+      })
+
+      if (verifyErr) {
+        const { error: recErr } = await supabase.auth.verifyOtp({
+          email: emailTarget,
+          token: inputKodeOTP.trim(),
+          type: "recovery",
+        })
+        if (recErr) {
+          throw new Error("Kode pemulihan Gmail salah atau sudah kedaluwarsa.")
         }
       }
 
-      setResetPasswordTerkirim(true)
-      if (onNotify)
-        onNotify(`Instruksi pemulihan password telah dikirim ke ${emailTarget}`)
+      // Perbarui password di Supabase Auth & tabel users
+      await supabase.auth.updateUser({ password: form.password })
+      await supabase
+        .from("users")
+        .update({ password_hash: form.password })
+        .eq("email", emailTarget)
+
+      if (onNotify) {
+        onNotify(
+          "Password baru berhasil disimpan! Silakan masuk menggunakan password barumu.",
+        )
+      }
+      setInputKodeOTP("")
+      setMode("login")
+    } catch (err) {
+      setErrors({ otp: err.message })
     } finally {
       setIsSubmitting(false)
     }
@@ -298,7 +402,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
   return (
     <div className="min-h-screen w-full bg-[#fafafa] text-[#14141f] flex flex-col items-center justify-center p-4 font-sans antialiased">
-      {/* KARTU UTAMA GAYA INSTAGRAM FULLSCREEN */}
+      {/* KARTU UTAMA FULLSCREEN ALA INSTAGRAM */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-7 sm:p-9 shadow-xs space-y-6">
         {/* LOGO HOOKYA DI TENGAH ATAS */}
         <div className="flex flex-col items-center text-center space-y-2">
@@ -314,11 +418,17 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             {mode === "register" &&
               "Buat akun kreator baru dan klaim 50 Koin pertama gratis."}
             {mode === "verify_gmail" &&
-              "Konfirmasi alamat Gmail kamu untuk mengaktifkan akun."}
-            {mode === "forgot_password" &&
-              "Pemulihan kata sandi otomatis melalui akun Gmail terdaftar."}
+              "Wajib konfirmasi Gmail untuk mengaktifkan akun barumu."}
+            {(mode === "forgot_request" || mode === "forgot_verify") &&
+              "Layanan pemulihan password otomatis melalui Gmail."}
           </p>
         </div>
+
+        {infoPesanHijau && (
+          <div className="bg-[#f2fce2] border border-[#4d6b14]/25 text-[#4d6b14] p-3.5 rounded-2xl text-xs font-bold leading-relaxed">
+            ✓ {infoPesanHijau}
+          </div>
+        )}
 
         {/* =================================================================
             1. FORM LOGIN
@@ -378,14 +488,14 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-[#14141f]">
-                  Password (Minimal 8 Karakter/Angka)
+                  Password (Minimal 8 Angka / Karakter)
                 </label>
                 <button
                   type="button"
                   onClick={() => {
                     setErrors({})
-                    setResetPasswordTerkirim(false)
-                    setMode("forgot_password")
+                    setInfoPesanHijau("")
+                    setMode("forgot_request")
                   }}
                   className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] hover:underline"
                 >
@@ -442,7 +552,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         )}
 
         {/* =================================================================
-            2. FORM PENDAFTARAN LENGKAP (AUTO @GMAIL.COM, KEYBOARD ANGKA WA, MATA PASSWORD)
+            2. FORM PENDAFTARAN LENGKAP
         ================================================================= */}
         {mode === "register" && (
           <form
@@ -450,7 +560,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             className="space-y-3.5"
             autoComplete="on"
           >
-            {/* Nama Lengkap */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Nama Lengkap
@@ -474,7 +583,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               )}
             </div>
 
-            {/* Username */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Username
@@ -501,7 +609,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               )}
             </div>
 
-            {/* Gmail (Otomatis @gmail.com) */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Alamat Gmail (Otomatis @gmail.com)
@@ -514,9 +621,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   value={form.gmail}
                   onChange={(e) => {
                     let val = e.target.value
-                    if (val.endsWith("@")) {
-                      val = val + "gmail.com"
-                    }
+                    if (val.endsWith("@")) val = val + "gmail.com"
                     setForm({ ...form, gmail: val })
                     setErrors({ ...errors, gmail: "" })
                   }}
@@ -528,7 +633,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                       }))
                     }
                   }}
-                  placeholder="Ketik nama emailmu..."
+                  placeholder="Ketik nama akun Gmail kamu..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-24 text-xs focus:bg-white focus:border-[#14141f] outline-none"
                 />
                 {!form.gmail.includes("@gmail.com") && (
@@ -553,7 +658,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               )}
             </div>
 
-            {/* Konfirmasi Gmail */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Konfirmasi Alamat Gmail
@@ -595,7 +699,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               )}
             </div>
 
-            {/* Nomor WhatsApp (Keyboard HP Otomatis Angka + Validasi 08/628 & 11-13 Digit) */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Nomor WhatsApp (Wajib 11–12 Angka, Diawali 08 atau 628)
@@ -623,7 +726,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               )}
             </div>
 
-            {/* Password (Minimal 8 Karakter/Angka + Tombol Mata) */}
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
                 Password (Minimal 8 Angka / Karakter)
@@ -671,36 +773,35 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             >
               {isSubmitting
                 ? "Mengirim Konfirmasi ke Gmail..."
-                : "Daftar & Konfirmasi Gmail Sekarang"}
+                : "Daftar & Kirim Konfirmasi Gmail"}
             </button>
           </form>
         )}
 
         {/* =================================================================
-            3. LAYAR WAJIB KONFIRMASI GMAIL OTOMATIS
+            3. LAYAR VERIFIKASI GMAIL PENDAFTARAN (TANPA BOCORAN OTP DI LAYAR)
         ================================================================= */}
         {mode === "verify_gmail" && (
           <form
             onSubmit={handleSelesaikanKonfirmasiGmail}
             className="space-y-4"
           >
-            <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-2xl text-xs space-y-1.5">
-              <div className="font-bold text-[#4d6b14]">
-                Langkah Terakhir: Konfirmasi Akun Gmail Kamu
+            <div className="bg-[#f4f5f7] p-4 rounded-2xl text-xs space-y-1.5 border border-slate-200">
+              <div className="font-bold text-[#14141f]">
+                Cek Kotak Masuk Gmail: {form.gmail}
               </div>
-              <p className="text-slate-700 leading-relaxed">
-                Sistem telah mengirimkan email konfirmasi ke{" "}
-                <strong>{form.gmail}</strong>. Masukkan kode aktivasi otomatis
-                berikut untuk menyelesaikan verifikasi Gmail:
+              <p className="text-slate-600 leading-relaxed">
+                1. Klik tautan aktivasi di dalam email yang baru kami kirim,
+                lalu tekan tombol{" "}
+                <strong>"Saya Sudah Konfirmasi di Gmail"</strong> di bawah, ATAU
+                <br />
+                2. Masukkan 6 angka kode OTP jika tercantum di emailmu.
               </p>
-              <div className="bg-white border border-slate-200 rounded-xl p-2.5 text-center font-mono text-base font-bold tracking-widest text-[#14141f]">
-                {kodeVerifikasiDikirim}
-              </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
-                Masukkan 6 Angka Kode Konfirmasi Gmail
+                Kode OTP Gmail (Opsional jika sudah klik link di email)
               </label>
               <input
                 type="text"
@@ -710,7 +811,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   setInputKodeOTP(e.target.value)
                   setErrors({})
                 }}
-                placeholder="Ketik 6 angka kode di atas..."
+                placeholder="Masukkan 6 angka OTP..."
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-4 py-3 text-center text-sm font-bold tracking-widest outline-none focus:border-[#14141f]"
               />
               {errors.otp && (
@@ -726,8 +827,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
             >
               {isSubmitting
-                ? "Mengaktifkan Akun..."
-                : "Konfirmasi Gmail & Masuk ke Aplikasi"}
+                ? "Memeriksa Status Konfirmasi Gmail..."
+                : "Saya Sudah Konfirmasi di Gmail ➔"}
             </button>
 
             <button
@@ -735,25 +836,31 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               onClick={() => setMode("register")}
               className="cursor-pointer w-full text-xs font-bold text-slate-500 py-1"
             >
-              ← Kembali Ubah Data Pendaftaran
+              ← Kembali Ubah Alamat Gmail
             </button>
           </form>
         )}
 
         {/* =================================================================
-            4. LAYAR LUPA PASSWORD OTOMATIS VIA GMAIL
+            4. LAYAR LUPA PASSWORD TAHAP 1 (MINTA KODE PEMULIHAN KE GMAIL)
         ================================================================= */}
-        {mode === "forgot_password" && (
-          <form onSubmit={handleLupaPasswordGmail} className="space-y-4">
+        {mode === "forgot_request" && (
+          <form
+            onSubmit={handleKirimPermintaanLupaPassword}
+            className="space-y-4"
+          >
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
-                Alamat Gmail Terdaftar
+                Masukkan Alamat Gmail Terdaftar
               </label>
               <input
                 type="email"
                 autoComplete="email"
                 value={form.gmail}
-                onChange={(e) => setForm({ ...form, gmail: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, gmail: e.target.value })
+                  setErrors({})
+                }}
                 onBlur={() =>
                   setForm((prev) => ({
                     ...prev,
@@ -761,24 +868,84 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   }))
                 }
                 placeholder="nama@gmail.com"
-                className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-3 text-xs outline-none focus:bg-white focus:border-[#14141f]"
               />
+              {errors.gmail && (
+                <p className="text-[11px] font-bold text-rose-600 mt-1">
+                  ⚠️ {errors.gmail}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
+            >
+              {isSubmitting
+                ? "Mengirim Kode Pemulihan ke Gmail..."
+                : "Kirim Kode Pemulihan ke Gmail Saya"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className="cursor-pointer w-full text-xs font-bold text-slate-600 py-1"
+            >
+              ← Kembali ke Halaman Masuk
+            </button>
+          </form>
+        )}
+
+        {/* =================================================================
+            5. LAYAR LUPA PASSWORD TAHAP 2 (VERIFIKASI OTP GMAIL + PASSWORD BARU)
+        ================================================================= */}
+        {mode === "forgot_verify" && (
+          <form
+            onSubmit={handleVerifikasiDanSimpanPasswordBaru}
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-xs font-bold text-[#14141f] mb-1">
+                Kode Pemulihan 6 Angka dari Gmail ({form.gmail})
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={inputKodeOTP}
+                onChange={(e) => {
+                  setInputKodeOTP(e.target.value)
+                  setErrors({ ...errors, otp: "" })
+                }}
+                placeholder="Ketik 6 angka kode dari Gmail..."
+                className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-4 py-3 text-center text-sm font-bold tracking-widest outline-none focus:border-[#14141f]"
+              />
+              {errors.otp && (
+                <p className="text-[11px] font-bold text-rose-600 mt-1">
+                  ⚠️ {errors.otp}
+                </p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-bold text-[#14141f] mb-1">
-                Password Baru (Minimal 8 Angka / Karakter)
+                Buat Password Baru (Minimal 8 Angka / Karakter)
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  placeholder="Ketik password baru..."
-                  className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-11 text-xs outline-none"
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
+                    setErrors({
+                      ...errors,
+                      password: val ? cekValidasiPassword(val) : "",
+                    })
+                  }}
+                  placeholder="Minimal 8 angka atau huruf..."
+                  className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-11 text-xs outline-none focus:bg-white focus:border-[#14141f]"
                 />
                 <button
                   type="button"
@@ -791,14 +958,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   />
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-[11px] font-bold text-rose-600 mt-1">
+                  ⚠️ {errors.password}
+                </p>
+              )}
             </div>
-
-            {resetPasswordTerkirim && (
-              <div className="bg-[#f2fce2] text-[#4d6b14] p-3.5 rounded-xl text-xs font-bold">
-                ✓ Tautan pemulihan Gmail & pembaruan password telah diproses!
-                Silakan masuk dengan password barumu.
-              </div>
-            )}
 
             <button
               type="submit"
@@ -806,22 +971,14 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
             >
               {isSubmitting
-                ? "Memproses Pemulihan Gmail..."
-                : "Kirim Konfirmasi Gmail & Perbarui Password"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className="cursor-pointer w-full text-xs font-bold text-slate-600 py-1"
-            >
-              ← Kembali ke Halaman Masuk
+                ? "Memverifikasi & Menyimpan Password..."
+                : "Verifikasi Kode & Simpan Password Baru"}
             </button>
           </form>
         )}
       </div>
 
-      {/* KOTAK BAWAH ALA INSTAGRAM UNTUK BERPINDAH ANTARA LOGIN & DAFTAR */}
+      {/* KOTAK BAWAH ALA INSTAGRAM */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-4 mt-3 text-center text-xs">
         {mode === "login" ? (
           <span>
@@ -830,6 +987,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               type="button"
               onClick={() => {
                 setErrors({})
+                setInfoPesanHijau("")
                 setMode("register")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
@@ -844,6 +1002,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               type="button"
               onClick={() => {
                 setErrors({})
+                setInfoPesanHijau("")
                 setMode("login")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
