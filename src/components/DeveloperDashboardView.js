@@ -1,7 +1,7 @@
-"use client"
-import { useState, useEffect } from "react"
-import { supabase } from "../lib/supabase"
-import { FlatIcon } from "./SharedUI"
+"use client";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
+import { FlatIcon } from "./SharedUI";
 
 export default function DeveloperDashboardView({
   onSwitchToUserView,
@@ -10,6 +10,8 @@ export default function DeveloperDashboardView({
   koleksiSkripTersimpan,
   pengaturanPayment,
   setPengaturanPayment,
+  pinAdminResmi,
+  setPinAdminResmi,
   daftarVoucher,
   setDaftarVoucher,
   customPrompts,
@@ -20,13 +22,20 @@ export default function DeveloperDashboardView({
   muatUlangDataSupabase,
   showToast,
 }) {
-  const [devTab, setDevTab] = useState("overview") // 'overview' | 'error_logs' | 'transaksi' | 'users' | 'voucher' | 'prompt'
-  const [daftarErrorLog, setDaftarErrorLog] = useState([])
+  const [devTab, setDevTab] = useState("overview");
+  const [daftarErrorLog, setDaftarErrorLog] = useState([]);
   const [voucherBaru, setVoucherBaru] = useState({
     kode: "",
     koin: "100",
     kuota: "25",
-  })
+  });
+
+  // State Edit Email & Password Akun User/Admin Langsung dari Dashboard Dev
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({
+    email: "",
+    password: "",
+  });
 
   const muatErrorLogs = async () => {
     try {
@@ -34,77 +43,94 @@ export default function DeveloperDashboardView({
         .from("error_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(50)
-      if (data) setDaftarErrorLog(data)
+        .limit(50);
+      if (data) setDaftarErrorLog(data);
     } catch {
-      // Abaikan jika tabel belum ada
+      // Abaikan
     }
-  }
+  };
 
   useEffect(() => {
-    muatErrorLogs()
-  }, [])
+    muatErrorLogs();
+  }, []);
+
+  const handleSimpanEmailPasswordUser = async (uId) => {
+    try {
+      const updatePayload = {};
+      if (editUserForm.email.trim()) {
+        updatePayload.email = editUserForm.email.trim().toLowerCase();
+      }
+      if (editUserForm.password.trim()) {
+        updatePayload.password_hash = editUserForm.password.trim();
+      }
+      await supabase.from("users").update(updatePayload).eq("id", uId);
+      setEditingUserId(null);
+      await muatUlangDataSupabase();
+      showToast("Email & Password akun berhasil diperbarui!");
+    } catch (err) {
+      showToast("Gagal memperbarui akun: " + err.message);
+    }
+  };
 
   const totalOmzetLunas = daftarTransaksi
     .filter((t) => t.status === "lunas")
-    .reduce((acc, cur) => acc + (parseInt(cur.nominal_bayar) || 0), 0)
+    .reduce((acc, cur) => acc + (parseInt(cur.nominal_bayar) || 0), 0);
 
   const jumlahTransaksiPending = daftarTransaksi.filter(
-    (t) => t.status === "pending",
-  ).length
+    (t) => t.status === "pending"
+  ).length;
 
   return (
-    <div className="min-h-screen bg-[#14141f] text-white flex flex-col font-sans antialiased">
-      {/* HEADER KHUSUS DEVELOPER DASHBOARD (DENGAN TOMBOL GANTI TAMPILAN KE USER) */}
-      <header className="sticky top-0 z-40 h-16 bg-[#14141f] border-b border-white/10 px-4 sm:px-8 flex items-center justify-between">
+    <div className="min-h-screen bg-[#14141f] text-white flex flex-col font-sans antialiased overflow-x-hidden">
+      <header className="sticky top-0 z-40 h-16 bg-[#14141f] border-b border-white/10 px-4 sm:px-8 flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-base">
+          <div className="w-9 h-9 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-base shrink-0">
             H
           </div>
           <div>
             <span className="font-bold text-sm sm:text-base text-white block leading-none">
               Hookya Developer Console
             </span>
-            <span className="text-[11px] text-[#d4f34a]">
-              Pusat Manajerial Aplikasi, Pengguna & Pantauan Sistem
+            <span className="text-[11px] text-[#d4f34a] hidden sm:inline">
+              Pusat Manajerial Aplikasi, Keamanan PIN & Payment Gateway
             </span>
           </div>
         </div>
 
-        {/* TOMBOL KHUSUS DEVELOPER UNTUK MENGGANTI TAMPILAN MENJADI DASHBOARD USER */}
         <button
           type="button"
           onClick={onSwitchToUserView}
-          className="cursor-pointer flex items-center gap-2 bg-[#d4f34a] text-[#14141f] px-4 py-2 rounded-full text-xs font-bold shadow-md hover:opacity-95 transition"
+          className="cursor-pointer flex items-center gap-2 bg-[#d4f34a] text-[#14141f] px-3.5 py-2 rounded-full text-xs font-bold shadow-md hover:opacity-95 transition shrink-0"
         >
           <FlatIcon name="user" className="w-4 h-4" />
-          <span>Ganti Tampilan ke Dashboard User ➔</span>
+          <span>Ke Dashboard User ➔</span>
         </button>
       </header>
 
-      {/* KONTEN MANAJERIAL DEVELOPER */}
       <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 space-y-6">
-        {/* Navigasi Tab Manajerial */}
         <div className="flex flex-wrap gap-2 bg-white/5 p-2 rounded-2xl border border-white/10">
           {[
-            { id: "overview", label: "Ringkasan & Analitik" },
+            { id: "overview", label: "Ringkasan & Ubah PIN Dev" },
             {
               id: "error_logs",
-              label: `Laporan Error AI & Auto-Refund (${daftarErrorLog.length})`,
+              label: `Laporan Error AI (${daftarErrorLog.length})`,
             },
             {
               id: "transaksi",
-              label: `Transaksi & Midtrans (${jumlahTransaksiPending} Pending)`,
+              label: `Payment Gateway & Transaksi (${jumlahTransaksiPending} Pending)`,
             },
-            { id: "users", label: `Kelola Pengguna (${semuaUserDB.length})` },
+            {
+              id: "users",
+              label: `Kelola Akun & Password (${semuaUserDB.length})`,
+            },
             { id: "voucher", label: "Generator Voucher" },
-            { id: "prompt", label: "Studio Kendali Prompt AI" },
+            { id: "prompt", label: "Studio Prompt AI" },
           ].map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setDevTab(t.id)}
-              className={`cursor-pointer px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              className={`cursor-pointer px-3.5 py-2 rounded-xl text-xs font-bold transition ${
                 devTab === t.id
                   ? "bg-[#d4f34a] text-[#14141f]"
                   : "text-slate-300 hover:bg-white/10"
@@ -115,12 +141,12 @@ export default function DeveloperDashboardView({
           ))}
         </div>
 
-        <div className="bg-white text-[#14141f] rounded-[2rem] p-6 sm:p-8 shadow-xl space-y-6">
-          {/* TAB 1: RINGKASAN MANAJERIAL */}
+        <div className="bg-white text-[#14141f] rounded-4xl p-5 sm:p-8 shadow-xl space-y-6">
+          {/* TAB 1: RINGKASAN & GANTI PIN DEVELOPER */}
           {devTab === "overview" && (
             <div className="space-y-6">
               <h2 className="text-lg font-bold">
-                Ringkasan Manajerial Aplikasi Hookya
+                Ringkasan Manajerial & Keamanan PIN Developer
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="p-5 rounded-2xl bg-[#14141f] text-white">
@@ -147,30 +173,35 @@ export default function DeveloperDashboardView({
                     {koleksiSkripTersimpan.length} Skrip
                   </div>
                 </div>
-                <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200">
-                  <span className="text-xs text-rose-700">
-                    Laporan Gagal Generate (Auto-Refund)
+                <div className="p-5 rounded-2xl bg-[#f2fce2] border border-[#4d6b14]/30 space-y-1.5">
+                  <label className="text-xs font-bold text-[#4d6b14] block">
+                    Ubah PIN Akses Developer:
+                  </label>
+                  <input
+                    type="text"
+                    value={pinAdminResmi}
+                    onChange={(e) => setPinAdminResmi(e.target.value)}
+                    placeholder="Contoh: 123456"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-[#14141f] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-600 block">
+                    Klik tombol Simpan di bawah setelah mengubah PIN.
                   </span>
-                  <div className="text-2xl font-bold text-rose-900 mt-1">
-                    {daftarErrorLog.length} Kejadian
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: LAPORAN ERROR AI & KOMPENSASI KOIN DIAM-DIAM */}
+          {/* TAB 2: LAPORAN ERROR */}
           {devTab === "error_logs" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-bold">
-                    Laporan Error Generate AI & Penggantian Koin Otomatis
+                    Laporan Error Generate AI & Auto-Refund Koin
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Setiap kali pengguna mengalami gagal generate atau video
-                    tidak terbaca, sistem otomatis mengembalikan koin mereka di
-                    belakang layar dan mencatatnya di sini.
+                    Jika AI gagal merespons, koin pengguna otomatis dikembalikan di belakang layar.
                   </p>
                 </div>
                 <button
@@ -184,8 +215,7 @@ export default function DeveloperDashboardView({
 
               {daftarErrorLog.length === 0 ? (
                 <p className="text-xs text-slate-500 py-8 text-center">
-                  Belum ada laporan error. Seluruh proses generate AI berjalan
-                  lancar.
+                  Belum ada laporan error.
                 </p>
               ) : (
                 <div className="space-y-2.5">
@@ -199,39 +229,11 @@ export default function DeveloperDashboardView({
                           User: {log.nama_user || "Pengguna"} • Fitur:{" "}
                           <span className="underline">{log.fitur}</span>
                         </div>
-                        <p className="text-rose-700 font-normal">
-                          Pesan Kendala: {log.pesan_error}
-                        </p>
-                        <span className="text-[11px] text-slate-400 block">
-                          Waktu:{" "}
-                          {new Date(log.created_at).toLocaleString("id-ID")}
-                        </span>
+                        <p className="text-rose-700">{log.pesan_error}</p>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
-                          ✓ +{log.koin_diganti || 1} Koin Otomatis Diganti
-                        </span>
-                        {log.user_id && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const u = semuaUserDB.find(
-                                (x) => x.id === log.user_id,
-                              )
-                              if (u) {
-                                updateKoinDatabase((u.koin || 0) + 5, u.id)
-                                showToast(
-                                  `Hadiah ekstra +5 Koin dikirim diam-diam ke ${u.nama}!`,
-                                )
-                              }
-                            }}
-                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-xl"
-                          >
-                            + Beri Hadiah 5 Koin Lagi
-                          </button>
-                        )}
-                      </div>
+                      <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
+                        ✓ +{log.koin_diganti || 1} Koin Otomatis Diganti
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -239,17 +241,17 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 3: TRANSAKSI & PENGATURAN PAYMENT */}
+          {/* TAB 3: PAYMENT GATEWAY PENGGANTI MIDTRANS & TRANSAKSI */}
           {devTab === "transaksi" && (
             <div className="space-y-5">
               <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
                 <h3 className="text-sm font-bold">
-                  Pengaturan Pembayaran QRIS & Midtrans
+                  Pengaturan Payment Gateway (QRIS Merchant / Mayar.id / Tripay / Midtrans)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold mb-1">
-                      Mode Verifikasi Checkout Manual:
+                      Mode Verifikasi Pembayaran:
                     </label>
                     <select
                       value={pengaturanPayment.modeVerifikasi}
@@ -264,23 +266,62 @@ export default function DeveloperDashboardView({
                       <option value="manual_admin">
                         Verifikasi Manual Admin (Tunggu Klik Terima)
                       </option>
-                      <option value="otomatis">Verifikasi Otomatis</option>
+                      <option value="otomatis">
+                        Verifikasi Otomatis
+                      </option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold mb-1">
-                      URL Gambar QRIS Merchant:
+                      Link Payment Gateway Pengganti (Mayar.id / Tripay / Lynk.id):
                     </label>
                     <input
                       type="text"
-                      value={pengaturanPayment.qrisImageUrl}
+                      value={pengaturanPayment.externalPaymentUrl || ""}
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          externalPaymentUrl: e.target.value,
+                        })
+                      }
+                      placeholder="Contoh: https://mayar.id/hookya"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      URL Gambar QRIS Merchant Pribadimu:
+                    </label>
+                    <input
+                      type="text"
+                      value={pengaturanPayment.qrisImageUrl || ""}
                       onChange={(e) =>
                         setPengaturanPayment({
                           ...pengaturanPayment,
                           qrisImageUrl: e.target.value,
                         })
                       }
-                      placeholder="https://.../qris.png"
+                      placeholder="https://.../qris-hookya.png"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Info Nomor Rekening / E-Wallet Tujuan:
+                    </label>
+                    <input
+                      type="text"
+                      value={pengaturanPayment.infoRekening || ""}
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          infoRekening: e.target.value,
+                        })
+                      }
+                      placeholder="BCA / SeaBank / GoPay / DANA a.n Faqih"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
                     />
                   </div>
@@ -300,9 +341,8 @@ export default function DeveloperDashboardView({
                       </strong>
                       <div className="text-slate-500 mt-0.5">
                         Tagihan: Rp
-                        {Number(trx.nominal_bayar).toLocaleString(
-                          "id-ID",
-                        )} • {trx.metode_bayar}
+                        {Number(trx.nominal_bayar).toLocaleString("id-ID")} •{" "}
+                        {trx.metode_bayar}
                       </div>
                     </div>
                     {trx.status === "pending" ? (
@@ -324,64 +364,125 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 4: KELOLA PENGGUNA */}
+          {/* TAB 4: KELOLA PENGGUNA + FITUR LIHAT & GANTI EMAIL/PASSWORD LANGSUNG */}
           {devTab === "users" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">
-                  Manajemen Akun Pengguna & Koin
-                </h2>
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Manajemen Akun Pengguna, Email, Password & Koin
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Kamu bisa melihat email/password login setiap akun (termasuk akun pribadimu) dan mengubahnya langsung di sini.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => muatUlangDataSupabase()}
                   className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
                 >
-                  Refresh User
+                  Refresh Data
                 </button>
               </div>
-              {semuaUserDB.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <div className="font-bold text-sm">
-                      {u.nama} (@
-                      {u.username || u.profil_dna?.username || "user"})
+
+              {semuaUserDB.map((u) => {
+                const emailSaatIni =
+                  u.email || u.profil_dna?.kontak || "Belum diatur";
+                const passwordSaatIni =
+                  u.password_hash || u.profil_dna?.pin || "12345678";
+
+                return (
+                  <div
+                    key={u.id}
+                    className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 space-y-3 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-sm">
+                          {u.nama} (@
+                          {u.username ||
+                            u.profil_dna?.username ||
+                            u.nama?.toLowerCase()}
+                          )
+                        </div>
+                        <div className="text-slate-600 mt-0.5">
+                          Gmail Login: <strong>{emailSaatIni}</strong> •
+                          Password: <strong>{passwordSaatIni}</strong> • WA:{" "}
+                          {u.whatsapp || u.profil_dna?.whatsapp || "-"}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingUserId(
+                              editingUserId === u.id ? null : u.id
+                            );
+                            setEditUserForm({
+                              email:
+                                u.email || u.profil_dna?.kontak || "",
+                              password:
+                                u.password_hash || u.profil_dna?.pin || "",
+                            });
+                          }}
+                          className="cursor-pointer bg-white border border-slate-300 font-bold px-3 py-1.5 rounded-xl"
+                        >
+                          Ubah Email / Password
+                        </button>
+                        <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl font-bold">
+                          {u.koin} Koin
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateKoinDatabase((u.koin || 0) + 50, u.id)
+                          }
+                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-xl"
+                        >
+                          +50 Koin
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-slate-500">
-                      Gmail: {u.email || u.profil_dna?.kontak || "-"} • WA:{" "}
-                      {u.whatsapp || u.profil_dna?.whatsapp || "-"}
-                    </div>
+
+                    {editingUserId === u.id && (
+                      <div className="bg-white p-3.5 rounded-xl border border-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <input
+                          type="email"
+                          value={editUserForm.email}
+                          onChange={(e) =>
+                            setEditUserForm({
+                              ...editUserForm,
+                              email: e.target.value,
+                            })
+                          }
+                          placeholder="Email Gmail baru..."
+                          className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={editUserForm.password}
+                          onChange={(e) =>
+                            setEditUserForm({
+                              ...editUserForm,
+                              password: e.target.value,
+                            })
+                          }
+                          placeholder="Password baru (min 8 karakter)..."
+                          className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSimpanEmailPasswordUser(u.id)}
+                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold py-2 rounded-xl"
+                        >
+                          Simpan Email & Password Baru
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl font-bold">
-                      {u.koin} Koin
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateKoinDatabase((u.koin || 0) + 50, u.id)
-                      }
-                      className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-xl"
-                    >
-                      +50 Koin
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateKoinDatabase(
-                          Math.max(0, (u.koin || 0) - 50),
-                          u.id,
-                        )
-                      }
-                      className="cursor-pointer bg-white border border-slate-300 font-bold px-3 py-1.5 rounded-xl"
-                    >
-                      -50 Koin
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -422,7 +523,7 @@ export default function DeveloperDashboardView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!voucherBaru.kode.trim()) return
+                    if (!voucherBaru.kode.trim()) return;
                     setDaftarVoucher([
                       {
                         kode: voucherBaru.kode.trim().toUpperCase(),
@@ -431,9 +532,9 @@ export default function DeveloperDashboardView({
                         terpakai: 0,
                       },
                       ...daftarVoucher,
-                    ])
-                    setVoucherBaru({ kode: "", koin: "100", kuota: "25" })
-                    showToast("Voucher ditambahkan!")
+                    ]);
+                    setVoucherBaru({ kode: "", koin: "100", kuota: "25" });
+                    showToast("Voucher ditambahkan!");
                   }}
                   className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
                 >
@@ -454,7 +555,7 @@ export default function DeveloperDashboardView({
                     type="button"
                     onClick={() =>
                       setDaftarVoucher(
-                        daftarVoucher.filter((_, idx) => idx !== i),
+                        daftarVoucher.filter((_, idx) => idx !== i)
                       )
                     }
                     className="cursor-pointer text-rose-600 font-bold"
@@ -525,10 +626,10 @@ export default function DeveloperDashboardView({
             onClick={simpanPengaturanDevKeDB}
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-4 rounded-2xl"
           >
-            Simpan Seluruh Pengaturan Manajerial Developer ke Database
+            Simpan Seluruh Pengaturan Manajerial & PIN Developer ke Database
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

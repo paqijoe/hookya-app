@@ -128,6 +128,7 @@ export default function HookyaMainApp() {
 
   const [profil, setProfil] = useState({
     nama: "Kreator",
+    username: "",
     usia: "28",
     gender: "Laki-laki",
     peranSaatIni: "Praktisi Bisnis & Kreator Digital",
@@ -253,7 +254,6 @@ export default function HookyaMainApp() {
   const [modeTampilanSkrip, setModeTampilanSkrip] = useState("voiceover")
   const [modeTeleprompter, setModeTeleprompter] = useState(false)
 
-  // Koleksi skrip khusus milik user yang sedang login vs seluruh skrip untuk statistik Developer
   const [koleksiSkripTersimpan, setKoleksiSkripTersimpan] = useState([])
   const [semuaSkripAdmin, setSemuaSkripAdmin] = useState([])
   const [formKinerja, setFormKinerja] = useState({})
@@ -272,6 +272,7 @@ export default function HookyaMainApp() {
     namaMerchant: "HOOKYA OFFICIAL",
     infoRekening: "BCA / SeaBank / GoPay / DANA a.n Admin Hookya",
     qrisImageUrl: "",
+    externalPaymentUrl: "",
   })
 
   const [daftarVoucher, setDaftarVoucher] = useState([
@@ -308,7 +309,7 @@ export default function HookyaMainApp() {
 
         activeUser = userRows.find((u) => u.id === savedId)
 
-        // Ambil pengaturan global (Voucher, Payment, PIN Admin) dari akun pertama/admin jika ada
+        // Ambil pengaturan global (Voucher, Payment, PIN Admin) dari akun admin/pertama
         const adminRow = userRows.find((u) => u.role === "admin") || userRows[0]
         if (adminRow?.profil_dna) {
           if (Array.isArray(adminRow.profil_dna.daftarVoucher)) {
@@ -336,6 +337,10 @@ export default function HookyaMainApp() {
             ...prev,
             ...(activeUser.profil_dna || {}),
             nama: activeUser.nama || prev.nama,
+            username:
+              activeUser.username ||
+              activeUser.profil_dna?.username ||
+              prev.username,
           }))
           if (activeUser.profil_dna?.rawWritingSamples) {
             setRawWritingSamples(activeUser.profil_dna.rawWritingSamples)
@@ -396,7 +401,6 @@ export default function HookyaMainApp() {
         const semuaTerformat = scriptRows.map(formatBarisSkrip)
         setSemuaSkripAdmin(semuaTerformat)
 
-        // ISOLASI DATA: Pengguna hanya melihat skrip miliknya sendiri!
         const idAktifSekarang = activeUser?.id || idTarget
         if (idAktifSekarang) {
           setKoleksiSkripTersimpan(
@@ -413,7 +417,7 @@ export default function HookyaMainApp() {
         .order("created_at", { ascending: false })
       if (trxRows) setDaftarTransaksi(trxRows)
     } catch {
-      // Fallback
+      // Abaikan jika koneksi awal belum siap
     }
   }
 
@@ -503,7 +507,6 @@ export default function HookyaMainApp() {
     return skripObj
   }
 
-  // Hitung Pengingat Evaluasi 7 Hari (Sepekan) Setelah Tanggal Upload
   const hitungStatusPengingatSepekan = (tglUploadStr, sudahEvaluasi) => {
     if (!tglUploadStr) return null
     const tglUpload = new Date(tglUploadStr)
@@ -541,31 +544,36 @@ export default function HookyaMainApp() {
     }
   }
 
-  // Handler Pembelian Paket Koin
+  // Handler Pembelian Paket Koin (Mendukung Link Payment Pengganti, Midtrans & QRIS)
   const bukaLayarCheckoutPaket = async (paketObj) => {
     const kodeUnik = Math.floor(101 + Math.random() * 890)
     const nomorInvoice = `INV-${Date.now().toString().slice(-6)}`
 
-    try {
-      const res = await fetch("/api/payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create_gateway_invoice",
-          invoiceId: nomorInvoice,
-          userId,
-          namaUser: profil.nama,
-          namaPaket: paketObj.nama,
-          jumlahKoin: paketObj.koin,
-          nominal: paketObj.nominalAngka,
-        }),
-      })
-      const data = await res.json()
-      if (data.mode === "midtrans" && data.redirectUrl) {
-        window.open(data.redirectUrl, "_blank")
+    // Jika Admin sudah mengisi Link Payment Gateway Pengganti (Mayar.id / Tripay / Lynk.id), buka link tersebut
+    if (pengaturanPayment.externalPaymentUrl?.trim()) {
+      window.open(pengaturanPayment.externalPaymentUrl.trim(), "_blank")
+    } else {
+      try {
+        const res = await fetch("/api/payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "create_gateway_invoice",
+            invoiceId: nomorInvoice,
+            userId,
+            namaUser: profil.nama,
+            namaPaket: paketObj.nama,
+            jumlahKoin: paketObj.koin,
+            nominal: paketObj.nominalAngka,
+          }),
+        })
+        const data = await res.json()
+        if (data.mode === "midtrans" && data.redirectUrl) {
+          window.open(data.redirectUrl, "_blank")
+        }
+      } catch {
+        // Lanjut buka modal QRIS
       }
-    } catch {
-      // Lanjut buka modal QRIS
     }
 
     setCheckoutModal({
@@ -720,10 +728,11 @@ export default function HookyaMainApp() {
     showToast("Laporan kinerja disimpan & bonus +2 Koin ditambahkan!")
   }
 
-  // Cek apakah pengguna yang login adalah Admin/Developer
+  // Deteksi otomatis apakah akun yang sedang aktif adalah Admin/Pemilik
   const isAdminAccount =
     userRole === "admin" ||
     profil.nama?.toLowerCase().includes("faqih") ||
+    profil.nama?.toLowerCase().includes("qih") ||
     profil.nama?.toLowerCase().includes("admin") ||
     profil.username?.toLowerCase() === "paqijoe"
 
@@ -752,7 +761,7 @@ export default function HookyaMainApp() {
   }
 
   // ============================================================================
-  // 2. LAYAR DASHBOARD DEVELOPER TERPISAH
+  // 2. LAYAR DASHBOARD DEVELOPER TERPISAH (DENGAN PENGATUR PIN DINAMIS)
   // ============================================================================
   if (viewMode === "dev") {
     return (
@@ -765,6 +774,8 @@ export default function HookyaMainApp() {
         }
         pengaturanPayment={pengaturanPayment}
         setPengaturanPayment={setPengaturanPayment}
+        pinAdminResmi={pinAdminResmi}
+        setPinAdminResmi={setPinAdminResmi}
         daftarVoucher={daftarVoucher}
         setDaftarVoucher={setDaftarVoucher}
         customPrompts={customPrompts}
@@ -789,7 +800,7 @@ export default function HookyaMainApp() {
         }}
         simpanPengaturanDevKeDB={() => {
           simpanPersonaKeSupabase(personaProfile)
-          showToast("Seluruh pengaturan manajerial Developer disimpan!")
+          showToast("Seluruh pengaturan manajerial & PIN Developer disimpan!")
         }}
         muatUlangDataSupabase={muatUlangDataSupabase}
         showToast={showToast}
@@ -798,7 +809,7 @@ export default function HookyaMainApp() {
   }
 
   // ============================================================================
-  // 3. LAYAR DASHBOARD PENGGUNA
+  // 3. LAYAR DASHBOARD PENGGUNA (TERKUNCI AGAR TIDAK MELEBAR DI HP)
   // ============================================================================
   const daftarMenuUser = [
     { id: "dna", label: "Profil & Gaya Bicara", icon: "dna" },
@@ -873,7 +884,7 @@ export default function HookyaMainApp() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] text-[#14141f] flex flex-col font-sans antialiased tracking-tight">
+    <div className="min-h-screen bg-[#f4f5f7] text-[#14141f] flex flex-col font-sans antialiased tracking-tight overflow-x-hidden w-full max-w-[100vw]">
       {toastMsg && (
         <div className="fixed bottom-5 right-5 z-50 bg-[#14141f] text-[#d4f34a] px-5 py-3.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2.5 border border-[#d4f34a]/40 max-w-md">
           <FlatIcon name="check" className="w-4 h-4 shrink-0" />
@@ -929,7 +940,7 @@ export default function HookyaMainApp() {
             className="cursor-pointer flex items-center gap-2 bg-white/10 hover:bg-white/15 pl-3 pr-2.5 py-1.5 rounded-full text-xs transition border border-white/15"
           >
             <span className="w-2 h-2 rounded-full bg-[#d4f34a]" />
-            <span className="font-bold text-white truncate max-w-[90px] sm:max-w-[140px]">
+            <span className="font-bold text-white truncate max-w-22.5 sm:max-w-35">
               {profil.nama}
             </span>
             <span className="bg-[#d4f34a] text-[#14141f] font-bold px-2.5 py-0.5 rounded-full text-[11px] flex items-center gap-1">
@@ -1029,7 +1040,7 @@ export default function HookyaMainApp() {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col md:flex-row">
+      <div className="flex-1 flex flex-col md:flex-row w-full max-w-full">
         {/* DRAWER SIDEBAR HP */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 md:hidden flex">
@@ -1080,18 +1091,33 @@ export default function HookyaMainApp() {
                 </nav>
               </div>
 
-              {isAdminAccount && (
+              <div className="space-y-2 pt-4 border-t border-white/10">
+                {isAdminAccount && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSidebarOpen(false)
+                      setShowPinModal(true)
+                    }}
+                    className="cursor-pointer w-full bg-white/10 text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
+                  >
+                    Buka Dashboard Developer
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
                     setSidebarOpen(false)
-                    setShowPinModal(true)
+                    if (typeof window !== "undefined") {
+                      localStorage.removeItem("hookya_active_user_id")
+                    }
+                    setViewMode("auth")
                   }}
-                  className="cursor-pointer w-full bg-white/10 text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
+                  className="cursor-pointer w-full bg-white/5 text-slate-300 text-xs font-bold py-2.5 rounded-xl"
                 >
-                  Buka Dashboard Developer
+                  Keluar / Ganti Akun
                 </button>
-              )}
+              </div>
             </aside>
           </div>
         )}
@@ -1147,8 +1173,7 @@ export default function HookyaMainApp() {
         </aside>
 
         {/* AREA KONTEN UTAMA */}
-        <main className="flex-1 p-3 sm:p-5 md:pl-0 max-w-5xl">
-          {/* MENU 1: PROFIL & GAYA BICARA LENGKAP */}
+        <main className="flex-1 min-w-0 w-full max-w-5xl p-3 sm:p-5 md:pl-0">
           {activeMenu === "dna" && (
             <PersonaDNAView
               userId={userId}
@@ -1175,7 +1200,6 @@ export default function HookyaMainApp() {
             />
           )}
 
-          {/* MENU 2: BUAT SKRIP KONTEN */}
           {activeMenu === "produksi" && (
             <ScriptProducerView
               userId={userId}
@@ -1206,7 +1230,6 @@ export default function HookyaMainApp() {
             />
           )}
 
-          {/* MENU 3: EKSTRAK VIDEO KE SKRIP */}
           {activeMenu === "rewrite" && (
             <VideoExtractorView
               userId={userId}
@@ -1222,7 +1245,6 @@ export default function HookyaMainApp() {
             />
           )}
 
-          {/* MENU 4: SKRIP TERSIMPAN & STATUS UPLOAD */}
           {activeMenu === "tersimpan" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -1232,8 +1254,7 @@ export default function HookyaMainApp() {
                   </h2>
                   <p className="text-xs text-slate-600 mt-1">
                     Ceklis skrip yang sudah kamu rekam dan upload menjadi konten
-                    VT, lalu isi tanggal uploadnya agar sistem menjadwalkan
-                    pengingat evaluasi sepekan.
+                    VT, lalu isi tanggal uploadnya.
                   </p>
                 </div>
                 <button
@@ -1296,7 +1317,7 @@ export default function HookyaMainApp() {
                       {item.sudahUpload && (
                         <div className="flex items-center gap-2 text-xs">
                           <span className="text-slate-600">
-                            Tanggal Konten Diupload:
+                            Tanggal Upload:
                           </span>
                           <input
                             type="date"
@@ -1324,17 +1345,16 @@ export default function HookyaMainApp() {
             </div>
           )}
 
-          {/* MENU 5: LAPORAN KINERJA VT SEPEKAN SETELAH UPLOAD */}
           {activeMenu === "rapor" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
               <div className="border-b border-slate-100 pb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-                  Laporan Kinerja VT Sepekan Setelah Upload (+2 Koin)
+                  Laporan Kinerja VT Sepekan Setelah Upload (Bonus +2 Koin)
                 </h2>
                 <p className="text-xs text-slate-600 mt-1">
                   Pantau pengingat evaluasi 7 hari untuk setiap skrip yang sudah
-                  kamu upload menjadi konten, lalu masukkan jumlah views, like,
-                  dan komentar.
+                  kamu upload menjadi konten, lalu laporkan jumlah views, like,
+                  dan komentar untuk mendapatkan hadiah +2 Koin.
                 </p>
               </div>
 
@@ -1373,16 +1393,14 @@ export default function HookyaMainApp() {
                         key={item.id}
                         className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3.5"
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <span className="text-xs text-slate-500">
-                              Diupload pada:{" "}
-                              <strong>{item.tanggalUpload || "-"}</strong>
-                            </span>
-                            <h4 className="font-bold text-sm sm:text-base">
-                              {item.judul}
-                            </h4>
-                          </div>
+                        <div>
+                          <span className="text-xs text-slate-500">
+                            Diupload pada:{" "}
+                            <strong>{item.tanggalUpload || "-"}</strong>
+                          </span>
+                          <h4 className="font-bold text-sm sm:text-base">
+                            {item.judul}
+                          </h4>
                         </div>
 
                         {infoPengingat && (
@@ -1466,7 +1484,7 @@ export default function HookyaMainApp() {
                               >
                                 {item.sudahEvaluasi
                                   ? "Perbarui Kinerja"
-                                  : "Laporkan Kinerja"}
+                                  : "Laporkan (+2 Koin)"}
                               </button>
                             </div>
                           </div>
@@ -1487,9 +1505,39 @@ export default function HookyaMainApp() {
             </div>
           )}
 
-          {/* MENU 6: PAKET KOIN & VOUCHER */}
           {activeMenu === "topup" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
+              {/* PANDUAN RINCIAN PENGGUNAAN KOIN */}
+              <div className="bg-[#f4f5f7] p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                  <strong className="block text-[#14141f]">
+                    ⚡ Buat Skrip Konten: 1 Koin
+                  </strong>
+                  <span className="text-slate-500 text-[11px]">
+                    Termasuk riset sudut pandang, fakta, hook & revisi per
+                    kerangka gratis.
+                  </span>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                  <strong className="block text-[#14141f]">
+                    ✂️ Ekstrak Video ke Skrip: 2 Koin
+                  </strong>
+                  <span className="text-slate-500 text-[11px]">
+                    Salin teks asli video + rekomendasi copywriting baru per
+                    kerangka.
+                  </span>
+                </div>
+                <div className="bg-[#f2fce2] p-3 rounded-xl border border-[#4d6b14]/20">
+                  <strong className="block text-[#4d6b14]">
+                    🎁 Laporan Kinerja VT: +2 Koin Gratis
+                  </strong>
+                  <span className="text-slate-600 text-[11px]">
+                    Bonus koin otomatis setiap melaporkan hasil views konten
+                    sepekan.
+                  </span>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <h2 className="text-lg font-bold">
                   Pilih Paket Koin & Klaim Voucher
@@ -1545,7 +1593,7 @@ export default function HookyaMainApp() {
         </main>
       </div>
 
-      {/* MODAL CHECKOUT QRIS / MIDTRANS */}
+      {/* MODAL CHECKOUT QRIS / PAYMENT GATEWAY */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4">
@@ -1571,6 +1619,16 @@ export default function HookyaMainApp() {
               <p className="text-xs text-slate-500">
                 {pengaturanPayment.infoRekening}
               </p>
+              {pengaturanPayment.externalPaymentUrl && (
+                <a
+                  href={pengaturanPayment.externalPaymentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block bg-[#d4f34a] text-[#14141f] text-xs font-bold px-4 py-2 rounded-xl mt-1"
+                >
+                  Buka Link Pembayaran Cepat ↗
+                </a>
+              )}
             </div>
             <div className="flex gap-2">
               <button
