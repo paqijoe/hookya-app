@@ -26,6 +26,7 @@ export default function DeveloperDashboardView({
   const [daftarErrorLog, setDaftarErrorLog] = useState([])
   const [daftarUsulan, setDaftarUsulan] = useState([])
   const [balasanInput, setBalasanInput] = useState({})
+  const [previewBuktiImg, setPreviewBuktiImg] = useState(null)
   const [voucherBaru, setVoucherBaru] = useState({
     kode: "",
     koin: "100",
@@ -53,13 +54,52 @@ export default function DeveloperDashboardView({
         .order("created_at", { ascending: false })
       if (fbRows) setDaftarUsulan(fbRows)
     } catch {
-      // Abaikan jika tabel belum ada
+      // Abaikan
     }
   }
 
   useEffect(() => {
     muatErrorDanUsulan()
   }, [])
+
+  // Upload Gambar QRIS Langsung dari Galeri HP/Laptop Admin
+  const handleUploadGambarQRISAdmin = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        const maxDim = 600
+        let w = img.width
+        let h = img.height
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w)
+            w = maxDim
+          } else {
+            w = Math.round((w * maxDim) / h)
+            h = maxDim
+          }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0, w, h)
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8)
+        setPengaturanPayment({
+          ...pengaturanPayment,
+          qrisImageUrl: dataUrl,
+        })
+        showToast(
+          "Gambar QRIS berhasil dimuat! Jangan lupa klik Simpan di bawah.",
+        )
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleTanggapiUsulan = async (fb, statusBaru) => {
     const teksBalasan = balasanInput[fb.id] ?? fb.balasan_dev ?? ""
@@ -120,7 +160,7 @@ export default function DeveloperDashboardView({
               Hookya Developer Console
             </span>
             <span className="text-[11px] text-[#d4f34a] hidden sm:inline">
-              Pusat Manajerial Aplikasi, Usulan User & Duitku Payment Gateway
+              Pusat Manajerial Aplikasi, Arsip Bukti QRIS & Payment Gateway
             </span>
           </div>
         </div>
@@ -140,16 +180,16 @@ export default function DeveloperDashboardView({
           {[
             { id: "overview", label: "Ringkasan & PIN Dev" },
             {
+              id: "transaksi",
+              label: `Pembayaran QRIS / PG & Bukti (${jumlahTransaksiPending} Pending)`,
+            },
+            {
               id: "usulan",
-              label: `Usulan & Komplain User (${daftarUsulan.length})`,
+              label: `Usulan & Komplain (${daftarUsulan.length})`,
             },
             {
               id: "error_logs",
               label: `Laporan Error AI (${daftarErrorLog.length})`,
-            },
-            {
-              id: "transaksi",
-              label: `Duitku & Transaksi (${jumlahTransaksiPending} Pending)`,
             },
             {
               id: "users",
@@ -174,7 +214,7 @@ export default function DeveloperDashboardView({
         </div>
 
         <div className="bg-white text-[#14141f] rounded-4xl p-5 sm:p-8 shadow-xl space-y-6">
-          {/* TAB 1: RINGKASAN & GANTI PIN DEVELOPER */}
+          {/* TAB 1: RINGKASAN & PIN DEVELOPER */}
           {devTab === "overview" && (
             <div className="space-y-6">
               <h2 className="text-lg font-bold">
@@ -199,10 +239,10 @@ export default function DeveloperDashboardView({
                 </div>
                 <div className="p-5 rounded-2xl bg-[#f4f5f7] border border-slate-200">
                   <span className="text-xs text-slate-500">
-                    Usulan & Komplain Masuk
+                    Pembayaran Menunggu Cek Bukti
                   </span>
-                  <div className="text-2xl font-bold mt-1">
-                    {daftarUsulan.length} Pesan
+                  <div className="text-2xl font-bold text-amber-600 mt-1">
+                    {jumlahTransaksiPending} Bukti
                   </div>
                 </div>
                 <div className="p-5 rounded-2xl bg-[#f2fce2] border border-[#4d6b14]/30 space-y-1.5">
@@ -217,26 +257,299 @@ export default function DeveloperDashboardView({
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-[#14141f] outline-none"
                   />
                   <span className="text-[10px] text-slate-600 block">
-                    Klik tombol Simpan di bawah setelah mengubah PIN.
+                    Klik Simpan di bawah setelah mengubah PIN.
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: KOTAK MASUK USULAN PENGEMBANGAN & KOMPLAIN USER */}
+          {/* TAB 2: PENGATURAN QRIS MANUAL (UPLOAD BUKTI + WA ADMIN) VS PAYMENT GATEWAY + ARSIP BUKTI */}
+          {devTab === "transaksi" && (
+            <div className="space-y-6">
+              <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold">
+                      Sakelar Utama Sistem Pembayaran (Bisa Diganti
+                      Sewaktu-waktu)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Pilih "QRIS Manual + Upload Bukti + WA Admin" sembari
+                      menunggu akun Payment Gateway selesai diverifikasi.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sakelar Pilih Mode: QRIS Manual vs Payment Gateway */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPengaturanPayment({
+                        ...pengaturanPayment,
+                        modePembayaranAktif: "qris_manual",
+                        modeVerifikasi: "manual_admin",
+                      })
+                    }
+                    className={`cursor-pointer p-4 rounded-2xl border text-left transition ${
+                      (pengaturanPayment.modePembayaranAktif ||
+                        "qris_manual") === "qris_manual"
+                        ? "bg-[#d4f34a] text-[#14141f] border-[#14141f]"
+                        : "bg-white text-slate-700 border-slate-200"
+                    }`}
+                  >
+                    <div className="text-xs sm:text-sm font-bold">
+                      1. Mode QRIS Manual (Upload Bukti + Notif WA Admin)
+                    </div>
+                    <p className="text-[11px] mt-0.5 opacity-85">
+                      User scan QRIS sesuai nominal, upload foto bukti bayar
+                      (masuk ke arsip bawah), dan kirim notifikasi ke WA Admin.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPengaturanPayment({
+                        ...pengaturanPayment,
+                        modePembayaranAktif: "duitku_gateway",
+                      })
+                    }
+                    className={`cursor-pointer p-4 rounded-2xl border text-left transition ${
+                      pengaturanPayment.modePembayaranAktif === "duitku_gateway"
+                        ? "bg-[#d4f34a] text-[#14141f] border-[#14141f]"
+                        : "bg-white text-slate-700 border-slate-200"
+                    }`}
+                  >
+                    <div className="text-xs sm:text-sm font-bold">
+                      2. Mode Payment Gateway Otomatis (Duitku Ready)
+                    </div>
+                    <p className="text-[11px] mt-0.5 opacity-85">
+                      User diarahkan otomatis ke halaman checkout Duitku dan
+                      koin bertambah otomatis saat lunas.
+                    </p>
+                  </button>
+                </div>
+
+                {/* Pengaturan QRIS Manual & Nomor WA Admin */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Nomor WhatsApp Admin (Penerima Notifikasi):
+                    </label>
+                    <input
+                      type="tel"
+                      value={pengaturanPayment.noWaAdmin || "6281234567890"}
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          noWaAdmin: e.target.value.replace(/\D/g, ""),
+                        })
+                      }
+                      placeholder="Contoh: 6281234567890"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Info Nama Merchant / Rekening Tujuan:
+                    </label>
+                    <input
+                      type="text"
+                      value={pengaturanPayment.infoRekening || ""}
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          infoRekening: e.target.value,
+                        })
+                      }
+                      placeholder="QRIS / BCA / SeaBank a.n Faqih"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Upload Gambar QRIS dari HP/Laptop:
+                    </label>
+                    <label className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] rounded-xl px-3.5 py-2.5 text-xs font-bold flex items-center justify-center gap-2">
+                      <FlatIcon name="upload" className="w-4 h-4" />
+                      <span>Pilih Gambar QRIS</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadGambarQRISAdmin}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Pengaturan Duitku (Jika memilih Mode Payment Gateway) */}
+                {pengaturanPayment.modePembayaranAktif === "duitku_gateway" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-xs font-bold mb-1">
+                        Duitku Merchant Code:
+                      </label>
+                      <input
+                        type="text"
+                        value={pengaturanPayment.duitkuMerchantCode || ""}
+                        onChange={(e) =>
+                          setPengaturanPayment({
+                            ...pengaturanPayment,
+                            duitkuMerchantCode: e.target.value,
+                          })
+                        }
+                        placeholder="DXXXX"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1">
+                        Duitku API Key:
+                      </label>
+                      <input
+                        type="password"
+                        value={pengaturanPayment.duitkuApiKey || ""}
+                        onChange={(e) =>
+                          setPengaturanPayment({
+                            ...pengaturanPayment,
+                            duitkuApiKey: e.target.value,
+                          })
+                        }
+                        placeholder="API Key Duitku..."
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1">
+                        Environment Duitku:
+                      </label>
+                      <select
+                        value={
+                          pengaturanPayment.duitkuIsProduction
+                            ? "production"
+                            : "sandbox"
+                        }
+                        onChange={(e) =>
+                          setPengaturanPayment({
+                            ...pengaturanPayment,
+                            duitkuIsProduction: e.target.value === "production",
+                          })
+                        }
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none"
+                      >
+                        <option value="sandbox">Sandbox (Uji Coba)</option>
+                        <option value="production">Production (Live)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* DAFTAR ARSIP PENGECEKAN BUKTI PEMBAYARAN MASUK */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold">
+                    Arsip Pengecekan Bukti Pembayaran Masuk (
+                    {daftarTransaksi.length})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => muatUlangDataSupabase()}
+                    className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
+                  >
+                    Refresh Bukti Masuk
+                  </button>
+                </div>
+
+                {daftarTransaksi.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-8 text-center">
+                    Belum ada transaksi pembayaran yang masuk.
+                  </p>
+                ) : (
+                  daftarTransaksi.map((trx) => (
+                    <div
+                      key={trx.id}
+                      className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        {/* Thumbnail Bukti Transfer jika diupload user */}
+                        {trx.bukti_bayar ? (
+                          <img
+                            src={trx.bukti_bayar}
+                            alt="Bukti Transfer"
+                            onClick={() => setPreviewBuktiImg(trx.bukti_bayar)}
+                            className="cursor-pointer w-16 h-16 rounded-xl object-cover border-2 border-[#14141f] shrink-0 hover:scale-105 transition"
+                            title="Klik untuk memperbesar foto bukti transfer"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 text-center p-1 shrink-0">
+                            Tanpa Foto
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <strong className="font-bold text-sm block">
+                            {trx.invoice_id} • {trx.nama_user} —{" "}
+                            {trx.nama_paket} (+{trx.jumlah_koin} Koin)
+                          </strong>
+                          <div className="text-slate-600">
+                            Nominal Dibayar:{" "}
+                            <strong className="text-[#14141f]">
+                              Rp
+                              {Number(trx.nominal_bayar).toLocaleString(
+                                "id-ID",
+                              )}
+                            </strong>{" "}
+                            • Metode: {trx.metode_bayar}
+                          </div>
+                          {trx.bukti_bayar && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewBuktiImg(trx.bukti_bayar)
+                              }
+                              className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] underline"
+                            >
+                              🔍 Lihat Foto Bukti Pembayaran Ukuran Penuh
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {trx.status === "pending" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleApproveTransaksiAdmin(trx)}
+                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-xl shadow-xs"
+                          >
+                            ✓ Terima Bukti & Kirim +{trx.jumlah_koin} Koin
+                          </button>
+                        ) : (
+                          <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3.5 py-1.5 rounded-full">
+                            ✓ Terverifikasi Lunas
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: USULAN & KOMPLAIN USER */}
           {devTab === "usulan" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Kotak Masuk Usulan Pengembangan & Komplain Pengguna
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Semua masukan atau keluhan yang dikirim pengguna melalui
-                    menu "Usulan Pengembangan" tampil di sini.
-                  </p>
-                </div>
+                <h2 className="text-lg font-bold">
+                  Kotak Masuk Usulan Pengembangan & Komplain Pengguna
+                </h2>
                 <button
                   type="button"
                   onClick={muatErrorDanUsulan}
@@ -266,15 +579,12 @@ export default function DeveloperDashboardView({
                           {fb.email_user || "-"})
                         </div>
                         <span className="text-[11px] text-slate-500">
-                          {new Date(fb.created_at).toLocaleString("id-ID")} •
                           Status: <strong>{fb.status}</strong>
                         </span>
                       </div>
-
-                      <p className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-[#14141f] leading-relaxed">
+                      <p className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-[#14141f]">
                         {fb.pesan}
                       </p>
-
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
@@ -289,7 +599,7 @@ export default function DeveloperDashboardView({
                               [fb.id]: e.target.value,
                             })
                           }
-                          placeholder="Tulis balasan atau tindak lanjut developer..."
+                          placeholder="Tulis balasan developer..."
                           className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs outline-none"
                         />
                         <button
@@ -299,7 +609,7 @@ export default function DeveloperDashboardView({
                           }
                           className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2 rounded-xl shrink-0"
                         >
-                          Simpan Balasan & Tandai Selesai
+                          Simpan Balasan
                         </button>
                       </div>
                     </div>
@@ -309,196 +619,28 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 3: LAPORAN ERROR AI */}
+          {/* TAB 4: LAPORAN ERROR AI */}
           {devTab === "error_logs" && (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Laporan Error Generate AI & Auto-Refund Koin
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Jika AI gagal merespons, koin pengguna otomatis dikembalikan
-                    di belakang layar.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={muatErrorDanUsulan}
-                  className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
+              <h2 className="text-lg font-bold">
+                Laporan Error Generate AI & Auto-Refund Koin
+              </h2>
+              {daftarErrorLog.map((log) => (
+                <div
+                  key={log.id}
+                  className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
                 >
-                  Muat Ulang Log
-                </button>
-              </div>
-
-              {daftarErrorLog.length === 0 ? (
-                <p className="text-xs text-slate-500 py-8 text-center">
-                  Belum ada laporan error.
-                </p>
-              ) : (
-                <div className="space-y-2.5">
-                  {daftarErrorLog.map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-1 max-w-2xl">
-                        <div className="font-bold text-[#14141f]">
-                          User: {log.nama_user || "Pengguna"} • Fitur:{" "}
-                          <span className="underline">{log.fitur}</span>
-                        </div>
-                        <p className="text-rose-700">{log.pesan_error}</p>
-                      </div>
-                      <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
-                        ✓ +{log.koin_diganti || 1} Koin Otomatis Diganti
-                      </span>
+                  <div>
+                    <div className="font-bold">
+                      User: {log.nama_user} • Fitur: {log.fitur}
                     </div>
-                  ))}
+                    <p className="text-rose-700">{log.pesan_error}</p>
+                  </div>
+                  <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
+                    ✓ +{log.koin_diganti || 1} Koin Diganti
+                  </span>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 4: DUITKU PAYMENT GATEWAY & TRANSAKSI */}
-          {devTab === "transaksi" && (
-            <div className="space-y-5">
-              <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
-                <h3 className="text-sm font-bold">
-                  Konfigurasi Duitku Payment Gateway & QRIS Merchant
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Duitku Merchant Code:
-                    </label>
-                    <input
-                      type="text"
-                      value={pengaturanPayment.duitkuMerchantCode || ""}
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          duitkuMerchantCode: e.target.value,
-                        })
-                      }
-                      placeholder="Contoh: DXXXX"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Duitku API Key:
-                    </label>
-                    <input
-                      type="password"
-                      value={pengaturanPayment.duitkuApiKey || ""}
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          duitkuApiKey: e.target.value,
-                        })
-                      }
-                      placeholder="API Key dari dashboard Duitku..."
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Mode Duitku:
-                    </label>
-                    <select
-                      value={
-                        pengaturanPayment.duitkuIsProduction
-                          ? "production"
-                          : "sandbox"
-                      }
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          duitkuIsProduction: e.target.value === "production",
-                        })
-                      }
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none"
-                    >
-                      <option value="sandbox">Sandbox (Uji Coba)</option>
-                      <option value="production">
-                        Production (Live Uang Asli)
-                      </option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      URL Gambar QRIS Cadangan:
-                    </label>
-                    <input
-                      type="text"
-                      value={pengaturanPayment.qrisImageUrl || ""}
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          qrisImageUrl: e.target.value,
-                        })
-                      }
-                      placeholder="https://.../qris-hookya.png"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Info Nomor Rekening / E-Wallet Tujuan:
-                    </label>
-                    <input
-                      type="text"
-                      value={pengaturanPayment.infoRekening || ""}
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          infoRekening: e.target.value,
-                        })
-                      }
-                      placeholder="BCA / SeaBank / GoPay / DANA a.n Faqih"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                {daftarTransaksi.map((trx) => (
-                  <div
-                    key={trx.id}
-                    className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
-                  >
-                    <div>
-                      <strong className="font-bold">
-                        {trx.invoice_id} • {trx.nama_user} — {trx.nama_paket} (+
-                        {trx.jumlah_koin} Koin)
-                      </strong>
-                      <div className="text-slate-500 mt-0.5">
-                        Tagihan: Rp
-                        {Number(trx.nominal_bayar).toLocaleString(
-                          "id-ID",
-                        )} • {trx.metode_bayar}
-                      </div>
-                    </div>
-                    {trx.status === "pending" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleApproveTransaksiAdmin(trx)}
-                        className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2 rounded-xl"
-                      >
-                        ✓ Terima & Kirim Koin
-                      </button>
-                    ) : (
-                      <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1 rounded-full">
-                        ✓ Lunas
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           )}
 
@@ -539,8 +681,8 @@ export default function DeveloperDashboardView({
                           )
                         </div>
                         <div className="text-slate-600 mt-0.5">
-                          Gmail Login: <strong>{emailSaatIni}</strong> •
-                          Password: <strong>{passwordSaatIni}</strong> • WA:{" "}
+                          Gmail: <strong>{emailSaatIni}</strong> • Password:{" "}
+                          <strong>{passwordSaatIni}</strong> • WA:{" "}
                           {u.whatsapp || u.profil_dna?.whatsapp || "-"}
                         </div>
                       </div>
@@ -608,7 +750,7 @@ export default function DeveloperDashboardView({
                           onClick={() => handleSimpanEmailPasswordUser(u.id)}
                           className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold py-2 rounded-xl"
                         >
-                          Simpan Email & Password Baru
+                          Simpan Perubahan
                         </button>
                       </div>
                     )}
@@ -758,11 +900,37 @@ export default function DeveloperDashboardView({
             onClick={simpanPengaturanDevKeDB}
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-4 rounded-2xl"
           >
-            Simpan Seluruh Pengaturan Manajerial, Duitku & PIN Developer ke
+            Simpan Seluruh Pengaturan Manajerial, QRIS/PG & PIN Developer ke
             Database
           </button>
         </div>
       </div>
+
+      {/* MODAL PREVIEW FOTO BUKTI PEMBAYARAN UKURAN PENUH */}
+      {previewBuktiImg && (
+        <div
+          onClick={() => setPreviewBuktiImg(null)}
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+        >
+          <div className="bg-white p-4 rounded-3xl max-w-md w-full space-y-3 text-center">
+            <div className="text-xs font-bold text-[#14141f]">
+              Foto Bukti Pembayaran User
+            </div>
+            <img
+              src={previewBuktiImg}
+              alt="Bukti Penuh"
+              className="w-full max-h-[70vh] object-contain rounded-2xl border border-slate-200"
+            />
+            <button
+              type="button"
+              onClick={() => setPreviewBuktiImg(null)}
+              className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
+            >
+              Tutup Pratinjau
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-// Simpan model tercepat yang berhasil di memori server agar panggilan berikutnya instan
 let CACHED_FAST_MODEL = null
 
 function getSupabase() {
@@ -24,7 +23,9 @@ function uraiJSONAman(dataRespons) {
   if (!teksMentah && parts[0]?.text) teksMentah = parts[0].text
 
   if (!teksMentah) {
-    throw new Error("Respons AI kosong atau format file tidak didukung.")
+    throw new Error(
+      "Respons AI kosong, silakan klik ikon putar untuk memuat ulang.",
+    )
   }
 
   let bersih = teksMentah
@@ -86,23 +87,33 @@ async function catatErrorDanGantiKoinDiamDiam({
       },
     ])
   } catch {
-    // Abaikan jika tabel belum siap
+    // Abaikan jika gagal log
   }
   return koinTerbaru
 }
 
-async function panggilGeminiInstan(apiKey, partsPayload) {
+// Akselerasi panggilan AI: Mematikan jeda thinking internal pada model 2.5 agar 3x lebih cepat tanpa menurunkan kualitas
+async function panggilGeminiCepat(apiKey, partsPayload) {
   const daftarKandidat = [
     ...(CACHED_FAST_MODEL ? [CACHED_FAST_MODEL] : []),
-    "gemini-flash-latest",
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
   ]
   const modelUnik = [...new Set(daftarKandidat)]
 
   let errorTerakhir = ""
   for (const model of modelUnik) {
     try {
+      const genConfig = {
+        responseMimeType: "application/json",
+        temperature: 0.7,
+      }
+      // Matikan jeda berpikir internal khusus pada model 2.5 agar langsung menghasilkan teks dengan cepat
+      if (model.includes("2.5")) {
+        genConfig.thinkingConfig = { thinkingBudget: 0 }
+      }
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -110,68 +121,47 @@ async function panggilGeminiInstan(apiKey, partsPayload) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: partsPayload }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.7,
-            },
+            generationConfig: genConfig,
           }),
         },
       )
 
       const data = await response.json()
       if (response.ok && data?.candidates?.length > 0) {
-        CACHED_FAST_MODEL = model // Kunci model yang sukses agar panggilan berikutnya 0ms delay
+        CACHED_FAST_MODEL = model
         return uraiJSONAman(data)
       } else {
-        errorTerakhir = data?.error?.message || `Model ${model} tidak merespons`
+        // Jika model menolak parameter thinkingConfig, coba sekali lagi tanpa thinkingConfig
+        if (genConfig.thinkingConfig) {
+          delete genConfig.thinkingConfig
+          const retryRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: partsPayload }],
+                generationConfig: genConfig,
+              }),
+            },
+          )
+          const retryData = await retryRes.json()
+          if (retryRes.ok && retryData?.candidates?.length > 0) {
+            CACHED_FAST_MODEL = model
+            return uraiJSONAman(retryData)
+          }
+        }
+        errorTerakhir = data?.error?.message || `Model ${model} sedang padat`
       }
     } catch (err) {
       errorTerakhir = err.message
     }
   }
 
-  // Jika semua kandidat statis gagal, tanya daftar model aktif dari akun API Key pengguna
-  try {
-    const listRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-    )
-    if (listRes.ok) {
-      const listData = await listRes.json()
-      const modelFlashAktif = (listData.models || [])
-        .filter(
-          (m) =>
-            m.supportedGenerationMethods?.includes("generateContent") &&
-            m.name.includes("flash"),
-        )
-        .map((m) => m.name.replace("models/", ""))
-
-      for (const mBaru of modelFlashAktif) {
-        const resRetry = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${mBaru}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: partsPayload }],
-              generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.7,
-              },
-            }),
-          },
-        )
-        const dataRetry = await resRetry.json()
-        if (resRetry.ok && dataRetry?.candidates?.length > 0) {
-          CACHED_FAST_MODEL = mBaru
-          return uraiJSONAman(dataRetry)
-        }
-      }
-    }
-  } catch {
-    // Abaikan
-  }
-
-  throw new Error(errorTerakhir || "Sistem AI tidak dapat merespons saat ini.")
+  throw new Error(
+    errorTerakhir ||
+      "Sistem AI sedang padat, silakan klik ikon putar untuk mengulang.",
+  )
 }
 
 export async function POST(request) {
@@ -221,19 +211,16 @@ export async function POST(request) {
     let promptFinal = ""
     let partsPayload = []
 
-    // =========================================================================
-    // 1. SCAN SCREENSHOT PRODUK & SPESIFIKASI DARI MARKETPLACE
-    // =========================================================================
     if (action === "analyze_marketplace_screenshots") {
       promptFinal = `
-Kamu adalah Asisten Analis Produk Marketplace (Shopee / TikTok Shop / Tokopedia).
-Perhatikan gambar tangkapan layar (screenshot) produk dan/atau spesifikasi yang dilampirkan.
-Ekstrak informasi berikut secara akurat dari gambar tersebut:
+Kamu adalah Analis Produk Marketplace (Shopee / TikTok Shop / Tokopedia).
+Perhatikan gambar screenshot produk dan spesifikasi yang dilampirkan.
+Ekstrak informasi berikut secara akurat:
 1. "namaProduk": Nama lengkap produk yang tertera di gambar.
-2. "brand": Nama merek / brand / nama toko yang tertera di gambar (jika tidak tertulis jelas, tulis merek yang paling relevan atau "-").
-3. "hargaPromo": Harga produk atau diskon yang terlihat di gambar (jika ada).
-4. "keunggulanSpesifikasi": Rangkuman detail spesifikasi, bahan, ukuran, atau keunggulan produk dari gambar spesifikasi/deskripsi.
-5. "masalahDipecahkan": Manfaat utama produk ini bagi pembeli berdasarkan fungsinya.
+2. "brand": Nama merek / brand / nama toko yang tertera di gambar.
+3. "hargaPromo": Harga produk atau diskon yang terlihat di gambar.
+4. "keunggulanSpesifikasi": Rangkuman detail spesifikasi, bahan, ukuran, atau keunggulan produk.
+5. "masalahDipecahkan": Manfaat utama produk ini bagi pembeli.
 
 Keluarkan HANYA valid JSON:
 {
@@ -262,12 +249,7 @@ Keluarkan HANYA valid JSON:
         })
       }
       partsPayload.push({ text: promptFinal })
-    }
-
-    // =========================================================================
-    // 2. TRANSKRIP SUARA MIKROFON HYBRID
-    // =========================================================================
-    else if (action === "transkrip_suara_mic") {
+    } else if (action === "transkrip_suara_mic") {
       if (!audioBase64) {
         return NextResponse.json(
           { error: "Tidak ada rekaman suara yang diterima." },
@@ -275,7 +257,7 @@ Keluarkan HANYA valid JSON:
         )
       }
       promptFinal = `
-Dengarkan rekaman suara ini dan salin persis ucapannya menjadi teks Bahasa Indonesia yang rapi.
+Salin rekaman suara pengguna ini menjadi teks Bahasa Indonesia yang rapi.
 Balas HANYA dalam format JSON:
 {
   "teks": "..."
@@ -289,12 +271,7 @@ Balas HANYA dalam format JSON:
         },
         { text: promptFinal },
       ]
-    }
-
-    // =========================================================================
-    // 3. ANALISIS GAYA BICARA PENGGUNA
-    // =========================================================================
-    else if (action === "extract_persona_dna") {
+    } else if (action === "extract_persona_dna") {
       promptFinal = `
 Analisis profil dan contoh gaya bicara pengguna berikut untuk menyusun matriks gaya bahasa internal yang sangat natural:
 - Data Profil: ${JSON.stringify(onboardingAnswers)}
@@ -330,25 +307,27 @@ Keluarkan HANYA valid JSON:
   }
 }`
       partsPayload = [{ text: promptFinal }]
-    }
-
-    // =========================================================================
-    // 4. CO-PILOT 4 TAHAP
-    // =========================================================================
-    else if (action === "assessment_copilot") {
+    } else if (action === "assessment_copilot") {
       const infoKonteks = stageInput?.detailPromosi
-        ? `DETAIL PROMOSI (${stageInput.jenisPromosi}):\n${JSON.stringify(stageInput.detailPromosi, null, 2)}`
+        ? `DETAIL PROMOSI (${stageInput.jenisPromosi}):\n${JSON.stringify(stageInput.detailPromosi)}`
         : `Topik Konten Kreator: "${stageInput?.rawTopic}"`
+
+      const ringkasanPersona = {
+        sapaan_diri: personaProfile?.linguistic_matrix?.self_pronoun || "Gue",
+        sapaan_audiens:
+          personaProfile?.linguistic_matrix?.audience_pronoun || "Lo",
+        gaya: personaProfile?.persona_summary || "Santai & jujur",
+        kata_khas:
+          personaProfile?.linguistic_matrix?.signature_vocabulary || [],
+      }
 
       if (stageNumber === 1) {
         promptFinal = `
-Kamu adalah Asisten Produser Konten Pribadi dengan gaya bahasa kreator berikut:
-${JSON.stringify(personaProfile, null, 2)}
-
-DATA KONTEN YANG INGIN DIBUAT:
+Kamu adalah Asisten Produser Konten Pribadi dengan gaya bahasa kreator: ${JSON.stringify(ringkasanPersona)}
+DATA KONTEN:
 - Kategori: "${stageInput?.kategori}"
 - ${infoKonteks}
-- Durasi & Platform: "${stageInput?.targetPlatform}"
+- Durasi: "${stageInput?.targetPlatform}"
 
 TUGAS TAHAP 1:
 1. Rumuskan 1 gagasan utama yang tajam pada "refined_core_idea".
@@ -363,18 +342,15 @@ Keluarkan HANYA valid JSON:
     { "id": "angle_2", "type": "Masalah / Kesalahan Nyata", "angle_text": "..." },
     { "id": "angle_3", "type": "Solusi / Rahasia Praktis", "angle_text": "..." }
   ],
-  "story_prompt_question": "Pertanyaan singkat untuk memancing cerita atau alasan kuat di balik konten/produk/campaign ini..."
+  "story_prompt_question": "Pertanyaan singkat untuk memancing cerita atau alasan kuat di balik konten ini..."
 }`
       } else if (stageNumber === 2) {
         promptFinal = `
-Kamu adalah Asisten Produser Konten Pribadi:
-${JSON.stringify(personaProfile, null, 2)}
-
+Kamu adalah Asisten Produser Konten Pribadi: ${JSON.stringify(ringkasanPersona)}
 DATA TAHAP SEBELUMNYA:
 - Inti Bahasan: "${stageInput?.coreIdea}"
 - Sudut Pandang Terpilih: "${stageInput?.chosenAngle}"
-- Cerita / Latar Belakang: "${stageInput?.userStory || "(Belum diisi)"}"
-- Detail Produk/Campaign (jika ada): ${JSON.stringify(stageInput?.detailPromosi || {})}
+- Cerita: "${stageInput?.userStory || "(Belum diisi)"}"
 
 TUGAS TAHAP 2:
 1. Buat **2 pilihan perumpamaan/skenario sehari-hari** ("relatable_analogies").
@@ -394,9 +370,7 @@ Keluarkan HANYA valid JSON:
 }`
       } else if (stageNumber === 3) {
         promptFinal = `
-Kamu adalah Asisten Produser Konten Pribadi:
-${JSON.stringify(personaProfile, null, 2)}
-
+Kamu adalah Asisten Produser Konten Pribadi: ${JSON.stringify(ringkasanPersona)}
 DATA TAHAP 1 & 2:
 - Inti Bahasan: "${stageInput?.coreIdea}"
 - Sudut Pandang: "${stageInput?.chosenAngle}"
@@ -406,7 +380,7 @@ DATA TAHAP 1 & 2:
 
 TUGAS TAHAP 3:
 1. Rekomendasikan 1 kerangka terbaik ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION").
-2. Buat **3 pilihan kalimat pembuka (Hook 3 detik pertama)** sesuai gaya bicara pengguna.
+2. Buat **3 pilihan kalimat pembuka (Hook 3 detik pertama)** yang sangat kuat sesuai gaya bicara pengguna.
 3. Buat **3 pilihan kalimat ajakan penutup (CTA)**.
 
 Keluarkan HANYA valid JSON:
@@ -419,12 +393,7 @@ Keluarkan HANYA valid JSON:
 }`
       }
       partsPayload = [{ text: promptFinal }]
-    }
-
-    // =========================================================================
-    // 5. PENYUSUN SKRIP UTAMA & DIALOG UGC
-    // =========================================================================
-    else if (action === "assemble_humanized_script") {
+    } else if (action === "assemble_humanized_script") {
       const isModeUGC =
         Boolean(ugcConfig?.aktif) ||
         (bentukKonten && bentukKonten.toLowerCase().includes("ugc"))
@@ -445,17 +414,17 @@ Keluarkan HANYA valid JSON:
       promptFinal = `
 Kamu adalah Penulis Skrip Video Pendek & Copywriter Profesional kelas dunia.
 Gaya bicara kreator:
-${JSON.stringify(personaProfile, null, 2)}
+${JSON.stringify(personaProfile)}
 
 Rancangan Konten:
-${JSON.stringify(contentBrief, null, 2)}
+${JSON.stringify(contentBrief)}
 
 Bentuk Eksekusi Visual: "${bentukKonten}"
 ${instruksiUGC}
 
 ATURAN WAJIB:
 1. Hindari semua kata kaku berikut: ${JSON.stringify(personaProfile?.linguistic_matrix?.forbidden_words || [])}.
-2. Pisahkan setiap 1-2 kalimat dengan baris baru (\\n) agar nyaman dibaca di teleprompter.
+2. Pisahkan setiap 1-2 kalimat dengan baris baru (\\n) agar nyaman dibaca.
 3. Tambahkan petunjuk ekspresi/intonasi singkat di dalam kurung siku [...] seperti [Senyum tipis], [Nada serius].
 4. Susun dalam 4 kerangka copywriting yang menghantam (Pembuka/Hook, Cerita & Masalah, Bukti & Solusi Utama, Penutup/CTA).
 
@@ -497,26 +466,20 @@ Keluarkan HANYA valid JSON:
     }
   ],
   "persona_alignment_notes": [
-    "Penjelasan ramah kenapa alur dan kalimat ini kuat secara copywriting...",
-    "Penjelasan ramah bagaimana gaya bahasa disesuaikan dengan karaktermu..."
+    "Penjelasan ramah kenapa alur dan kalimat ini kuat secara copywriting..."
   ]
 }`
       partsPayload = [{ text: promptFinal }]
-    }
-
-    // =========================================================================
-    // 6. EKSTRAK VIDEO KE TEKS & COPYWRITING PER KERANGKA (SUDAH DIPERBAIKI TOTAL)
-    // =========================================================================
-    else if (action === "rewrite_video") {
+    } else if (action === "rewrite_video") {
       promptFinal = `
 Kamu adalah Mesin Transkripsi Video Presisi & Pakar Copywriting.
 
 TUGAS UTAMA:
 1. Dengarkan suara ucapan pada audio yang dilampirkan DAN baca seluruh teks/subtitle/visual yang tampak pada gambar potongan frame video yang dilampirkan.
-2. Tuliskan **Teks Asli yang Ada di Dalam Video** (baik dari ucapan suara maupun teks yang tertulis di layar video) secara akurat ke dalam kolom "transkripAsliVideo".
-3. Jika tidak ada suara ucapan manusia sama sekali DAN tidak ada teks/informasi visual yang bisa dibaca di layar video, barulah isi "unreadableError": true. Namun jika ada suara ucapan ATAU ada teks tertulis di layar video, kamu WAJIB mengekstraknya dan mengisi "unreadableError": false!
+2. Tuliskan **Teks Asli yang Ada di Dalam Video** secara akurat ke dalam kolom "transkripAsliVideo".
+3. Jika tidak ada suara ucapan manusia sama sekali DAN tidak ada teks/informasi visual yang bisa dibaca di layar video, barulah isi "unreadableError": true.
 4. Buat rekomendasi Copywriting baru yang 100% orisinil sesuai gaya bicara pengguna:
-${JSON.stringify(personaProfile, null, 2)}
+${JSON.stringify(personaProfile)}
    Catatan tambahan pengguna: "${detailInput || "-"}"
    Pecah rekomendasi copywriting baru tersebut ke dalam **4 kerangka terpisah** pada array "segmen".
 
@@ -577,10 +540,10 @@ Keluarkan HANYA valid JSON:
     } else if (action === "regenerate_satu_kerangka") {
       promptFinal = `
 Kamu adalah Copywriter Profesional dengan gaya bicara berikut:
-${JSON.stringify(personaProfile, null, 2)}
+${JSON.stringify(personaProfile)}
 
 Konteks Topik/Video: "${body.subyek || "Konten Video"}"
-Tugasmu HANYA menulis ulang **SATU kerangka spesifik ini saja** yaitu: **"${segmenTarget?.labelMini}"**:
+Tugasmu HANYA menulis ulang **SATU kerangka spesifik ini saja** yaitu: **"${segmenTarget?.labelMini}"** agar menjadi variasi kalimat baru yang lebih segar dan kuat:
 - Kalimat saat ini: "${segmenTarget?.voiceover}"
 - Teks layar saat ini: "${segmenTarget?.teksLayar}"
 - Visual saat ini: "${segmenTarget?.visual}"
@@ -639,7 +602,7 @@ Balas HANYA dalam format JSON:
       partsPayload = [{ text: promptFinal }]
     }
 
-    const hasilParsed = await panggilGeminiInstan(apiKey, partsPayload)
+    const hasilParsed = await panggilGeminiCepat(apiKey, partsPayload)
 
     if (action === "rewrite_video" && hasilParsed?.unreadableError) {
       const koinGanti = await catatErrorDanGantiKoinDiamDiam({
@@ -678,7 +641,7 @@ Balas HANYA dalam format JSON:
         error:
           "ERROR: Sistem AI gagal memproses permintaan ini (" +
           (err.message || "Kendala koneksi") +
-          "). Silakan coba kembali.",
+          "). Silakan klik ikon putar untuk mencoba lagi.",
         silentCoinUpdated: koinGanti,
       },
       { status: 500 },

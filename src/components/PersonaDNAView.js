@@ -1,6 +1,14 @@
 "use client"
-import { useState } from "react"
-import { FlatIcon, StoryVoiceInput, SelectWithCustom } from "./SharedUI"
+import { useState, useEffect } from "react"
+import {
+  FlatIcon,
+  StoryVoiceInput,
+  SelectWithCustom,
+  AILoadingBox,
+} from "./SharedUI"
+
+const KALIMAT_DUMMY_LAMA =
+  "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan."
 
 export default function PersonaDNAView({
   userId,
@@ -26,6 +34,13 @@ export default function PersonaDNAView({
   customPrompts,
 }) {
   const [isGenerating, setIsGenerating] = useState(false)
+
+  // Bersihkan otomatis jika state masih menyimpan kalimat dummy bawaan lama
+  useEffect(() => {
+    if (rawWritingSamples === KALIMAT_DUMMY_LAMA) {
+      setRawWritingSamples("")
+    }
+  }, [rawWritingSamples, setRawWritingSamples])
 
   const handleAnalisisGayaBicara = async () => {
     setIsGenerating(true)
@@ -56,7 +71,9 @@ export default function PersonaDNAView({
             prinsip_utama: profil.prinsipUtamaInput,
             pandangan_kontra: profil.opiniKontraInput,
           },
-          rawWritingSamples,
+          rawWritingSamples:
+            rawWritingSamples.trim() ||
+            "Santai, akrab, jujur, dan langsung ke inti pembahasan.",
           customPrompts,
         }),
       })
@@ -77,7 +94,7 @@ export default function PersonaDNAView({
   }
 
   return (
-    <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+    <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
       <div className="border-b border-slate-100 pb-4">
         <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
           Kenali Dirimu & Gaya Bicaramu Sehari-hari
@@ -264,7 +281,7 @@ export default function PersonaDNAView({
         </div>
       </div>
 
-      {/* 4. JADWAL WAKTU LUANG SISTEM CEKLIS + OPSI SAYA FLEKSIBEL */}
+      {/* 4. JADWAL WAKTU LUANG SISTEM CEKLIS */}
       <div className="space-y-3 pt-4 border-t border-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="text-sm font-bold text-[#14141f]">
@@ -357,7 +374,7 @@ export default function PersonaDNAView({
         )}
       </div>
 
-      {/* 5. CONTOH GAYA BICARA ASLI & TOMBOL ANALISIS */}
+      {/* 5. CONTOH GAYA BICARA (MURNI PLACEHOLDER CONTOH PENGETIKAN, BUKAN TEKS TERKETIK) */}
       <div className="bg-[#f4f5f7] p-4 rounded-2xl border border-slate-200 space-y-2">
         <label className="block text-xs font-bold text-[#14141f]">
           Contoh Gaya Bicaramu Sehari-hari (Bisa Ketik atau Klik Ikon Mikrofon):
@@ -368,30 +385,31 @@ export default function PersonaDNAView({
         </p>
         <StoryVoiceInput
           rows={3}
-          value={rawWritingSamples}
+          value={
+            rawWritingSamples === KALIMAT_DUMMY_LAMA ? "" : rawWritingSamples
+          }
           onChange={setRawWritingSamples}
-          placeholder="Contoh: Gini bro, jujur ya banyak banget yang boncos gara-gara..."
+          placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan..."
           onNotify={showToast}
         />
       </div>
 
-      <button
-        type="button"
-        disabled={isGenerating}
-        onClick={handleAnalisisGayaBicara}
-        className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl hover:opacity-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
-      >
-        {isGenerating && (
-          <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-        )}
-        <span>
-          {isGenerating
-            ? "Sedang Mempelajari Gaya Bicaramu..."
-            : "Analisis & Perbarui Gaya Bicara Saya"}
-        </span>
-      </button>
+      {isGenerating ? (
+        <AILoadingBox
+          label="Sedang mempelajari gaya bicara dan kosakata khasmu..."
+          onRefresh={handleAnalisisGayaBicara}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={handleAnalisisGayaBicara}
+          className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl hover:opacity-95 transition flex items-center justify-center gap-2"
+        >
+          <span>Analisis & Perbarui Gaya Bicara Saya</span>
+        </button>
+      )}
 
-      {/* 6. RINGKASAN GAYA BICARA RAMAH AWAM */}
+      {/* 6. RINGKASAN GAYA BICARA */}
       <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-3">
         <span className="text-[11px] font-bold text-[#4d6b14] bg-[#f2fce2] px-2.5 py-0.5 rounded-md">
           RINGKASAN GAYA BICARAMU SAAT INI
@@ -439,7 +457,7 @@ export default function PersonaDNAView({
         </div>
       </div>
 
-      {/* 7. PILIHAN 10 BENTUK KONTEN + KOTAK DESKRIPSI SENDIRI */}
+      {/* 7. PILIHAN 10 BENTUK KONTEN */}
       <div className="space-y-3 pt-4 border-t border-slate-100">
         <h3 className="text-sm font-bold text-[#14141f]">
           Pilih Bentuk Konten Andalanmu:

@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { FlatIcon, StoryVoiceInput } from "./SharedUI"
+import { FlatIcon, StoryVoiceInput, AILoadingBox } from "./SharedUI"
 
 function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
   return new Promise((resolve) => {
@@ -88,7 +88,6 @@ async function ekstrakAudioRinganAman(file) {
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
       audioCtx.close()
 
-      // Gunakan 6000Hz Mono maksimal 35 detik agar ukuran audio hanya ~400KB (bebas error 413 Vercel)
       const targetSampleRate = 6000
       const maxSeconds = Math.min(audioBuffer.duration, 35)
       const numSamples = Math.floor(maxSeconds * targetSampleRate)
@@ -179,9 +178,48 @@ export default function VideoExtractorView({
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [regeneratingIndex, setRegeneratingIndex] = useState(null)
+  const [regenCount, setRegenCount] = useState(0)
   const [errorRewriteAI, setErrorRewriteAI] = useState("")
   const [hasilRewriteVideo, setHasilRewriteVideo] = useState(null)
   const [modeTampilanRewrite, setModeTampilanRewrite] = useState("voiceover")
+
+  const simpanHasilVideoKeArsip = async (pesan) => {
+    if (!hasilRewriteVideo) return
+    const waktuSekarang = new Date().toLocaleString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    const skripSimpan = {
+      id: hasilRewriteVideo.savedId || Date.now(),
+      dbId: hasilRewriteVideo.dbId || null,
+      judul:
+        hasilRewriteVideo.intiPesanVideo ||
+        sumberVideo.namaFileUpload ||
+        "Hasil Ekstrak Video",
+      kategori: "Hasil Ekstrak Video",
+      bentuk: bentukKontenFinal,
+      waktuDibuat: waktuSekarang,
+      sudahUpload: false,
+      tanggalUpload: "",
+      segmen: hasilRewriteVideo.segmen,
+    }
+    const tersimpan = await simpanAtauUpdateSkripDatabase(skripSimpan)
+    setHasilRewriteVideo((prev) => ({
+      ...prev,
+      savedId: tersimpan.id,
+      dbId: tersimpan.dbId,
+    }))
+    setKoleksiSkripTersimpan((prev) => {
+      const ada = prev.some((x) => x.id === tersimpan.id)
+      return ada
+        ? prev.map((x) => (x.id === tersimpan.id ? tersimpan : x))
+        : [tersimpan, ...prev]
+    })
+    if (pesan) showToast(pesan)
+  }
 
   const handleFileVideoUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -204,10 +242,8 @@ export default function VideoExtractorView({
         framesData = await ekstrakFrameVideoStabil(file, 5)
       }
 
-      // Ekstrak jalur audio ringan terlebih dahulu agar pasti lolos batas payload server
       audioData = await ekstrakAudioRinganAman(file)
 
-      // Jika browser HP tidak mendukung WebAudio API tetapi ukuran file <= 2.4 MB, kirim file langsung
       if (!audioData && file.size <= 2.4 * 1024 * 1024) {
         const base64Raw = await new Promise((res) => {
           const reader = new FileReader()
@@ -292,9 +328,7 @@ export default function VideoExtractorView({
         intiPesanVideo: data.intiPesanVideo || sumberVideo.namaFileUpload,
         segmen: Array.isArray(data.segmen) ? data.segmen : [],
       })
-      showToast(
-        "Teks asli video berhasil diekstrak (-2 Koin) dan dipecah per kerangka!",
-      )
+      showToast("Teks asli video berhasil diekstrak dan dipecah per kerangka!")
     } catch (err) {
       setErrorRewriteAI(err.message)
     } finally {
@@ -302,8 +336,21 @@ export default function VideoExtractorView({
     }
   }
 
+  // SETIAP 3X REGENERATE KERANGKA TERHITUNG 1 KOIN
   const handleRegenerateSatuKerangkaVideo = async (indexBaris, fokusTarget) => {
-    if (!hasilRewriteVideo || regeneratingIndex !== null) return
+    if (!hasilRewriteVideo) return
+    const hitunganBaru = regenCount + 1
+
+    if (hitunganBaru % 3 === 0) {
+      if (coins < 1) {
+        alert("Saldo koin tidak mencukupi untuk generate ulang ke-3.")
+        setActiveMenu("topup")
+        return
+      }
+      await updateKoinDatabase(coins - 1)
+    }
+    setRegenCount(hitunganBaru)
+
     const segmenLama = hasilRewriteVideo.segmen[indexBaris]
     setRegeneratingIndex(indexBaris)
     showToast(`Memperbarui khusus ${segmenLama.labelMini}...`)
@@ -355,15 +402,6 @@ export default function VideoExtractorView({
 
   return (
     <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6 w-full max-w-full overflow-hidden">
-      <div className="bg-[#f4f5f7] px-4 py-2.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-        <span className="font-bold text-[#14141f]">
-          ✂️ Ekstrak Video ke Teks & Skrip Baru: 2 Koin
-        </span>
-        <span className="text-slate-600">
-          Generate ulang per kerangka: <strong>Gratis</strong>
-        </span>
-      </div>
-
       <div className="border-b border-slate-100 pb-4">
         <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
           Ekstrak Teks Asli Video & Buat Rekomendasi Copywriting Per Kerangka
@@ -412,21 +450,21 @@ export default function VideoExtractorView({
         />
       </div>
 
-      <button
-        type="button"
-        disabled={isGenerating || sumberVideo.sedangEkstrakFile}
-        onClick={handleEkstrakVideoSekarang}
-        className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
-      >
-        {isGenerating && (
-          <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-        )}
-        <span>
-          {isGenerating
-            ? "Sedang Membaca Suara/Teks Asli Video & Menyusun Kerangka..."
-            : "Ekstrak Teks Asli Video & Buat Copywriting (Pakai 2 Koin)"}
-        </span>
-      </button>
+      {isGenerating ? (
+        <AILoadingBox
+          label="Sedang membaca suara/teks asli video & menyusun kerangka copywriting..."
+          onRefresh={handleEkstrakVideoSekarang}
+        />
+      ) : (
+        <button
+          type="button"
+          disabled={sumberVideo.sedangEkstrakFile}
+          onClick={handleEkstrakVideoSekarang}
+          className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <span>Ekstrak Teks Asli Video & Buat Copywriting</span>
+        </button>
+      )}
 
       {errorRewriteAI && (
         <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-900 leading-relaxed">
@@ -443,16 +481,18 @@ export default function VideoExtractorView({
               </span>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   navigator.clipboard.writeText(
                     hasilRewriteVideo.transkripAsliVideo,
                   )
-                  showToast("Teks asli video berhasil disalin!")
+                  await simpanHasilVideoKeArsip(
+                    "Teks asli disalin & otomatis disimpan ke arsip!",
+                  )
                 }}
-                className="cursor-pointer bg-white border border-slate-300 text-xs font-bold px-3 py-1 rounded-xl flex items-center gap-1"
+                title="Salin Teks Asli & Simpan ke Arsip"
+                className="cursor-pointer bg-white border border-slate-300 w-9 h-9 rounded-xl flex items-center justify-center"
               >
-                <FlatIcon name="copy" className="w-3.5 h-3.5" />
-                <span>Salin Teks Asli</span>
+                <FlatIcon name="copy" className="w-4 h-4" />
               </button>
             </div>
             <p className="text-xs sm:text-sm font-normal text-[#14141f] leading-relaxed whitespace-pre-line bg-white p-4 rounded-2xl border border-slate-200">
@@ -468,7 +508,7 @@ export default function VideoExtractorView({
                 </h3>
                 <p className="text-xs font-normal text-slate-600">
                   Klik ikon putar pada salah satu kerangka di bawah untuk
-                  men-generate ulang khusus bagian kerangka tersebut saja.
+                  men-generate ulang khusus bagian tersebut saja.
                 </p>
               </div>
 
@@ -547,7 +587,6 @@ export default function VideoExtractorView({
 
                         <button
                           type="button"
-                          disabled={regeneratingIndex !== null}
                           onClick={() =>
                             handleRegenerateSatuKerangkaVideo(idx, "skrip")
                           }
@@ -575,7 +614,6 @@ export default function VideoExtractorView({
 
                         <button
                           type="button"
-                          disabled={regeneratingIndex !== null}
                           onClick={() =>
                             handleRegenerateSatuKerangkaVideo(idx, "visual")
                           }
@@ -598,35 +636,14 @@ export default function VideoExtractorView({
 
             <button
               type="button"
-              onClick={async () => {
-                const waktuSekarang = new Date().toLocaleString("id-ID", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-                const skripSimpan = {
-                  id: Date.now(),
-                  dbId: null,
-                  judul:
-                    hasilRewriteVideo.intiPesanVideo ||
-                    sumberVideo.namaFileUpload,
-                  kategori: "Hasil Ekstrak Video",
-                  bentuk: bentukKontenFinal,
-                  waktuDibuat: waktuSekarang,
-                  sudahUpload: false,
-                  tanggalUpload: "",
-                  segmen: hasilRewriteVideo.segmen,
-                }
-                const tersimpan =
-                  await simpanAtauUpdateSkripDatabase(skripSimpan)
-                setKoleksiSkripTersimpan((prev) => [tersimpan, ...prev])
-                showToast("Skrip berhasil disimpan ke daftar skripmu!")
-              }}
+              onClick={() =>
+                simpanHasilVideoKeArsip(
+                  "Skrip berhasil disimpan ke arsip skripmu!",
+                )
+              }
               className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs sm:text-sm py-4 rounded-2xl"
             >
-              Simpan ke Daftar Skrip Saya
+              Simpan ke Arsip Skrip Saya
             </button>
           </div>
         </div>
