@@ -1,12 +1,12 @@
-"use client"
-import { useState, useEffect } from "react"
-import { supabase } from "../lib/supabase"
-import { FlatIcon } from "../components/SharedUI"
-import AuthFullscreen from "../components/AuthFullscreen"
-import PersonaDNAView from "../components/PersonaDNAView"
-import ScriptProducerView from "../components/ScriptProducerView"
-import VideoExtractorView from "../components/VideoExtractorView"
-import DeveloperDashboardView from "../components/DeveloperDashboardView"
+"use client";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
+import { FlatIcon, StoryVoiceInput } from "../components/SharedUI";
+import AuthFullscreen from "../components/AuthFullscreen";
+import PersonaDNAView from "../components/PersonaDNAView";
+import ScriptProducerView from "../components/ScriptProducerView";
+import VideoExtractorView from "../components/VideoExtractorView";
+import DeveloperDashboardView from "../components/DeveloperDashboardView";
 
 const SEPULUH_BENTUK_KONTEN = [
   {
@@ -69,7 +69,7 @@ const SEPULUH_BENTUK_KONTEN = [
     modeDefault: "teks",
     ket: "Tidak perlu rekam video! Cukup susun 6 foto berurutan dengan teks cerita.",
   },
-]
+];
 
 const DEFAULT_PERSONA_PROFILE = {
   user_id: "usr_99281",
@@ -99,36 +99,37 @@ const DEFAULT_PERSONA_PROFILE = {
       "Kesimpulannya",
     ],
   },
-}
+};
 
 export default function HookyaMainApp() {
-  const [viewMode, setViewMode] = useState("auth") // 'auth' | 'user' | 'dev'
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [desktopMinimized, setDesktopMinimized] = useState(false)
-  const [showProfilePopup, setShowProfilePopup] = useState(false)
-  const [activeMenu, setActiveMenu] = useState("produksi")
+  const [viewMode, setViewMode] = useState("auth"); // 'auth' | 'user' | 'dev'
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopMinimized, setDesktopMinimized] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [activeMenu, setActiveMenu] = useState("produksi");
 
-  // Keamanan PIN Admin Dinamis & Pemicu Rahasia (Klik Logo 5x atau Akun Admin)
-  const [showPinModal, setShowPinModal] = useState(false)
-  const [inputPinDev, setInputPinDev] = useState("")
-  const [pinAdminResmi, setPinAdminResmi] = useState("123456")
-  const [logoClickCount, setLogoClickCount] = useState(0)
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [inputPinDev, setInputPinDev] = useState("");
+  const [pinAdminResmi, setPinAdminResmi] = useState("123456");
+  const [logoClickCount, setLogoClickCount] = useState(0);
 
-  const [userId, setUserId] = useState(null)
-  const [userRole, setUserRole] = useState("user")
-  const [coins, setCoins] = useState(120)
-  const [paket, setPaket] = useState("Paket Pemula")
-  const [toastMsg, setToastMsg] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
+  const [userId, setUserId] = useState(null);
+  const [userRole, setUserRole] = useState("user");
+  const [coins, setCoins] = useState(120);
+  const [paket, setPaket] = useState("Paket Pemula");
+  const [toastMsg, setToastMsg] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const showToast = (msg) => {
-    setToastMsg(msg)
-    setTimeout(() => setToastMsg(""), 3500)
-  }
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(""), 3500);
+  };
 
   const [profil, setProfil] = useState({
     nama: "Kreator",
     username: "",
+    kontak: "kreator@gmail.com",
+    avatar_url: "",
     usia: "28",
     gender: "Laki-laki",
     peranSaatIni: "Praktisi Bisnis & Kreator Digital",
@@ -141,59 +142,67 @@ export default function HookyaMainApp() {
     audiencePronounInput: "Lo / Kalian",
     prinsipUtamaInput: "Praktik lebih penting dari teori",
     opiniKontraInput: "Kurang suka motivasi kosong tanpa langkah nyata",
-  })
+  });
 
-  const [jadwalFleksibel, setJadwalFleksibel] = useState(false)
+  // State Form Usulan Pengembangan & Komplain User
+  const [formUsulan, setFormUsulan] = useState({
+    kategori: "Usulan Fitur Baru",
+    pesan: "",
+  });
+  const [riwayatUsulanSaya, setRiwayatUsulanSaya] = useState([]);
+  const [isSendingUsulan, setIsSendingUsulan] = useState(false);
+
+  const [jadwalFleksibel, setJadwalFleksibel] = useState(false);
   const [jadwalCeklis, setJadwalCeklis] = useState({
     pagi: { aktif: false, mulai: "06:00", selesai: "08:00" },
     siang: { aktif: false, mulai: "12:00", selesai: "14:00" },
     sore: { aktif: false, mulai: "16:00", selesai: "17:30" },
     malam: { aktif: true, mulai: "20:00", selesai: "21:30" },
-  })
+  });
 
   useEffect(() => {
     if (jadwalFleksibel) {
       setProfil((prev) => ({
         ...prev,
         waktuFree: "Saya Fleksibel (Bisa Kapan Saja)",
-      }))
-      return
+      }));
+      return;
     }
-    const aktifList = []
+    const aktifList = [];
     if (jadwalCeklis.pagi.aktif)
       aktifList.push(
-        `Pagi (${jadwalCeklis.pagi.mulai}-${jadwalCeklis.pagi.selesai})`,
-      )
+        `Pagi (${jadwalCeklis.pagi.mulai}-${jadwalCeklis.pagi.selesai})`
+      );
     if (jadwalCeklis.siang.aktif)
       aktifList.push(
-        `Siang (${jadwalCeklis.siang.mulai}-${jadwalCeklis.siang.selesai})`,
-      )
+        `Siang (${jadwalCeklis.siang.mulai}-${jadwalCeklis.siang.selesai})`
+      );
     if (jadwalCeklis.sore.aktif)
       aktifList.push(
-        `Sore (${jadwalCeklis.sore.mulai}-${jadwalCeklis.sore.selesai})`,
-      )
+        `Sore (${jadwalCeklis.sore.mulai}-${jadwalCeklis.sore.selesai})`
+      );
     if (jadwalCeklis.malam.aktif)
       aktifList.push(
-        `Malam (${jadwalCeklis.malam.mulai}-${jadwalCeklis.malam.selesai})`,
-      )
+        `Malam (${jadwalCeklis.malam.mulai}-${jadwalCeklis.malam.selesai})`
+      );
 
     setProfil((prev) => ({
       ...prev,
       waktuFree: aktifList.length > 0 ? aktifList.join(", ") : "Fleksibel",
-    }))
-  }, [jadwalFleksibel, jadwalCeklis])
+    }));
+  }, [jadwalFleksibel, jadwalCeklis]);
 
   const [rawWritingSamples, setRawWritingSamples] = useState(
-    "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan.",
-  )
-  const [personaProfile, setPersonaProfile] = useState(DEFAULT_PERSONA_PROFILE)
+    "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan."
+  );
+  const [personaProfile, setPersonaProfile] = useState(DEFAULT_PERSONA_PROFILE);
   const [bentukKonten, setBentukKonten] = useState(
-    SEPULUH_BENTUK_KONTEN[3].nama,
-  )
-  const [deskripsiBentukSendiri, setDeskripsiBentukSendiri] = useState("")
+    SEPULUH_BENTUK_KONTEN[3].nama
+  );
+  const [deskripsiBentukSendiri, setDeskripsiBentukSendiri] = useState("");
   const bentukKontenFinal = deskripsiBentukSendiri.trim()
     ? `${bentukKonten} — Catatan: ${deskripsiBentukSendiri.trim()}`
-    : bentukKonten
+    : bentukKonten;
 
   const [daftar10IdeTopik, setDaftar10IdeTopik] = useState([
     {
@@ -211,128 +220,131 @@ export default function HookyaMainApp() {
       nuansa: "Tips Praktis",
       ringkasan: "Langkah kecil yang konsisten mengalahkan niat besar.",
     },
-    {
-      judul: "Kenapa Terlalu Banyak Nonton Tutorial Bikin Gagal Mulai",
-      nuansa: "Membongkar Mitos",
-      ringkasan: "Praktik langsung jauh lebih berharga daripada sekadar teori.",
-    },
-    {
-      judul: "3 Kebiasaan Pagi yang Diam-diam Menguras Energi Harian",
-      nuansa: "Kesalahan Umum",
-      ringkasan: "Cara sederhana menjaga fokus sejak bangun tidur.",
-    },
-    {
-      judul: "Cara Mengatur Gaji Bulanan Biar Nggak Habis di Minggu Pertama",
-      nuansa: "Tips Praktis",
-      ringkasan: "Strategi memisahkan rekening tabungan dan belanja harian.",
-    },
-    {
-      judul: "Jebakan Beli Barang Murah Tapi Malah Rugi Dua Kali",
-      nuansa: "Pengalaman Pribadi",
-      ringkasan: "Memilih barang berkualitas yang awet dipakai bertahun-tahun.",
-    },
-    {
-      judul: "Cara Tetap Konsisten Olahraga di Tengah Kesibukan Kerja",
-      nuansa: "Tips Praktis",
-      ringkasan: "Menjaga kebugaran tubuh tanpa harus ke tempat gym mahal.",
-    },
-    {
-      judul: "Bedanya Sibuk Produktif vs Sibuk yang Bikin Jalan di Tempat",
-      nuansa: "Membongkar Mitos",
-      ringkasan: "Fokus mengerjakan 1 prioritas utama setiap hari.",
-    },
-    {
-      judul: "Satu Prinsip Sederhana yang Mengubah Cara Mengambil Keputusan",
-      nuansa: "Cerita Keseharian",
-      ringkasan:
-        "Belajar dari kesalahan masa lalu untuk hasil yang lebih baik.",
-    },
-  ])
+  ]);
 
-  const [stage, setStage] = useState(0)
-  const [hasilSkrip, setHasilSkrip] = useState(null)
-  const [modeTampilanSkrip, setModeTampilanSkrip] = useState("voiceover")
-  const [modeTeleprompter, setModeTeleprompter] = useState(false)
+  const [stage, setStage] = useState(0);
+  const [hasilSkrip, setHasilSkrip] = useState(null);
+  const [modeTampilanSkrip, setModeTampilanSkrip] = useState("voiceover");
+  const [modeTeleprompter, setModeTeleprompter] = useState(false);
 
-  const [koleksiSkripTersimpan, setKoleksiSkripTersimpan] = useState([])
-  const [semuaSkripAdmin, setSemuaSkripAdmin] = useState([])
-  const [formKinerja, setFormKinerja] = useState({})
-  const [semuaUserDB, setSemuaUserDB] = useState([])
-  const [daftarTransaksi, setDaftarTransaksi] = useState([])
+  const [koleksiSkripTersimpan, setKoleksiSkripTersimpan] = useState([]);
+  const [semuaSkripAdmin, setSemuaSkripAdmin] = useState([]);
+  const [formKinerja, setFormKinerja] = useState({});
+  const [semuaUserDB, setSemuaUserDB] = useState([]);
+  const [daftarTransaksi, setDaftarTransaksi] = useState([]);
 
-  const [checkoutModal, setCheckoutModal] = useState(null)
-  const [metodeBayarPilihan, setMetodeBayarPilihan] = useState(
-    "QRIS Instan (Semua E-Wallet & M-Banking)",
-  )
-  const [sedangProsesBayar, setSedangProsesBayar] = useState(false)
-  const [inputKodeVoucherUser, setInputKodeVoucherUser] = useState("")
+  const [checkoutModal, setCheckoutModal] = useState(null);
+  const [sedangProsesBayar, setSedangProsesBayar] = useState(false);
+  const [inputKodeVoucherUser, setInputKodeVoucherUser] = useState("");
 
   const [pengaturanPayment, setPengaturanPayment] = useState({
     modeVerifikasi: "otomatis",
     namaMerchant: "HOOKYA OFFICIAL",
     infoRekening: "BCA / SeaBank / GoPay / DANA a.n Admin Hookya",
     qrisImageUrl: "",
-    externalPaymentUrl: "",
-  })
+    duitkuMerchantCode: "",
+    duitkuApiKey: "",
+    duitkuIsProduction: false,
+  });
 
   const [daftarVoucher, setDaftarVoucher] = useState([
     { kode: "HOOKYA100", koin: 100, kuota: 50, terpakai: 0 },
     { kode: "GRATIS50", koin: 50, kuota: 100, terpakai: 0 },
-  ])
+  ]);
 
   const [customPrompts, setCustomPrompts] = useState({
     persona_engine: "Ekstrak sapaan dan kosakata khas pengguna dengan akurat.",
     assessment_copilot: "Berikan 3 pilihan sudut pandang yang tajam.",
     script_humanizer:
       "Tulis dengan bahasa lisan yang mengalir alami saat diucapkan.",
-  })
+  });
 
-  // ============================================================================
-  // SINKRONISASI SUPABASE DENGAN ISOLASI SKRIP PER AKUN PENGGUNA
-  // ============================================================================
+  // Menghasilkan Avatar Default berbasis Gmail / Nama Lengkap jika user belum upload foto custom
+  const getAvatarUrlUser = () => {
+    if (profil.avatar_url && profil.avatar_url.trim() !== "") {
+      return profil.avatar_url;
+    }
+    const namaBersih = encodeURIComponent(
+      profil.nama || profil.kontak || "User"
+    );
+    return `https://ui-avatars.com/api/?name=${namaBersih}&background=d4f34a&color=14141f&bold=true&size=128`;
+  };
+
+  // Handler Upload Foto Profil Custom dari HP/Laptop
+  const handleUploadAvatarCustom = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 160;
+        canvas.height = 160;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, 160, 160);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+
+        setProfil((prev) => ({ ...prev, avatar_url: dataUrl }));
+        if (userId) {
+          await supabase
+            .from("users")
+            .update({
+              avatar_url: dataUrl,
+              profil_dna: { ...profil, avatar_url: dataUrl },
+            })
+            .eq("id", userId);
+        }
+        showToast("Foto profil kamu berhasil diperbarui!");
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const muatUlangDataSupabase = async (idTarget) => {
     try {
       const { data: userRows } = await supabase
         .from("users")
         .select("*")
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: true });
 
-      let activeUser = null
+      let activeUser = null;
 
       if (userRows) {
-        setSemuaUserDB(userRows)
+        setSemuaUserDB(userRows);
         const savedId =
           idTarget ||
           (typeof window !== "undefined"
             ? localStorage.getItem("hookya_active_user_id")
-            : null)
+            : null);
 
-        activeUser = userRows.find((u) => u.id === savedId)
+        activeUser = userRows.find((u) => u.id === savedId);
 
-        // Ambil pengaturan global (Voucher, Payment, PIN Admin) dari akun admin/pertama
-        const adminRow = userRows.find((u) => u.role === "admin") || userRows[0]
+        const adminRow =
+          userRows.find((u) => u.role === "admin") || userRows[0];
         if (adminRow?.profil_dna) {
           if (Array.isArray(adminRow.profil_dna.daftarVoucher)) {
-            setDaftarVoucher(adminRow.profil_dna.daftarVoucher)
+            setDaftarVoucher(adminRow.profil_dna.daftarVoucher);
           }
           if (adminRow.profil_dna.pengaturanPayment) {
-            setPengaturanPayment(adminRow.profil_dna.pengaturanPayment)
+            setPengaturanPayment(adminRow.profil_dna.pengaturanPayment);
           }
           if (adminRow.profil_dna.pinAdminResmi) {
-            setPinAdminResmi(adminRow.profil_dna.pinAdminResmi)
+            setPinAdminResmi(adminRow.profil_dna.pinAdminResmi);
           }
           if (adminRow.profil_dna.customPrompts) {
-            setCustomPrompts(adminRow.profil_dna.customPrompts)
+            setCustomPrompts(adminRow.profil_dna.customPrompts);
           }
         }
 
         if (activeUser) {
-          setUserId(activeUser.id)
+          setUserId(activeUser.id);
           setUserRole(
             activeUser.role ||
-              (activeUser.id === userRows[0]?.id ? "admin" : "user"),
-          )
-          setCoins(activeUser.koin ?? 120)
+              (activeUser.id === userRows[0]?.id ? "admin" : "user")
+          );
+          setCoins(activeUser.koin ?? 120);
           setProfil((prev) => ({
             ...prev,
             ...(activeUser.profil_dna || {}),
@@ -341,35 +353,32 @@ export default function HookyaMainApp() {
               activeUser.username ||
               activeUser.profil_dna?.username ||
               prev.username,
-          }))
+            kontak:
+              activeUser.email ||
+              activeUser.profil_dna?.kontak ||
+              prev.kontak,
+            avatar_url:
+              activeUser.avatar_url ||
+              activeUser.profil_dna?.avatar_url ||
+              prev.avatar_url,
+          }));
           if (activeUser.profil_dna?.rawWritingSamples) {
-            setRawWritingSamples(activeUser.profil_dna.rawWritingSamples)
+            setRawWritingSamples(activeUser.profil_dna.rawWritingSamples);
           }
           if (activeUser.profil_dna?.personaProfile) {
-            setPersonaProfile(activeUser.profil_dna.personaProfile)
+            setPersonaProfile(activeUser.profil_dna.personaProfile);
           }
           if (activeUser.profil_dna?.bentukKonten) {
-            setBentukKonten(activeUser.profil_dna.bentukKonten)
+            setBentukKonten(activeUser.profil_dna.bentukKonten);
           }
-          if (activeUser.profil_dna?.deskripsiBentukSendiri) {
-            setDeskripsiBentukSendiri(
-              activeUser.profil_dna.deskripsiBentukSendiri,
-            )
-          }
-          if (activeUser.profil_dna?.jadwalCeklis) {
-            setJadwalCeklis(activeUser.profil_dna.jadwalCeklis)
-          }
-          if (typeof activeUser.profil_dna?.jadwalFleksibel === "boolean") {
-            setJadwalFleksibel(activeUser.profil_dna.jadwalFleksibel)
-          }
-          setViewMode("user")
+          setViewMode("user");
         }
       }
 
       const { data: scriptRows } = await supabase
         .from("scripts")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false });
 
       if (scriptRows) {
         const formatBarisSkrip = (row) => ({
@@ -381,11 +390,7 @@ export default function HookyaMainApp() {
           bentuk: row.bentuk_konten,
           waktuDibuat:
             row.segmen_skrip?.meta?.waktuDibuat ||
-            new Date(row.created_at).toLocaleDateString("id-ID", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            }),
+            new Date(row.created_at).toLocaleDateString("id-ID"),
           segmen: Array.isArray(row.segmen_skrip)
             ? row.segmen_skrip
             : row.segmen_skrip?.segmen || [],
@@ -396,53 +401,63 @@ export default function HookyaMainApp() {
           komen: row.segmen_skrip?.meta?.komen ?? null,
           sudahEvaluasi: Boolean(row.segmen_skrip?.meta?.sudahEvaluasi),
           evaluasiAI: row.segmen_skrip?.meta?.evaluasiAI || "",
-        })
+        });
 
-        const semuaTerformat = scriptRows.map(formatBarisSkrip)
-        setSemuaSkripAdmin(semuaTerformat)
+        const semuaTerformat = scriptRows.map(formatBarisSkrip);
+        setSemuaSkripAdmin(semuaTerformat);
 
-        const idAktifSekarang = activeUser?.id || idTarget
+        const idAktifSekarang = activeUser?.id || idTarget;
         if (idAktifSekarang) {
           setKoleksiSkripTersimpan(
-            semuaTerformat.filter((s) => s.userId === idAktifSekarang),
-          )
-        } else {
-          setKoleksiSkripTersimpan([])
+            semuaTerformat.filter((s) => s.userId === idAktifSekarang)
+          );
         }
+      }
+
+      // Muat riwayat usulan milik user aktif
+      const idAktifFb = activeUser?.id || idTarget;
+      if (idAktifFb) {
+        const { data: fbUser } = await supabase
+          .from("feedbacks")
+          .select("*")
+          .eq("user_id", idAktifFb)
+          .order("created_at", { ascending: false });
+        if (fbUser) setRiwayatUsulanSaya(fbUser);
       }
 
       const { data: trxRows } = await supabase
         .from("transactions")
         .select("*")
-        .order("created_at", { ascending: false })
-      if (trxRows) setDaftarTransaksi(trxRows)
+        .order("created_at", { ascending: false });
+      if (trxRows) setDaftarTransaksi(trxRows);
     } catch {
-      // Abaikan jika koneksi awal belum siap
+      // Abaikan
     }
-  }
+  };
 
   useEffect(() => {
-    muatUlangDataSupabase()
-  }, [])
+    muatUlangDataSupabase();
+  }, []);
 
   const updateKoinDatabase = async (koinBaru, targetUserId = userId) => {
-    if (targetUserId === userId) setCoins(koinBaru)
+    if (targetUserId === userId) setCoins(koinBaru);
     setSemuaUserDB((prev) =>
-      prev.map((u) => (u.id === targetUserId ? { ...u, koin: koinBaru } : u)),
-    )
-    if (!targetUserId) return
+      prev.map((u) => (u.id === targetUserId ? { ...u, koin: koinBaru } : u))
+    );
+    if (!targetUserId) return;
     await supabase
       .from("users")
       .update({ koin: koinBaru })
-      .eq("id", targetUserId)
-  }
+      .eq("id", targetUserId);
+  };
 
   const simpanPersonaKeSupabase = async (personaTerbaru = personaProfile) => {
-    if (!userId) return
+    if (!userId) return;
     await supabase
       .from("users")
       .update({
         nama: profil.nama,
+        avatar_url: profil.avatar_url,
         profil_dna: {
           ...profil,
           jadwalFleksibel,
@@ -457,8 +472,8 @@ export default function HookyaMainApp() {
           pinAdminResmi,
         },
       })
-      .eq("id", userId)
-  }
+      .eq("id", userId);
+  };
 
   const simpanAtauUpdateSkripDatabase = async (skripObj) => {
     const payloadSegmen = {
@@ -473,7 +488,7 @@ export default function HookyaMainApp() {
         sudahEvaluasi: skripObj.sudahEvaluasi,
         evaluasiAI: skripObj.evaluasiAI,
       },
-    }
+    };
     try {
       if (skripObj.dbId) {
         await supabase
@@ -483,8 +498,8 @@ export default function HookyaMainApp() {
             bentuk_konten: skripObj.bentuk,
             segmen_skrip: payloadSegmen,
           })
-          .eq("id", skripObj.dbId)
-        return skripObj
+          .eq("id", skripObj.dbId);
+        return skripObj;
       } else {
         const { data } = await supabase
           .from("scripts")
@@ -498,82 +513,86 @@ export default function HookyaMainApp() {
             },
           ])
           .select()
-          .single()
-        if (data?.id) return { ...skripObj, id: data.id, dbId: data.id, userId }
+          .single();
+        if (data?.id)
+          return { ...skripObj, id: data.id, dbId: data.id, userId };
       }
     } catch {
       // Fallback
     }
-    return skripObj
-  }
+    return skripObj;
+  };
 
-  const hitungStatusPengingatSepekan = (tglUploadStr, sudahEvaluasi) => {
-    if (!tglUploadStr) return null
-    const tglUpload = new Date(tglUploadStr)
-    const tglTargetSepekan = new Date(
-      tglUpload.getTime() + 7 * 24 * 60 * 60 * 1000,
-    )
-    const sekarang = new Date()
-    const selisihHari = Math.ceil(
-      (tglTargetSepekan.getTime() - sekarang.getTime()) / (1000 * 60 * 60 * 24),
-    )
-    const labelTarget = tglTargetSepekan.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })
+  // Handler Kirim Usulan Pengembangan / Komplain ke Dashboard Developer
+  const handleKirimUsulanUser = async (e) => {
+    e.preventDefault();
+    if (!formUsulan.pesan.trim()) {
+      alert("Silakan tuliskan usulan atau keluhanmu terlebih dahulu.");
+      return;
+    }
+    setIsSendingUsulan(true);
+    try {
+      const payload = {
+        user_id: userId,
+        nama_user: profil.nama,
+        email_user: profil.kontak,
+        kategori: formUsulan.kategori,
+        pesan: formUsulan.pesan.trim(),
+        status: "baru",
+      };
+      const { data, error } = await supabase
+        .from("feedbacks")
+        .insert([payload])
+        .select()
+        .single();
+      if (error) throw error;
 
-    if (sudahEvaluasi) {
-      return {
-        siapEvaluasi: false,
-        teks: `Evaluasi kinerja sepekan telah selesai dilaporkan`,
-        warna: "bg-[#f2fce2] text-[#4d6b14]",
-      }
+      setRiwayatUsulanSaya([
+        data || { ...payload, id: Date.now(), created_at: new Date() },
+        ...riwayatUsulanSaya,
+      ]);
+      setFormUsulan({ ...formUsulan, pesan: "" });
+      showToast(
+        "Terima kasih! Usulan/masukan kamu telah dikirim langsung ke Dashboard Developer."
+      );
+    } catch (err) {
+      showToast("Gagal mengirim usulan: " + err.message);
+    } finally {
+      setIsSendingUsulan(false);
     }
-    if (selisihHari <= 0) {
-      return {
-        siapEvaluasi: true,
-        teks: `Pengingat Sepekan: Konten ini sudah melewati 7 hari sejak diupload (${labelTarget}). Yuk laporkan jumlah views, like, dan komentar!`,
-        warna: "bg-[#fff0e6] text-[#d97736]",
-      }
-    }
-    return {
-      siapEvaluasi: false,
-      teks: `Jadwal Evaluasi Sepekan: ${labelTarget} (${selisihHari} hari lagi sejak diupload)`,
-      warna: "bg-[#f0eeff] text-[#5b4bc4]",
-    }
-  }
+  };
 
-  // Handler Pembelian Paket Koin (Mendukung Link Payment Pengganti, Midtrans & QRIS)
+  // Handler Pembelian Paket Koin via Duitku Payment Gateway
   const bukaLayarCheckoutPaket = async (paketObj) => {
-    const kodeUnik = Math.floor(101 + Math.random() * 890)
-    const nomorInvoice = `INV-${Date.now().toString().slice(-6)}`
+    const kodeUnik = Math.floor(101 + Math.random() * 890);
+    const nomorInvoice = `INV-${Date.now().toString().slice(-6)}`;
 
-    // Jika Admin sudah mengisi Link Payment Gateway Pengganti (Mayar.id / Tripay / Lynk.id), buka link tersebut
-    if (pengaturanPayment.externalPaymentUrl?.trim()) {
-      window.open(pengaturanPayment.externalPaymentUrl.trim(), "_blank")
-    } else {
-      try {
-        const res = await fetch("/api/payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "create_gateway_invoice",
-            invoiceId: nomorInvoice,
-            userId,
-            namaUser: profil.nama,
-            namaPaket: paketObj.nama,
-            jumlahKoin: paketObj.koin,
-            nominal: paketObj.nominalAngka,
-          }),
-        })
-        const data = await res.json()
-        if (data.mode === "midtrans" && data.redirectUrl) {
-          window.open(data.redirectUrl, "_blank")
-        }
-      } catch {
-        // Lanjut buka modal QRIS
+    try {
+      const res = await fetch("/api/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_gateway_invoice",
+          invoiceId: nomorInvoice,
+          userId,
+          namaUser: profil.nama,
+          emailUser: profil.kontak,
+          namaPaket: paketObj.nama,
+          jumlahKoin: paketObj.koin,
+          nominal: paketObj.nominalAngka,
+          duitkuConfigClient: {
+            merchantCode: pengaturanPayment.duitkuMerchantCode,
+            apiKey: pengaturanPayment.duitkuApiKey,
+            isProduction: pengaturanPayment.duitkuIsProduction,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.mode === "duitku" && data.redirectUrl) {
+        window.open(data.redirectUrl, "_blank");
       }
+    } catch {
+      // Lanjut buka modal QRIS
     }
 
     setCheckoutModal({
@@ -583,14 +602,14 @@ export default function HookyaMainApp() {
       nominalAsli: paketObj.nominalAngka,
       kodeUnik,
       nominalBayar: paketObj.nominalAngka + kodeUnik,
-    })
-  }
+    });
+  };
 
   const handleKonfirmasiSudahBayar = async () => {
-    if (!checkoutModal) return
-    setSedangProsesBayar(true)
+    if (!checkoutModal) return;
+    setSedangProsesBayar(true);
     const statusAwal =
-      pengaturanPayment.modeVerifikasi === "otomatis" ? "lunas" : "pending"
+      pengaturanPayment.modeVerifikasi === "otomatis" ? "lunas" : "pending";
 
     const trxBaru = {
       invoice_id: checkoutModal.invoiceId,
@@ -600,88 +619,83 @@ export default function HookyaMainApp() {
       jumlah_koin: checkoutModal.koin,
       nominal_asli: checkoutModal.nominalAsli,
       nominal_bayar: checkoutModal.nominalBayar,
-      metode_bayar: metodeBayarPilihan,
+      metode_bayar: "Duitku / QRIS",
       status: statusAwal,
-    }
+    };
 
     try {
       const { data } = await supabase
         .from("transactions")
         .insert([trxBaru])
         .select()
-        .single()
+        .single();
       setDaftarTransaksi([
         data || { ...trxBaru, id: Date.now() },
         ...daftarTransaksi,
-      ])
+      ]);
       if (statusAwal === "lunas") {
-        await updateKoinDatabase(coins + checkoutModal.koin)
-        setPaket(checkoutModal.namaPaket)
+        await updateKoinDatabase(coins + checkoutModal.koin);
+        setPaket(checkoutModal.namaPaket);
         showToast(
-          `Pembayaran terverifikasi! +${checkoutModal.koin} Koin berhasil ditambahkan.`,
-        )
+          `Pembayaran terverifikasi! +${checkoutModal.koin} Koin berhasil ditambahkan.`
+        );
       } else {
         showToast(
-          "Konfirmasi pembayaran diterima dan sedang diverifikasi Admin.",
-        )
+          "Konfirmasi pembayaran diterima dan sedang diverifikasi Admin."
+        );
       }
     } finally {
-      setSedangProsesBayar(false)
-      setCheckoutModal(null)
+      setSedangProsesBayar(false);
+      setCheckoutModal(null);
     }
-  }
+  };
 
   const handleKlaimVoucherUser = async () => {
-    const kodeBersih = inputKodeVoucherUser.trim().toUpperCase()
-    if (!kodeBersih) return
+    const kodeBersih = inputKodeVoucherUser.trim().toUpperCase();
+    if (!kodeBersih) return;
     const ditemukan = daftarVoucher.find(
-      (v) => v.kode.toUpperCase() === kodeBersih,
-    )
+      (v) => v.kode.toUpperCase() === kodeBersih
+    );
     if (!ditemukan || ditemukan.terpakai >= ditemukan.kuota) {
-      alert("Kode voucher tidak ditemukan atau kuota sudah habis.")
-      return
+      alert("Kode voucher tidak ditemukan atau kuota sudah habis.");
+      return;
     }
-    const tambahan = parseInt(ditemukan.koin) || 50
-    await updateKoinDatabase(coins + tambahan)
+    const tambahan = parseInt(ditemukan.koin) || 50;
+    await updateKoinDatabase(coins + tambahan);
     setDaftarVoucher(
       daftarVoucher.map((v) =>
         v.kode.toUpperCase() === kodeBersih
           ? { ...v, terpakai: v.terpakai + 1 }
-          : v,
-      ),
-    )
-    setInputKodeVoucherUser("")
-    showToast(`Voucher berhasil diklaim! +${tambahan} Koin ditambahkan.`)
-  }
+          : v
+      )
+    );
+    setInputKodeVoucherUser("");
+    showToast(`Voucher berhasil diklaim! +${tambahan} Koin ditambahkan.`);
+  };
 
   const handleToggleSudahUpload = async (item, checked) => {
     const tglDefault = checked
       ? item.tanggalUpload || new Date().toISOString().split("T")[0]
-      : ""
+      : "";
     const updated = {
       ...item,
       sudahUpload: checked,
       tanggalUpload: tglDefault,
-    }
+    };
     setKoleksiSkripTersimpan((prev) =>
-      prev.map((s) => (s.id === item.id ? updated : s)),
-    )
-    await simpanAtauUpdateSkripDatabase(updated)
-    if (checked) {
-      showToast(
-        "Status upload dicatat! Sistem akan mengingatkan evaluasi kinerja sepekan setelah tanggal upload.",
-      )
-    }
-  }
+      prev.map((s) => (s.id === item.id ? updated : s))
+    );
+    await simpanAtauUpdateSkripDatabase(updated);
+  };
 
   const handleKirimLaporanKinerjaVT = async (item) => {
-    const input = formKinerja[item.id] || {}
-    const views = parseInt(input.views ?? item.views ?? 0) || 0
-    const likes = parseInt(input.likes ?? item.likes ?? 0) || 0
-    const komen = parseInt(input.komen ?? item.komen ?? 0) || 0
+    const input = formKinerja[item.id] || {};
+    const views = parseInt(input.views ?? item.views ?? 0) || 0;
+    const likes = parseInt(input.likes ?? item.likes ?? 0) || 0;
+    const komen = parseInt(input.komen ?? item.komen ?? 0) || 0;
 
-    setIsGenerating(true)
-    let catatanEvaluasi = `Dalam sepekan, konten ini meraih ${views} views, ${likes} like, dan ${komen} komentar.`
+    setIsGenerating(true);
+    let catatanEvaluasi = `Dalam sepekan, konten ini meraih ${views} views, ${likes} like, dan ${komen} komentar.`;
 
     try {
       const res = await fetch("/api/ai", {
@@ -700,9 +714,9 @@ export default function HookyaMainApp() {
             komen,
           },
         }),
-      })
-      const data = await res.json()
-      if (res.ok && data.evaluasiAI) catatanEvaluasi = data.evaluasiAI
+      });
+      const data = await res.json();
+      if (res.ok && data.evaluasiAI) catatanEvaluasi = data.evaluasiAI;
     } catch {
       // Fallback
     }
@@ -717,28 +731,27 @@ export default function HookyaMainApp() {
       komen,
       sudahEvaluasi: true,
       evaluasiAI: catatanEvaluasi,
-    }
+    };
 
     setKoleksiSkripTersimpan((prev) =>
-      prev.map((s) => (s.id === item.id ? updated : s)),
-    )
-    await simpanAtauUpdateSkripDatabase(updated)
-    if (!item.sudahEvaluasi) await updateKoinDatabase(coins + 2)
-    setIsGenerating(false)
-    showToast("Laporan kinerja disimpan & bonus +2 Koin ditambahkan!")
-  }
+      prev.map((s) => (s.id === item.id ? updated : s))
+    );
+    await simpanAtauUpdateSkripDatabase(updated);
+    if (!item.sudahEvaluasi) await updateKoinDatabase(coins + 2);
+    setIsGenerating(false);
+    showToast("Laporan kinerja disimpan & bonus +2 Koin ditambahkan!");
+  };
 
-  // Deteksi otomatis apakah akun yang sedang aktif adalah Admin/Pemilik
   const isAdminAccount =
     userRole === "admin" ||
     profil.nama?.toLowerCase().includes("faqih") ||
     profil.nama?.toLowerCase().includes("qih") ||
     profil.nama?.toLowerCase().includes("admin") ||
-    profil.username?.toLowerCase() === "paqijoe"
+    profil.username?.toLowerCase() === "paqijoe";
 
   const jumlahMenungguLaporan = koleksiSkripTersimpan.filter(
-    (s) => s.sudahUpload && !s.sudahEvaluasi,
-  ).length
+    (s) => s.sudahUpload && !s.sudahEvaluasi
+  ).length;
 
   // ============================================================================
   // 1. LAYAR LOGIN & PENDAFTARAN FULLSCREEN
@@ -750,18 +763,18 @@ export default function HookyaMainApp() {
         onAuthSuccess={async (userRow) => {
           if (userRow?.id) {
             if (typeof window !== "undefined") {
-              localStorage.setItem("hookya_active_user_id", userRow.id)
+              localStorage.setItem("hookya_active_user_id", userRow.id);
             }
-            await muatUlangDataSupabase(userRow.id)
+            await muatUlangDataSupabase(userRow.id);
           }
-          setViewMode("user")
+          setViewMode("user");
         }}
       />
-    )
+    );
   }
 
   // ============================================================================
-  // 2. LAYAR DASHBOARD DEVELOPER TERPISAH (DENGAN PENGATUR PIN DINAMIS)
+  // 2. LAYAR DASHBOARD DEVELOPER TERPISAH
   // ============================================================================
   if (viewMode === "dev") {
     return (
@@ -785,31 +798,31 @@ export default function HookyaMainApp() {
           await supabase
             .from("transactions")
             .update({ status: "lunas" })
-            .eq("id", trx.id)
-          const u = semuaUserDB.find((x) => x.id === trx.user_id)
+            .eq("id", trx.id);
+          const u = semuaUserDB.find((x) => x.id === trx.user_id);
           await updateKoinDatabase(
             (u?.koin || 0) + (trx.jumlah_koin || 0),
-            trx.user_id || userId,
-          )
+            trx.user_id || userId
+          );
           setDaftarTransaksi(
             daftarTransaksi.map((t) =>
-              t.id === trx.id ? { ...t, status: "lunas" } : t,
-            ),
-          )
-          showToast("Transaksi disetujui & koin berhasil dikirim!")
+              t.id === trx.id ? { ...t, status: "lunas" } : t
+            )
+          );
+          showToast("Transaksi disetujui & koin berhasil dikirim!");
         }}
         simpanPengaturanDevKeDB={() => {
-          simpanPersonaKeSupabase(personaProfile)
-          showToast("Seluruh pengaturan manajerial & PIN Developer disimpan!")
+          simpanPersonaKeSupabase(personaProfile);
+          showToast("Seluruh pengaturan manajerial & Duitku disimpan!");
         }}
         muatUlangDataSupabase={muatUlangDataSupabase}
         showToast={showToast}
       />
-    )
+    );
   }
 
   // ============================================================================
-  // 3. LAYAR DASHBOARD PENGGUNA (TERKUNCI AGAR TIDAK MELEBAR DI HP)
+  // 3. LAYAR DASHBOARD PENGGUNA
   // ============================================================================
   const daftarMenuUser = [
     { id: "dna", label: "Profil & Gaya Bicara", icon: "dna" },
@@ -828,7 +841,8 @@ export default function HookyaMainApp() {
       badge: jumlahMenungguLaporan,
     },
     { id: "topup", label: "Paket Koin & Voucher", icon: "coin" },
-  ]
+    { id: "usulan", label: "Usulan Pengembangan", icon: "code" },
+  ];
 
   const daftarPaketKoin = [
     {
@@ -846,20 +860,6 @@ export default function HookyaMainApp() {
       ket: "Untuk mulai rutin membuat konten mingguan.",
     },
     {
-      nama: "Paket Rutin",
-      harga: "Rp15.000",
-      nominalAngka: 15000,
-      koin: 200,
-      ket: "Untuk kreator yang konsisten upload harian.",
-    },
-    {
-      nama: "Paket Aktif",
-      harga: "Rp20.000",
-      nominalAngka: 20000,
-      koin: 300,
-      ket: "Termasuk bonus koin eksplorasi ide.",
-    },
-    {
       nama: "Paket Kreator (Terlaris)",
       harga: "Rp25.000",
       nominalAngka: 25000,
@@ -868,23 +868,81 @@ export default function HookyaMainApp() {
       populer: true,
     },
     {
-      nama: "Paket Sultan",
-      harga: "Rp50.000",
-      nominalAngka: 50000,
-      koin: 1000,
-      ket: "Untuk produksi konten masif.",
-    },
-    {
       nama: "Paket Produser VIP",
       harga: "Rp99.000",
       nominalAngka: 99000,
       koin: 3000,
       ket: "Akses maksimal tanpa batas.",
     },
-  ]
+  ];
+
+  // Komponen Kartu Foto Profil Gmail + Nama Lengkap + Email di atas tombol Keluar pada Sidebar
+  const renderSidebarUserCard = (isCompact = false) => (
+    <div className="pt-4 mt-4 border-t border-white/10 space-y-2.5 w-full">
+      {!isCompact && (
+        <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex items-center gap-3">
+          <label
+            className="cursor-pointer relative shrink-0 group"
+            title="Klik untuk ganti foto profil custom"
+          >
+            <img
+              src={getAvatarUrlUser()}
+              alt={profil.nama}
+              className="w-10 h-10 rounded-full object-cover border-2 border-[#d4f34a]"
+            />
+            <span className="absolute -bottom-1 -right-1 bg-[#14141f] text-[#d4f34a] text-[9px] font-bold px-1 rounded border border-[#d4f34a]">
+              Ubah
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleUploadAvatarCustom}
+              className="hidden"
+            />
+          </label>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-white truncate">
+              {profil.nama}
+            </div>
+            <div className="text-[11px] text-slate-400 truncate">
+              {profil.kontak || "kreator@gmail.com"}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAdminAccount && !isCompact && (
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setShowPinModal(true);
+          }}
+          className="cursor-pointer w-full bg-white/10 hover:bg-white/15 text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2"
+        >
+          <FlatIcon name="code" className="w-4 h-4" />
+          <span>Dashboard Developer</span>
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={() => {
+          setSidebarOpen(false);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("hookya_active_user_id");
+          }
+          setViewMode("auth");
+        }}
+        className="cursor-pointer w-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold py-2.5 rounded-xl transition"
+      >
+        {isCompact ? "✕" : "Keluar / Ganti Akun"}
+      </button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] text-[#14141f] flex flex-col font-sans antialiased tracking-tight overflow-x-hidden w-full max-w-[100vw]">
+    <div className="min-h-screen bg-[#f4f5f7] text-[#14141f] flex flex-col font-sans antialiased tracking-tight overflow-x-hidden w-full max-w-[100vw] pt-16">
       {toastMsg && (
         <div className="fixed bottom-5 right-5 z-50 bg-[#14141f] text-[#d4f34a] px-5 py-3.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2.5 border border-[#d4f34a]/40 max-w-md">
           <FlatIcon name="check" className="w-4 h-4 shrink-0" />
@@ -892,16 +950,20 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* HEADER STICKY: KIRI = BURGER | TENGAH = LOGO HOOKYA | KANAN = PROFIL USER + KOIN */}
-      <header className="sticky top-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10">
-        <div className="flex items-center gap-2">
+      {/* =====================================================================
+          HEADER FIXED STATIS (TIDAK IKUT BERGESER SAAT DI-SCROLL KE BAWAH)
+          KIRI = BURGER | TENGAH = LOGO HOOKYA | KANAN = PROFIL + KOIN
+      ===================================================================== */}
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 grid grid-cols-3 items-center shadow-md border-b border-white/10">
+        {/* KIRI: Tombol Burger */}
+        <div className="flex items-center justify-start">
           <button
             type="button"
             onClick={() => {
               if (typeof window !== "undefined" && window.innerWidth < 768) {
-                setSidebarOpen((prev) => !prev)
+                setSidebarOpen((prev) => !prev);
               } else {
-                setDesktopMinimized((prev) => !prev)
+                setDesktopMinimized((prev) => !prev);
               }
             }}
             className="cursor-pointer w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#d4f34a] transition"
@@ -910,21 +972,21 @@ export default function HookyaMainApp() {
           </button>
         </div>
 
-        {/* TENGAH: LOGO HOOKYA (Klik 5x berturut-turut juga membuka PIN Developer) */}
+        {/* TENGAH: Logo Hookya */}
         <div
           onClick={() => {
-            setActiveMenu("produksi")
-            const hitunganBaru = logoClickCount + 1
+            setActiveMenu("produksi");
+            const hitunganBaru = logoClickCount + 1;
             if (hitunganBaru >= 5) {
-              setLogoClickCount(0)
-              setShowPinModal(true)
+              setLogoClickCount(0);
+              setShowPinModal(true);
             } else {
-              setLogoClickCount(hitunganBaru)
+              setLogoClickCount(hitunganBaru);
             }
           }}
-          className="cursor-pointer absolute left-1/2 -translate-x-1/2 flex items-center gap-2 select-none"
+          className="cursor-pointer flex items-center justify-center gap-2 select-none"
         >
-          <div className="w-8 h-8 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-sm">
+          <div className="w-8 h-8 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-sm shrink-0">
             H
           </div>
           <span className="font-bold text-base sm:text-lg tracking-tight text-white">
@@ -932,111 +994,108 @@ export default function HookyaMainApp() {
           </span>
         </div>
 
-        {/* KANAN: PROFIL USER + KOIN */}
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowProfilePopup(!showProfilePopup)}
-            className="cursor-pointer flex items-center gap-2 bg-white/10 hover:bg-white/15 pl-3 pr-2.5 py-1.5 rounded-full text-xs transition border border-white/15"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#d4f34a]" />
-            <span className="font-bold text-white truncate max-w-22.5 sm:max-w-35">
-              {profil.nama}
-            </span>
-            <span className="bg-[#d4f34a] text-[#14141f] font-bold px-2.5 py-0.5 rounded-full text-[11px] flex items-center gap-1">
-              <FlatIcon name="coin" className="w-3 h-3" />
-              <span>{coins}</span>
-            </span>
-            <FlatIcon
-              name="chevronDown"
-              className="w-3.5 h-3.5 text-[#d4f34a]"
-            />
-          </button>
+        {/* KANAN: Profil User + Koin */}
+        <div className="flex items-center justify-end">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowProfilePopup(!showProfilePopup)}
+              className="cursor-pointer flex items-center gap-2 bg-white/10 hover:bg-white/15 pl-2 pr-2.5 py-1.5 rounded-full text-xs transition border border-white/15"
+            >
+              <img
+                src={getAvatarUrlUser()}
+                alt={profil.nama}
+                className="w-5 h-5 rounded-full object-cover"
+              />
+              <span className="font-bold text-white truncate max-w-20 sm:max-w-35">
+                {profil.nama}
+              </span>
+              <span className="bg-[#d4f34a] text-[#14141f] font-bold px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1">
+                <FlatIcon name="coin" className="w-3 h-3" />
+                <span>{coins}</span>
+              </span>
+            </button>
 
-          {showProfilePopup && (
-            <div className="absolute right-0 top-12 mt-2 w-80 bg-white text-[#14141f] rounded-3xl shadow-2xl border border-slate-200 p-5 z-50 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <div>
-                  <span className="text-[11px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded">
-                    {paket} • {coins} Koin
-                  </span>
-                  <h4 className="font-bold text-sm mt-1">
-                    {profil.nama} ({profil.peranSaatIni})
-                  </h4>
+            {showProfilePopup && (
+              <div className="absolute right-0 top-12 mt-2 w-80 bg-white text-[#14141f] rounded-3xl shadow-2xl border border-slate-200 p-5 z-50 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={getAvatarUrlUser()}
+                      alt={profil.nama}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-300"
+                    />
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm truncate">
+                        {profil.nama}
+                      </h4>
+                      <span className="text-[11px] text-slate-500 block truncate">
+                        {profil.kontak}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowProfilePopup(false)}
+                    className="cursor-pointer w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowProfilePopup(false)}
-                  className="cursor-pointer w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center"
-                >
-                  ✕
-                </button>
-              </div>
 
-              <div className="text-xs text-slate-600 space-y-1">
-                <div>
-                  <strong className="text-[#14141f]">Sapaan:</strong>{" "}
-                  {personaProfile?.linguistic_matrix?.self_pronoun} ➔{" "}
-                  {personaProfile?.linguistic_matrix?.audience_pronoun}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfilePopup(false);
+                      setActiveMenu("dna");
+                    }}
+                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
+                  >
+                    Edit Profil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfilePopup(false);
+                      setActiveMenu("topup");
+                    }}
+                    className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
+                  >
+                    + Isi Koin
+                  </button>
                 </div>
-                <div>
-                  <strong className="text-[#14141f]">Waktu Luang:</strong>{" "}
-                  {profil.waktuFree}
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
+                {isAdminAccount && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfilePopup(false);
+                      setShowPinModal(true);
+                    }}
+                    className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                  >
+                    <FlatIcon name="code" className="w-4 h-4" />
+                    <span>Buka Dashboard Developer</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
-                    setShowProfilePopup(false)
-                    setActiveMenu("dna")
+                    setShowProfilePopup(false);
+                    if (typeof window !== "undefined") {
+                      localStorage.removeItem("hookya_active_user_id");
+                    }
+                    setViewMode("auth");
                   }}
-                  className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
+                  className="cursor-pointer w-full bg-[#f4f5f7] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
                 >
-                  Edit Profil
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfilePopup(false)
-                    setActiveMenu("topup")
-                  }}
-                  className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
-                >
-                  + Isi Koin
+                  Keluar / Ganti Akun
                 </button>
               </div>
-
-              {isAdminAccount && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProfilePopup(false)
-                    setShowPinModal(true)
-                  }}
-                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5"
-                >
-                  <FlatIcon name="code" className="w-4 h-4" />
-                  <span>Buka Dashboard Developer</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfilePopup(false)
-                  if (typeof window !== "undefined") {
-                    localStorage.removeItem("hookya_active_user_id")
-                  }
-                  setViewMode("auth")
-                }}
-                className="cursor-pointer w-full bg-[#f4f5f7] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
-              >
-                Keluar / Ganti Akun (Logout)
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
@@ -1048,7 +1107,7 @@ export default function HookyaMainApp() {
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-black/60"
             />
-            <aside className="relative w-72 max-w-[82vw] bg-[#14141f] text-white h-full p-5 flex flex-col justify-between z-10 shadow-2xl">
+            <aside className="relative w-72 max-w-[82vw] bg-[#14141f] text-white h-full p-5 flex flex-col justify-between z-10 shadow-2xl overflow-y-auto">
               <div>
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
                   <span className="text-base font-bold text-[#d4f34a]">
@@ -1068,8 +1127,8 @@ export default function HookyaMainApp() {
                       key={item.id}
                       type="button"
                       onClick={() => {
-                        setActiveMenu(item.id)
-                        setSidebarOpen(false)
+                        setActiveMenu(item.id);
+                        setSidebarOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition cursor-pointer ${
                         activeMenu === item.id
@@ -1091,33 +1150,8 @@ export default function HookyaMainApp() {
                 </nav>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-white/10">
-                {isAdminAccount && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen(false)
-                      setShowPinModal(true)
-                    }}
-                    className="cursor-pointer w-full bg-white/10 text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
-                  >
-                    Buka Dashboard Developer
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSidebarOpen(false)
-                    if (typeof window !== "undefined") {
-                      localStorage.removeItem("hookya_active_user_id")
-                    }
-                    setViewMode("auth")
-                  }}
-                  className="cursor-pointer w-full bg-white/5 text-slate-300 text-xs font-bold py-2.5 rounded-xl"
-                >
-                  Keluar / Ganti Akun
-                </button>
-              </div>
+              {/* FOTO PROFIL GMAIL/CUSTOM + NAMA + EMAIL DI ATAS TOMBOL KELUAR */}
+              {renderSidebarUserCard(false)}
             </aside>
           </div>
         )}
@@ -1125,12 +1159,12 @@ export default function HookyaMainApp() {
         {/* SIDEBAR DESKTOP */}
         <aside
           className={`hidden md:flex flex-col justify-between bg-[#14141f] text-white m-4 rounded-4xl p-4 shrink-0 shadow-xl transition-all duration-300 self-start sticky top-20 ${
-            desktopMinimized ? "w-20 items-center" : "w-60"
+            desktopMinimized ? "w-20 items-center" : "w-64"
           }`}
         >
           <nav className="space-y-1.5 text-xs w-full">
             {daftarMenuUser.map((item) => {
-              const isActive = activeMenu === item.id
+              const isActive = activeMenu === item.id;
               return (
                 <button
                   key={item.id}
@@ -1156,20 +1190,12 @@ export default function HookyaMainApp() {
                     </span>
                   )}
                 </button>
-              )
+              );
             })}
           </nav>
 
-          {!desktopMinimized && isAdminAccount && (
-            <button
-              type="button"
-              onClick={() => setShowPinModal(true)}
-              className="cursor-pointer mt-6 w-full bg-white/10 hover:bg-white/15 text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2"
-            >
-              <FlatIcon name="code" className="w-4 h-4" />
-              <span>Dashboard Developer</span>
-            </button>
-          )}
+          {/* FOTO PROFIL GMAIL/CUSTOM + NAMA + EMAIL DI ATAS TOMBOL KELUAR */}
+          {renderSidebarUserCard(desktopMinimized)}
         </aside>
 
         {/* AREA KONTEN UTAMA */}
@@ -1253,15 +1279,14 @@ export default function HookyaMainApp() {
                     Daftar Skrip Tersimpan & Status Upload Konten
                   </h2>
                   <p className="text-xs text-slate-600 mt-1">
-                    Ceklis skrip yang sudah kamu rekam dan upload menjadi konten
-                    VT, lalu isi tanggal uploadnya.
+                    Ceklis skrip yang sudah kamu rekam dan upload menjadi konten VT.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    setStage(0)
-                    setActiveMenu("produksi")
+                    setStage(0);
+                    setActiveMenu("produksi");
                   }}
                   className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-xl"
                 >
@@ -1292,9 +1317,9 @@ export default function HookyaMainApp() {
                       <button
                         type="button"
                         onClick={() => {
-                          setHasilSkrip(item)
-                          setStage(5)
-                          setActiveMenu("produksi")
+                          setHasilSkrip(item);
+                          setStage(5);
+                          setActiveMenu("produksi");
                         }}
                         className="cursor-pointer bg-white border border-slate-300 text-xs font-bold px-3.5 py-2 rounded-xl"
                       >
@@ -1315,28 +1340,21 @@ export default function HookyaMainApp() {
                         <span>Sudah Diupload Menjadi Konten VT</span>
                       </label>
                       {item.sudahUpload && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-slate-600">
-                            Tanggal Upload:
-                          </span>
-                          <input
-                            type="date"
-                            value={item.tanggalUpload || ""}
-                            onChange={(e) => {
-                              const updated = {
-                                ...item,
-                                tanggalUpload: e.target.value,
-                              }
-                              setKoleksiSkripTersimpan((prev) =>
-                                prev.map((s) =>
-                                  s.id === item.id ? updated : s,
-                                ),
-                              )
-                              simpanAtauUpdateSkripDatabase(updated)
-                            }}
-                            className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold"
-                          />
-                        </div>
+                        <input
+                          type="date"
+                          value={item.tanggalUpload || ""}
+                          onChange={(e) => {
+                            const updated = {
+                              ...item,
+                              tanggalUpload: e.target.value,
+                            };
+                            setKoleksiSkripTersimpan((prev) =>
+                              prev.map((s) => (s.id === item.id ? updated : s))
+                            );
+                            simpanAtauUpdateSkripDatabase(updated);
+                          }}
+                          className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold"
+                        />
                       )}
                     </div>
                   </div>
@@ -1351,155 +1369,91 @@ export default function HookyaMainApp() {
                 <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
                   Laporan Kinerja VT Sepekan Setelah Upload (Bonus +2 Koin)
                 </h2>
-                <p className="text-xs text-slate-600 mt-1">
-                  Pantau pengingat evaluasi 7 hari untuk setiap skrip yang sudah
-                  kamu upload menjadi konten, lalu laporkan jumlah views, like,
-                  dan komentar untuk mendapatkan hadiah +2 Koin.
-                </p>
               </div>
 
               {koleksiSkripTersimpan.filter((s) => s.sudahUpload).length ===
               0 ? (
-                <div className="text-center py-10 space-y-3">
-                  <p className="text-xs text-slate-500">
-                    Belum ada skrip yang ditandai "Sudah Diupload". Silakan
-                    ceklis skrip yang sudah kamu upload di menu Skrip & Status
-                    Upload.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenu("tersimpan")}
-                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-xl"
-                  >
-                    Ke Menu Skrip & Status Upload
-                  </button>
-                </div>
+                <p className="text-xs text-slate-500 py-8 text-center">
+                  Belum ada skrip yang ditandai "Sudah Diupload".
+                </p>
               ) : (
                 koleksiSkripTersimpan
                   .filter((s) => s.sudahUpload)
                   .map((item) => {
-                    const infoPengingat = hitungStatusPengingatSepekan(
-                      item.tanggalUpload,
-                      item.sudahEvaluasi,
-                    )
                     const inputSaatIni = formKinerja[item.id] || {
                       views: item.views ?? "",
                       likes: item.likes ?? "",
                       komen: item.komen ?? "",
-                    }
+                    };
 
                     return (
                       <div
                         key={item.id}
-                        className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3.5"
+                        className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3"
                       >
-                        <div>
-                          <span className="text-xs text-slate-500">
-                            Diupload pada:{" "}
-                            <strong>{item.tanggalUpload || "-"}</strong>
-                          </span>
-                          <h4 className="font-bold text-sm sm:text-base">
-                            {item.judul}
-                          </h4>
-                        </div>
-
-                        {infoPengingat && (
-                          <div
-                            className={`px-3.5 py-2.5 rounded-xl text-xs font-bold ${infoPengingat.warna}`}
+                        <h4 className="font-bold text-sm">{item.judul}</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                          <input
+                            type="number"
+                            value={inputSaatIni.views}
+                            onChange={(e) =>
+                              setFormKinerja({
+                                ...formKinerja,
+                                [item.id]: {
+                                  ...inputSaatIni,
+                                  views: e.target.value,
+                                },
+                              })
+                            }
+                            placeholder="Jumlah Views..."
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                          />
+                          <input
+                            type="number"
+                            value={inputSaatIni.likes}
+                            onChange={(e) =>
+                              setFormKinerja({
+                                ...formKinerja,
+                                [item.id]: {
+                                  ...inputSaatIni,
+                                  likes: e.target.value,
+                                },
+                              })
+                            }
+                            placeholder="Jumlah Like..."
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                          />
+                          <input
+                            type="number"
+                            value={inputSaatIni.komen}
+                            onChange={(e) =>
+                              setFormKinerja({
+                                ...formKinerja,
+                                [item.id]: {
+                                  ...inputSaatIni,
+                                  komen: e.target.value,
+                                },
+                              })
+                            }
+                            placeholder="Jumlah Komentar..."
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                          />
+                          <button
+                            type="button"
+                            disabled={isGenerating}
+                            onClick={() => handleKirimLaporanKinerjaVT(item)}
+                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold text-xs py-2.5 rounded-xl"
                           >
-                            {infoPengingat.teks}
-                          </div>
-                        )}
-
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                Jumlah Views:
-                              </label>
-                              <input
-                                type="number"
-                                value={inputSaatIni.views}
-                                onChange={(e) =>
-                                  setFormKinerja({
-                                    ...formKinerja,
-                                    [item.id]: {
-                                      ...inputSaatIni,
-                                      views: e.target.value,
-                                    },
-                                  })
-                                }
-                                placeholder="Contoh: 3500"
-                                className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                Jumlah Like:
-                              </label>
-                              <input
-                                type="number"
-                                value={inputSaatIni.likes}
-                                onChange={(e) =>
-                                  setFormKinerja({
-                                    ...formKinerja,
-                                    [item.id]: {
-                                      ...inputSaatIni,
-                                      likes: e.target.value,
-                                    },
-                                  })
-                                }
-                                placeholder="Contoh: 210"
-                                className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                                Jumlah Komentar:
-                              </label>
-                              <input
-                                type="number"
-                                value={inputSaatIni.komen}
-                                onChange={(e) =>
-                                  setFormKinerja({
-                                    ...formKinerja,
-                                    [item.id]: {
-                                      ...inputSaatIni,
-                                      komen: e.target.value,
-                                    },
-                                  })
-                                }
-                                placeholder="Contoh: 35"
-                                className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-xs"
-                              />
-                            </div>
-                            <div className="flex items-end">
-                              <button
-                                type="button"
-                                disabled={isGenerating}
-                                onClick={() =>
-                                  handleKirimLaporanKinerjaVT(item)
-                                }
-                                className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-2.5 rounded-xl"
-                              >
-                                {item.sudahEvaluasi
-                                  ? "Perbarui Kinerja"
-                                  : "Laporkan (+2 Koin)"}
-                              </button>
-                            </div>
-                          </div>
-
-                          {item.evaluasiAI && (
-                            <p className="text-xs bg-[#f4f5f7] p-3.5 rounded-xl leading-relaxed">
-                              <strong className="block mb-0.5">
-                                Evaluasi Kinerja Sepekan dari Sistem AI:
-                              </strong>
-                              {item.evaluasiAI}
-                            </p>
-                          )}
+                            Laporkan (+2 Koin)
+                          </button>
                         </div>
+                        {item.evaluasiAI && (
+                          <p className="text-xs bg-white p-3 rounded-xl">
+                            <strong>Evaluasi AI:</strong> {item.evaluasiAI}
+                          </p>
+                        )}
                       </div>
-                    )
+                    );
                   })
               )}
             </div>
@@ -1507,40 +1461,9 @@ export default function HookyaMainApp() {
 
           {activeMenu === "topup" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
-              {/* PANDUAN RINCIAN PENGGUNAAN KOIN */}
-              <div className="bg-[#f4f5f7] p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                <div className="bg-white p-3 rounded-xl border border-slate-200">
-                  <strong className="block text-[#14141f]">
-                    ⚡ Buat Skrip Konten: 1 Koin
-                  </strong>
-                  <span className="text-slate-500 text-[11px]">
-                    Termasuk riset sudut pandang, fakta, hook & revisi per
-                    kerangka gratis.
-                  </span>
-                </div>
-                <div className="bg-white p-3 rounded-xl border border-slate-200">
-                  <strong className="block text-[#14141f]">
-                    ✂️ Ekstrak Video ke Skrip: 2 Koin
-                  </strong>
-                  <span className="text-slate-500 text-[11px]">
-                    Salin teks asli video + rekomendasi copywriting baru per
-                    kerangka.
-                  </span>
-                </div>
-                <div className="bg-[#f2fce2] p-3 rounded-xl border border-[#4d6b14]/20">
-                  <strong className="block text-[#4d6b14]">
-                    🎁 Laporan Kinerja VT: +2 Koin Gratis
-                  </strong>
-                  <span className="text-slate-600 text-[11px]">
-                    Bonus koin otomatis setiap melaporkan hasil views konten
-                    sepekan.
-                  </span>
-                </div>
-              </div>
-
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <h2 className="text-lg font-bold">
-                  Pilih Paket Koin & Klaim Voucher
+                  Pilih Paket Koin (Duitku / QRIS) & Klaim Voucher
                 </h2>
                 <div className="flex items-center gap-2 bg-[#f4f5f7] p-1.5 rounded-2xl border border-slate-200">
                   <input
@@ -1590,10 +1513,106 @@ export default function HookyaMainApp() {
               </div>
             </div>
           )}
+
+          {/* MENU 7: USULAN PENGEMBANGAN & KOMPLAIN APLIKASI */}
+          {activeMenu === "usulan" && (
+            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
+                  Usulan Pengembangan & Laporan Kendala Aplikasi
+                </h2>
+                <p className="text-xs text-slate-600 mt-1">
+                  Punya ide fitur baru atau menemukan kendala saat menggunakan Hookya? Kirimkan masukanmu di bawah ini—pesanmu langsung masuk ke meja kerja Developer kami.
+                </p>
+              </div>
+
+              <form onSubmit={handleKirimUsulanUser} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#14141f] mb-1.5">
+                    Kategori Masukan:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {[
+                      "Usulan Fitur Baru",
+                      "Laporan Bug / Kendala",
+                      "Kritik & Saran Tampilan",
+                    ].map((kat) => (
+                      <button
+                        key={kat}
+                        type="button"
+                        onClick={() =>
+                          setFormUsulan({ ...formUsulan, kategori: kat })
+                        }
+                        className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-bold border transition ${
+                          formUsulan.kategori === kat
+                            ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
+                            : "bg-[#f4f5f7] text-slate-600 border-transparent"
+                        }`}
+                      >
+                        {kat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#14141f] mb-1.5">
+                    Tuliskan Usulan atau Keluhanmu Secara Detail:
+                  </label>
+                  <StoryVoiceInput
+                    rows={4}
+                    value={formUsulan.pesan}
+                    onChange={(val) =>
+                      setFormUsulan({ ...formUsulan, pesan: val })
+                    }
+                    placeholder="Ketik usulan pengembangan atau kendala yang kamu alami..."
+                    onNotify={showToast}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingUsulan}
+                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl"
+                >
+                  {isSendingUsulan
+                    ? "Mengirim ke Developer..."
+                    : "Kirim Usulan ke Developer Sekarang ➔"}
+                </button>
+              </form>
+
+              {riwayatUsulanSaya.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <h3 className="text-sm font-bold">
+                    Riwayat Usulan & Tanggapan Developer
+                  </h3>
+                  {riwayatUsulanSaya.map((fb) => (
+                    <div
+                      key={fb.id}
+                      className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold">{fb.kategori}</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 font-bold">
+                          Status: {fb.status}
+                        </span>
+                      </div>
+                      <p className="text-slate-700">{fb.pesan}</p>
+                      {fb.balasan_dev && (
+                        <div className="bg-[#f2fce2] text-[#4d6b14] p-3 rounded-xl font-bold">
+                          Balasan Developer: {fb.balasan_dev}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
 
-      {/* MODAL CHECKOUT QRIS / PAYMENT GATEWAY */}
+      {/* MODAL CHECKOUT DUITKU / QRIS */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4">
@@ -1619,16 +1638,6 @@ export default function HookyaMainApp() {
               <p className="text-xs text-slate-500">
                 {pengaturanPayment.infoRekening}
               </p>
-              {pengaturanPayment.externalPaymentUrl && (
-                <a
-                  href={pengaturanPayment.externalPaymentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block bg-[#d4f34a] text-[#14141f] text-xs font-bold px-4 py-2 rounded-xl mt-1"
-                >
-                  Buka Link Pembayaran Cepat ↗
-                </a>
-              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -1651,15 +1660,11 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* MODAL PIN UNTUK BERALIH KE DASHBOARD DEVELOPER TERPISAH */}
+      {/* MODAL PIN DEVELOPER */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-[#14141f] w-full max-w-sm rounded-3xl p-6 space-y-4 text-center">
             <h3 className="text-base font-bold">Masuk ke Mode Developer</h3>
-            <p className="text-xs text-slate-500">
-              Masukkan PIN Admin untuk beralih ke layar penuh Dashboard
-              Manajerial Developer
-            </p>
             <input
               type="password"
               value={inputPinDev}
@@ -1679,11 +1684,11 @@ export default function HookyaMainApp() {
                 type="button"
                 onClick={() => {
                   if (inputPinDev === pinAdminResmi) {
-                    setShowPinModal(false)
-                    setInputPinDev("")
-                    setViewMode("dev")
+                    setShowPinModal(false);
+                    setInputPinDev("");
+                    setViewMode("dev");
                   } else {
-                    alert("PIN Admin salah.")
+                    alert("PIN Admin salah.");
                   }
                 }}
                 className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-xl"
@@ -1724,5 +1729,5 @@ export default function HookyaMainApp() {
         </div>
       )}
     </div>
-  )
+  );
 }

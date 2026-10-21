@@ -1,7 +1,7 @@
-"use client";
-import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
-import { FlatIcon } from "./SharedUI";
+"use client"
+import { useState, useEffect } from "react"
+import { supabase } from "../lib/supabase"
+import { FlatIcon } from "./SharedUI"
 
 export default function DeveloperDashboardView({
   onSwitchToUserView,
@@ -22,67 +22,95 @@ export default function DeveloperDashboardView({
   muatUlangDataSupabase,
   showToast,
 }) {
-  const [devTab, setDevTab] = useState("overview");
-  const [daftarErrorLog, setDaftarErrorLog] = useState([]);
+  const [devTab, setDevTab] = useState("overview")
+  const [daftarErrorLog, setDaftarErrorLog] = useState([])
+  const [daftarUsulan, setDaftarUsulan] = useState([])
+  const [balasanInput, setBalasanInput] = useState({})
   const [voucherBaru, setVoucherBaru] = useState({
     kode: "",
     koin: "100",
     kuota: "25",
-  });
+  })
 
-  // State Edit Email & Password Akun User/Admin Langsung dari Dashboard Dev
-  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingUserId, setEditingUserId] = useState(null)
   const [editUserForm, setEditUserForm] = useState({
     email: "",
     password: "",
-  });
+  })
 
-  const muatErrorLogs = async () => {
+  const muatErrorDanUsulan = async () => {
     try {
-      const { data } = await supabase
+      const { data: errRows } = await supabase
         .from("error_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(50);
-      if (data) setDaftarErrorLog(data);
+        .limit(50)
+      if (errRows) setDaftarErrorLog(errRows)
+
+      const { data: fbRows } = await supabase
+        .from("feedbacks")
+        .select("*")
+        .order("created_at", { ascending: false })
+      if (fbRows) setDaftarUsulan(fbRows)
     } catch {
-      // Abaikan
+      // Abaikan jika tabel belum ada
     }
-  };
+  }
 
   useEffect(() => {
-    muatErrorLogs();
-  }, []);
+    muatErrorDanUsulan()
+  }, [])
+
+  const handleTanggapiUsulan = async (fb, statusBaru) => {
+    const teksBalasan = balasanInput[fb.id] ?? fb.balasan_dev ?? ""
+    try {
+      await supabase
+        .from("feedbacks")
+        .update({ status: statusBaru, balasan_dev: teksBalasan })
+        .eq("id", fb.id)
+
+      setDaftarUsulan((prev) =>
+        prev.map((item) =>
+          item.id === fb.id
+            ? { ...item, status: statusBaru, balasan_dev: teksBalasan }
+            : item,
+        ),
+      )
+      showToast("Status usulan/komplain berhasil diperbarui!")
+    } catch (err) {
+      showToast("Gagal memperbarui usulan: " + err.message)
+    }
+  }
 
   const handleSimpanEmailPasswordUser = async (uId) => {
     try {
-      const updatePayload = {};
+      const updatePayload = {}
       if (editUserForm.email.trim()) {
-        updatePayload.email = editUserForm.email.trim().toLowerCase();
+        updatePayload.email = editUserForm.email.trim().toLowerCase()
       }
       if (editUserForm.password.trim()) {
-        updatePayload.password_hash = editUserForm.password.trim();
+        updatePayload.password_hash = editUserForm.password.trim()
       }
-      await supabase.from("users").update(updatePayload).eq("id", uId);
-      setEditingUserId(null);
-      await muatUlangDataSupabase();
-      showToast("Email & Password akun berhasil diperbarui!");
+      await supabase.from("users").update(updatePayload).eq("id", uId)
+      setEditingUserId(null)
+      await muatUlangDataSupabase()
+      showToast("Email & Password akun berhasil diperbarui!")
     } catch (err) {
-      showToast("Gagal memperbarui akun: " + err.message);
+      showToast("Gagal memperbarui akun: " + err.message)
     }
-  };
+  }
 
   const totalOmzetLunas = daftarTransaksi
     .filter((t) => t.status === "lunas")
-    .reduce((acc, cur) => acc + (parseInt(cur.nominal_bayar) || 0), 0);
+    .reduce((acc, cur) => acc + (parseInt(cur.nominal_bayar) || 0), 0)
 
   const jumlahTransaksiPending = daftarTransaksi.filter(
-    (t) => t.status === "pending"
-  ).length;
+    (t) => t.status === "pending",
+  ).length
 
   return (
     <div className="min-h-screen bg-[#14141f] text-white flex flex-col font-sans antialiased overflow-x-hidden">
-      <header className="sticky top-0 z-40 h-16 bg-[#14141f] border-b border-white/10 px-4 sm:px-8 flex items-center justify-between gap-2">
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] border-b border-white/10 px-4 sm:px-8 flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-base shrink-0">
             H
@@ -92,7 +120,7 @@ export default function DeveloperDashboardView({
               Hookya Developer Console
             </span>
             <span className="text-[11px] text-[#d4f34a] hidden sm:inline">
-              Pusat Manajerial Aplikasi, Keamanan PIN & Payment Gateway
+              Pusat Manajerial Aplikasi, Usulan User & Duitku Payment Gateway
             </span>
           </div>
         </div>
@@ -107,21 +135,25 @@ export default function DeveloperDashboardView({
         </button>
       </header>
 
-      <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 space-y-6">
+      <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 pt-20 sm:pt-24 space-y-6">
         <div className="flex flex-wrap gap-2 bg-white/5 p-2 rounded-2xl border border-white/10">
           {[
-            { id: "overview", label: "Ringkasan & Ubah PIN Dev" },
+            { id: "overview", label: "Ringkasan & PIN Dev" },
+            {
+              id: "usulan",
+              label: `Usulan & Komplain User (${daftarUsulan.length})`,
+            },
             {
               id: "error_logs",
               label: `Laporan Error AI (${daftarErrorLog.length})`,
             },
             {
               id: "transaksi",
-              label: `Payment Gateway & Transaksi (${jumlahTransaksiPending} Pending)`,
+              label: `Duitku & Transaksi (${jumlahTransaksiPending} Pending)`,
             },
             {
               id: "users",
-              label: `Kelola Akun & Password (${semuaUserDB.length})`,
+              label: `Kelola Akun (${semuaUserDB.length})`,
             },
             { id: "voucher", label: "Generator Voucher" },
             { id: "prompt", label: "Studio Prompt AI" },
@@ -167,10 +199,10 @@ export default function DeveloperDashboardView({
                 </div>
                 <div className="p-5 rounded-2xl bg-[#f4f5f7] border border-slate-200">
                   <span className="text-xs text-slate-500">
-                    Total Skrip Diproduksi
+                    Usulan & Komplain Masuk
                   </span>
                   <div className="text-2xl font-bold mt-1">
-                    {koleksiSkripTersimpan.length} Skrip
+                    {daftarUsulan.length} Pesan
                   </div>
                 </div>
                 <div className="p-5 rounded-2xl bg-[#f2fce2] border border-[#4d6b14]/30 space-y-1.5">
@@ -192,7 +224,92 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 2: LAPORAN ERROR */}
+          {/* TAB 2: KOTAK MASUK USULAN PENGEMBANGAN & KOMPLAIN USER */}
+          {devTab === "usulan" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-bold">
+                    Kotak Masuk Usulan Pengembangan & Komplain Pengguna
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Semua masukan atau keluhan yang dikirim pengguna melalui
+                    menu "Usulan Pengembangan" tampil di sini.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={muatErrorDanUsulan}
+                  className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
+                >
+                  Refresh Usulan
+                </button>
+              </div>
+
+              {daftarUsulan.length === 0 ? (
+                <p className="text-xs text-slate-500 py-8 text-center">
+                  Belum ada usulan atau komplain yang dikirim pengguna.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {daftarUsulan.map((fb) => (
+                    <div
+                      key={fb.id}
+                      className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 space-y-3 text-xs"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#14141f] text-[#d4f34a] mr-2">
+                            {fb.kategori}
+                          </span>
+                          <strong>{fb.nama_user}</strong> (
+                          {fb.email_user || "-"})
+                        </div>
+                        <span className="text-[11px] text-slate-500">
+                          {new Date(fb.created_at).toLocaleString("id-ID")} •
+                          Status: <strong>{fb.status}</strong>
+                        </span>
+                      </div>
+
+                      <p className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-[#14141f] leading-relaxed">
+                        {fb.pesan}
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={
+                            balasanInput[fb.id] !== undefined
+                              ? balasanInput[fb.id]
+                              : fb.balasan_dev || ""
+                          }
+                          onChange={(e) =>
+                            setBalasanInput({
+                              ...balasanInput,
+                              [fb.id]: e.target.value,
+                            })
+                          }
+                          placeholder="Tulis balasan atau tindak lanjut developer..."
+                          className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleTanggapiUsulan(fb, "ditindaklanjuti")
+                          }
+                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2 rounded-xl shrink-0"
+                        >
+                          Simpan Balasan & Tandai Selesai
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: LAPORAN ERROR AI */}
           {devTab === "error_logs" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -201,12 +318,13 @@ export default function DeveloperDashboardView({
                     Laporan Error Generate AI & Auto-Refund Koin
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Jika AI gagal merespons, koin pengguna otomatis dikembalikan di belakang layar.
+                    Jika AI gagal merespons, koin pengguna otomatis dikembalikan
+                    di belakang layar.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={muatErrorLogs}
+                  onClick={muatErrorDanUsulan}
                   className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
                 >
                   Muat Ulang Log
@@ -241,59 +359,78 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 3: PAYMENT GATEWAY PENGGANTI MIDTRANS & TRANSAKSI */}
+          {/* TAB 4: DUITKU PAYMENT GATEWAY & TRANSAKSI */}
           {devTab === "transaksi" && (
             <div className="space-y-5">
               <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
                 <h3 className="text-sm font-bold">
-                  Pengaturan Payment Gateway (QRIS Merchant / Mayar.id / Tripay / Midtrans)
+                  Konfigurasi Duitku Payment Gateway & QRIS Merchant
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold mb-1">
-                      Mode Verifikasi Pembayaran:
+                      Duitku Merchant Code:
                     </label>
-                    <select
-                      value={pengaturanPayment.modeVerifikasi}
+                    <input
+                      type="text"
+                      value={pengaturanPayment.duitkuMerchantCode || ""}
                       onChange={(e) =>
                         setPengaturanPayment({
                           ...pengaturanPayment,
-                          modeVerifikasi: e.target.value,
+                          duitkuMerchantCode: e.target.value,
+                        })
+                      }
+                      placeholder="Contoh: DXXXX"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Duitku API Key:
+                    </label>
+                    <input
+                      type="password"
+                      value={pengaturanPayment.duitkuApiKey || ""}
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          duitkuApiKey: e.target.value,
+                        })
+                      }
+                      placeholder="API Key dari dashboard Duitku..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">
+                      Mode Duitku:
+                    </label>
+                    <select
+                      value={
+                        pengaturanPayment.duitkuIsProduction
+                          ? "production"
+                          : "sandbox"
+                      }
+                      onChange={(e) =>
+                        setPengaturanPayment({
+                          ...pengaturanPayment,
+                          duitkuIsProduction: e.target.value === "production",
                         })
                       }
                       className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none"
                     >
-                      <option value="manual_admin">
-                        Verifikasi Manual Admin (Tunggu Klik Terima)
-                      </option>
-                      <option value="otomatis">
-                        Verifikasi Otomatis
+                      <option value="sandbox">Sandbox (Uji Coba)</option>
+                      <option value="production">
+                        Production (Live Uang Asli)
                       </option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold mb-1">
-                      Link Payment Gateway Pengganti (Mayar.id / Tripay / Lynk.id):
-                    </label>
-                    <input
-                      type="text"
-                      value={pengaturanPayment.externalPaymentUrl || ""}
-                      onChange={(e) =>
-                        setPengaturanPayment({
-                          ...pengaturanPayment,
-                          externalPaymentUrl: e.target.value,
-                        })
-                      }
-                      placeholder="Contoh: https://mayar.id/hookya"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
-                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold mb-1">
-                      URL Gambar QRIS Merchant Pribadimu:
+                      URL Gambar QRIS Cadangan:
                     </label>
                     <input
                       type="text"
@@ -341,8 +478,9 @@ export default function DeveloperDashboardView({
                       </strong>
                       <div className="text-slate-500 mt-0.5">
                         Tagihan: Rp
-                        {Number(trx.nominal_bayar).toLocaleString("id-ID")} •{" "}
-                        {trx.metode_bayar}
+                        {Number(trx.nominal_bayar).toLocaleString(
+                          "id-ID",
+                        )} • {trx.metode_bayar}
                       </div>
                     </div>
                     {trx.status === "pending" ? (
@@ -364,18 +502,13 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 4: KELOLA PENGGUNA + FITUR LIHAT & GANTI EMAIL/PASSWORD LANGSUNG */}
+          {/* TAB 5: KELOLA PENGGUNA */}
           {devTab === "users" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Manajemen Akun Pengguna, Email, Password & Koin
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Kamu bisa melihat email/password login setiap akun (termasuk akun pribadimu) dan mengubahnya langsung di sini.
-                  </p>
-                </div>
+                <h2 className="text-lg font-bold">
+                  Manajemen Akun Pengguna, Email, Password & Koin
+                </h2>
                 <button
                   type="button"
                   onClick={() => muatUlangDataSupabase()}
@@ -387,9 +520,9 @@ export default function DeveloperDashboardView({
 
               {semuaUserDB.map((u) => {
                 const emailSaatIni =
-                  u.email || u.profil_dna?.kontak || "Belum diatur";
+                  u.email || u.profil_dna?.kontak || "Belum diatur"
                 const passwordSaatIni =
-                  u.password_hash || u.profil_dna?.pin || "12345678";
+                  u.password_hash || u.profil_dna?.pin || "12345678"
 
                 return (
                   <div
@@ -417,14 +550,13 @@ export default function DeveloperDashboardView({
                           type="button"
                           onClick={() => {
                             setEditingUserId(
-                              editingUserId === u.id ? null : u.id
-                            );
+                              editingUserId === u.id ? null : u.id,
+                            )
                             setEditUserForm({
-                              email:
-                                u.email || u.profil_dna?.kontak || "",
+                              email: u.email || u.profil_dna?.kontak || "",
                               password:
                                 u.password_hash || u.profil_dna?.pin || "",
-                            });
+                            })
                           }}
                           className="cursor-pointer bg-white border border-slate-300 font-bold px-3 py-1.5 rounded-xl"
                         >
@@ -481,12 +613,12 @@ export default function DeveloperDashboardView({
                       </div>
                     )}
                   </div>
-                );
+                )
               })}
             </div>
           )}
 
-          {/* TAB 5: GENERATOR VOUCHER */}
+          {/* TAB 6: GENERATOR VOUCHER */}
           {devTab === "voucher" && (
             <div className="space-y-4">
               <div className="bg-[#f4f5f7] p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -523,7 +655,7 @@ export default function DeveloperDashboardView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!voucherBaru.kode.trim()) return;
+                    if (!voucherBaru.kode.trim()) return
                     setDaftarVoucher([
                       {
                         kode: voucherBaru.kode.trim().toUpperCase(),
@@ -532,9 +664,9 @@ export default function DeveloperDashboardView({
                         terpakai: 0,
                       },
                       ...daftarVoucher,
-                    ]);
-                    setVoucherBaru({ kode: "", koin: "100", kuota: "25" });
-                    showToast("Voucher ditambahkan!");
+                    ])
+                    setVoucherBaru({ kode: "", koin: "100", kuota: "25" })
+                    showToast("Voucher ditambahkan!")
                   }}
                   className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
                 >
@@ -555,7 +687,7 @@ export default function DeveloperDashboardView({
                     type="button"
                     onClick={() =>
                       setDaftarVoucher(
-                        daftarVoucher.filter((_, idx) => idx !== i)
+                        daftarVoucher.filter((_, idx) => idx !== i),
                       )
                     }
                     className="cursor-pointer text-rose-600 font-bold"
@@ -567,7 +699,7 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 6: STUDIO PROMPT AI */}
+          {/* TAB 7: STUDIO PROMPT AI */}
           {devTab === "prompt" && (
             <div className="space-y-4">
               <div>
@@ -626,10 +758,11 @@ export default function DeveloperDashboardView({
             onClick={simpanPengaturanDevKeDB}
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-4 rounded-2xl"
           >
-            Simpan Seluruh Pengaturan Manajerial & PIN Developer ke Database
+            Simpan Seluruh Pengaturan Manajerial, Duitku & PIN Developer ke
+            Database
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }

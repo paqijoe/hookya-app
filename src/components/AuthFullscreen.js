@@ -1,7 +1,7 @@
-"use client";
-import { useState } from "react";
-import { supabase } from "../lib/supabase";
-import { FlatIcon } from "./SharedUI";
+"use client"
+import { useState } from "react"
+import { supabase } from "../lib/supabase"
+import { FlatIcon } from "./SharedUI"
 
 const PILIHAN_PAKET_PENDAFTARAN = [
   {
@@ -37,13 +37,13 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 1000,
     ket: "1.000 Koin untuk produksi konten masif.",
   },
-];
+]
 
 export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
   // mode: 'login' | 'register_step1' | 'register_step2_package' | 'register_step3_pay' | 'forgot_password'
-  const [mode, setMode] = useState("login");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState("login")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
     namaLengkap: "",
@@ -51,125 +51,125 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     gmail: "",
     whatsapp: "",
     password: "",
-  });
+  })
 
-  const [tipeAktivasi, setTipeAktivasi] = useState("berbayar"); // 'berbayar' | 'voucher' | 'tester'
+  const [tipeAktivasi, setTipeAktivasi] = useState("berbayar") // 'berbayar' | 'voucher' | 'tester'
   const [paketTerpilih, setPaketTerpilih] = useState(
-    PILIHAN_PAKET_PENDAFTARAN[2]
-  );
-  const [kodeVoucherInput, setKodeVoucherInput] = useState("");
-  const [invoiceReg, setInvoiceReg] = useState(null);
-  const [sudahKlikBayar, setSudahKlikBayar] = useState(false);
+    PILIHAN_PAKET_PENDAFTARAN[2],
+  )
+  const [kodeVoucherInput, setKodeVoucherInput] = useState("")
+  const [invoiceReg, setInvoiceReg] = useState(null)
+  const [sudahKlikBayar, setSudahKlikBayar] = useState(false)
 
-  const [errors, setErrors] = useState({});
-  const [infoPesanHijau, setInfoPesanHijau] = useState("");
+  const [errors, setErrors] = useState({})
+  const [infoPesanHijau, setInfoPesanHijau] = useState("")
 
   // Otomatis menambahkan @gmail.com
   const formatOtomatisGmail = (nilai) => {
-    const bersih = nilai.trim().toLowerCase().replace(/\s+/g, "");
-    if (!bersih) return "";
+    const bersih = nilai.trim().toLowerCase().replace(/\s+/g, "")
+    if (!bersih) return ""
     if (!bersih.includes("@")) {
-      return `${bersih}@gmail.com`;
+      return `${bersih}@gmail.com`
     }
-    const [depan] = bersih.split("@");
-    return `${depan}@gmail.com`;
-  };
+    const [depan] = bersih.split("@")
+    return `${depan}@gmail.com`
+  }
 
   // Membuat URL Foto Profil Default berdasarkan akun Gmail/Nama pengguna
   const buatAvatarDefaultGmail = (nama, email) => {
-    const namaBersih = encodeURIComponent(nama || email || "User");
-    return `https://ui-avatars.com/api/?name=${namaBersih}&background=d4f34a&color=14141f&bold=true&size=128`;
-  };
+    const namaBersih = encodeURIComponent(nama || email || "User")
+    return `https://ui-avatars.com/api/?name=${namaBersih}&background=d4f34a&color=14141f&bold=true&size=128`
+  }
 
   // Validasi Spesifik Nomor WhatsApp (Wajib 11-13 Angka, Diawali 08 atau 628)
   const cekValidasiWhatsApp = (nomor) => {
-    if (!nomor) return "Nomor WhatsApp wajib diisi.";
+    if (!nomor) return "Nomor WhatsApp wajib diisi."
     if (!/^\d+$/.test(nomor)) {
-      return "Nomor WhatsApp hanya boleh berisi angka tanpa spasi atau tanda baca.";
+      return "Nomor WhatsApp hanya boleh berisi angka tanpa spasi atau tanda baca."
     }
     if (!nomor.startsWith("08") && !nomor.startsWith("628")) {
-      return "Format salah: Nomor WhatsApp wajib diawali angka 08 atau 628.";
+      return "Format salah: Nomor WhatsApp wajib diawali angka 08 atau 628."
     }
     if (nomor.length < 11) {
-      return `Nomor kurang panjang: Saat ini baru ${nomor.length} angka (Wajib 11 atau 12 angka).`;
+      return `Nomor kurang panjang: Saat ini baru ${nomor.length} angka (Wajib 11 atau 12 angka).`
     }
     if (nomor.length > 13) {
-      return `Nomor terlalu panjang: Saat ini ${nomor.length} angka (Maksimal 12-13 angka).`;
+      return `Nomor terlalu panjang: Saat ini ${nomor.length} angka (Maksimal 12-13 angka).`
     }
-    return "";
-  };
+    return ""
+  }
 
   // Validasi Spesifik Password (Minimal 8 Angka/Karakter)
   const cekValidasiPassword = (pass) => {
-    if (!pass) return "Password wajib diisi.";
+    if (!pass) return "Password wajib diisi."
     if (pass.length < 8) {
-      return `Password kurang panjang: Baru ${pass.length} karakter (Minimal wajib 8 angka/karakter).`;
+      return `Password kurang panjang: Baru ${pass.length} karakter (Minimal wajib 8 angka/karakter).`
     }
-    return "";
-  };
+    return ""
+  }
 
   // LANGKAH 1 PENDAFTARAN: VALIDASI DATA DIRI (TANPA KONFIRMASI GMAIL GANDA)
   const handleLanjutKePilihPaket = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    setInfoPesanHijau("");
+    e.preventDefault()
+    const errBaru = {}
+    setInfoPesanHijau("")
 
-    const emailFinal = formatOtomatisGmail(form.gmail);
-    setForm((prev) => ({ ...prev, gmail: emailFinal }));
+    const emailFinal = formatOtomatisGmail(form.gmail)
+    setForm((prev) => ({ ...prev, gmail: emailFinal }))
 
     if (!form.namaLengkap.trim()) {
-      errBaru.namaLengkap = "Nama Lengkap wajib diisi.";
+      errBaru.namaLengkap = "Nama Lengkap wajib diisi."
     }
     if (!form.username.trim() || form.username.trim().length < 3) {
-      errBaru.username = "Username minimal 3 karakter tanpa spasi.";
+      errBaru.username = "Username minimal 3 karakter tanpa spasi."
     }
     if (!emailFinal.endsWith("@gmail.com")) {
-      errBaru.gmail = "Wajib menggunakan alamat @gmail.com yang valid.";
+      errBaru.gmail = "Wajib menggunakan alamat @gmail.com yang valid."
     }
 
-    const pesanErrWA = cekValidasiWhatsApp(form.whatsapp);
-    if (pesanErrWA) errBaru.whatsapp = pesanErrWA;
+    const pesanErrWA = cekValidasiWhatsApp(form.whatsapp)
+    if (pesanErrWA) errBaru.whatsapp = pesanErrWA
 
-    const pesanErrPass = cekValidasiPassword(form.password);
-    if (pesanErrPass) errBaru.password = pesanErrPass;
+    const pesanErrPass = cekValidasiPassword(form.password)
+    if (pesanErrPass) errBaru.password = pesanErrPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       const { data: existingUsers } = await supabase
         .from("users")
         .select("id, username, email")
         .or(
-          `username.eq.${form.username.trim().toLowerCase()},email.eq.${emailFinal}`
-        );
+          `username.eq.${form.username.trim().toLowerCase()},email.eq.${emailFinal}`,
+        )
 
       if (existingUsers && existingUsers.length > 0) {
         setErrors({
           gmail:
             "Username atau alamat Gmail ini sudah terdaftar. Silakan langsung Masuk (Login).",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
-      setMode("register_step2_package");
+      setMode("register_step2_package")
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Simpan user baru ke Supabase & langsung masuk
   const selesaikanSimpanUserBaru = async (
     jumlahKoinAwal,
     namaPaketAwal,
-    dataInvoice
+    dataInvoice,
   ) => {
     const avatarDefault = buatAvatarDefaultGmail(
       form.namaLengkap.trim(),
-      form.gmail
-    );
+      form.gmail,
+    )
 
     const { data: newUser, error } = await supabase
       .from("users")
@@ -195,9 +195,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         },
       ])
       .select()
-      .single();
+      .single()
 
-    if (error) throw error;
+    if (error) throw error
 
     if (dataInvoice && newUser?.id) {
       try {
@@ -215,7 +215,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               : "QRIS Pendaftaran",
             status: "lunas",
           },
-        ]);
+        ])
       } catch {
         // Abaikan
       }
@@ -223,64 +223,63 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
     if (onNotify) {
       onNotify(
-        `Akun berhasil dibuat dengan ${jumlahKoinAwal} Koin! Selamat datang, ${form.namaLengkap}.`
-      );
+        `Akun berhasil dibuat dengan ${jumlahKoinAwal} Koin! Selamat datang, ${form.namaLengkap}.`,
+      )
     }
-    onAuthSuccess(newUser);
-  };
+    onAuthSuccess(newUser)
+  }
 
   // LANGKAH 2 PENDAFTARAN: PROSES PILIH PAKET / VOUCHER / TESTER
   const handleProsesPaketPendaftaran = async () => {
-    setErrors({});
-    setIsSubmitting(true);
+    setErrors({})
+    setIsSubmitting(true)
 
     try {
       if (tipeAktivasi === "voucher") {
-        const kodeBersih = kodeVoucherInput.trim().toUpperCase();
+        const kodeBersih = kodeVoucherInput.trim().toUpperCase()
         if (!kodeBersih) {
-          setErrors({ paket: "Masukkan kode voucher terlebih dahulu." });
-          setIsSubmitting(false);
-          return;
+          setErrors({ paket: "Masukkan kode voucher terlebih dahulu." })
+          setIsSubmitting(false)
+          return
         }
         const { data: adminRows } = await supabase
           .from("users")
           .select("profil_dna")
           .order("created_at", { ascending: true })
-          .limit(1);
+          .limit(1)
 
-        const listVoucher =
-          adminRows?.[0]?.profil_dna?.daftarVoucher || [
-            { kode: "HOOKYA100", koin: 100, kuota: 50, terpakai: 0 },
-            { kode: "GRATIS50", koin: 50, kuota: 100, terpakai: 0 },
-          ];
+        const listVoucher = adminRows?.[0]?.profil_dna?.daftarVoucher || [
+          { kode: "HOOKYA100", koin: 100, kuota: 50, terpakai: 0 },
+          { kode: "GRATIS50", koin: 50, kuota: 100, terpakai: 0 },
+        ]
 
         const vDitemukan = listVoucher.find(
-          (v) => v.kode.toUpperCase() === kodeBersih
-        );
+          (v) => v.kode.toUpperCase() === kodeBersih,
+        )
         if (!vDitemukan || vDitemukan.terpakai >= vDitemukan.kuota) {
           setErrors({
             paket: "Kode voucher tidak ditemukan atau kuotanya sudah habis.",
-          });
-          setIsSubmitting(false);
-          return;
+          })
+          setIsSubmitting(false)
+          return
         }
         await selesaikanSimpanUserBaru(
           parseInt(vDitemukan.koin) || 50,
           `Voucher ${kodeBersih}`,
-          null
-        );
-        return;
+          null,
+        )
+        return
       }
 
       if (tipeAktivasi === "tester") {
-        await selesaikanSimpanUserBaru(2, "Akun Tester (2 Koin)", null);
-        return;
+        await selesaikanSimpanUserBaru(2, "Akun Tester (2 Koin)", null)
+        return
       }
 
       // Jika memilih Paket Berbayar -> Buat Tagihan Duitku / QRIS
-      const kodeUnik = Math.floor(101 + Math.random() * 890);
-      const nomorInv = `REG-${Date.now().toString().slice(-6)}`;
-      let duitkuUrl = "";
+      const kodeUnik = Math.floor(101 + Math.random() * 890)
+      const nomorInv = `REG-${Date.now().toString().slice(-6)}`
+      let duitkuUrl = ""
 
       try {
         const resPay = await fetch("/api/payment", {
@@ -295,11 +294,11 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             jumlahKoin: paketTerpilih.koin,
             nominal: paketTerpilih.nominal,
           }),
-        });
-        const dataPay = await resPay.json();
+        })
+        const dataPay = await resPay.json()
         if (dataPay.mode === "duitku" && dataPay.redirectUrl) {
-          duitkuUrl = dataPay.redirectUrl;
-          window.open(dataPay.redirectUrl, "_blank");
+          duitkuUrl = dataPay.redirectUrl
+          window.open(dataPay.redirectUrl, "_blank")
         }
       } catch {
         // Fallback QRIS
@@ -312,133 +311,133 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         nominalAsli: paketTerpilih.nominal,
         nominalUnik: paketTerpilih.nominal + kodeUnik,
         duitkuUrl,
-      });
-      setMode("register_step3_pay");
+      })
+      setMode("register_step3_pay")
     } catch (err) {
-      setErrors({ paket: "Gagal memproses pendaftaran: " + err.message });
+      setErrors({ paket: "Gagal memproses pendaftaran: " + err.message })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // LANGKAH 3 PENDAFTARAN (KHUSUS PAKET BERBAYAR)
   const handleSelesaikanPembayaranPendaftaran = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!sudahKlikBayar) {
       setErrors({
         bayar:
           "Silakan centang 'Saya sudah melakukan pembayaran paket ini' terlebih dahulu.",
-      });
-      return;
+      })
+      return
     }
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       await selesaikanSimpanUserBaru(
         paketTerpilih.koin,
         paketTerpilih.nama,
-        invoiceReg
-      );
+        invoiceReg,
+      )
     } catch (err) {
-      setErrors({ bayar: err.message });
+      setErrors({ bayar: err.message })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // LOGIN PENGGUNA
   const handleLogin = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    const identitas = form.gmail.trim().toLowerCase();
+    e.preventDefault()
+    const errBaru = {}
+    const identitas = form.gmail.trim().toLowerCase()
 
     if (!identitas) {
-      errBaru.gmail = "Masukkan Username atau alamat Gmail kamu.";
+      errBaru.gmail = "Masukkan Username atau alamat Gmail kamu."
     }
-    const errPass = cekValidasiPassword(form.password);
-    if (errPass) errBaru.password = errPass;
+    const errPass = cekValidasiPassword(form.password)
+    if (errPass) errBaru.password = errPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const { data: rows } = await supabase.from("users").select("*");
+      const { data: rows } = await supabase.from("users").select("*")
       const ditemukan = (rows || []).find(
         (u) =>
           u.email?.toLowerCase() === identitas ||
           u.email?.toLowerCase() === formatOtomatisGmail(identitas) ||
           u.username?.toLowerCase() === identitas ||
-          u.nama?.toLowerCase() === identitas
-      );
+          u.nama?.toLowerCase() === identitas,
+      )
 
       if (!ditemukan) {
         setErrors({
           gmail:
             "Akun tidak ditemukan. Pastikan penulisan Gmail/Username benar atau Daftar Akun Baru.",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
       const passTersimpan =
-        ditemukan.password_hash || ditemukan.profil_dna?.pin || "";
+        ditemukan.password_hash || ditemukan.profil_dna?.pin || ""
       if (passTersimpan && passTersimpan !== form.password) {
         setErrors({
           password:
             "Password yang kamu masukkan belum sesuai. Silakan cek kembali atau klik Lupa Password.",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
-      if (onNotify) onNotify(`Selamat datang kembali, ${ditemukan.nama}!`);
-      onAuthSuccess(ditemukan);
+      if (onNotify) onNotify(`Selamat datang kembali, ${ditemukan.nama}!`)
+      onAuthSuccess(ditemukan)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // LUPA PASSWORD PASTI (VERIFIKASI GMAIL + NOMOR WHATSAPP TERDAFTAR)
   const handleResetPasswordPasti = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    const emailTarget = formatOtomatisGmail(form.gmail);
-    setForm((prev) => ({ ...prev, gmail: emailTarget }));
+    e.preventDefault()
+    const errBaru = {}
+    const emailTarget = formatOtomatisGmail(form.gmail)
+    setForm((prev) => ({ ...prev, gmail: emailTarget }))
 
     if (!emailTarget.endsWith("@gmail.com")) {
-      errBaru.gmail = "Masukkan alamat @gmail.com yang terdaftar.";
+      errBaru.gmail = "Masukkan alamat @gmail.com yang terdaftar."
     }
-    const errWA = cekValidasiWhatsApp(form.whatsapp);
-    if (errWA) errBaru.whatsapp = errWA;
+    const errWA = cekValidasiWhatsApp(form.whatsapp)
+    if (errWA) errBaru.whatsapp = errWA
 
-    const errPass = cekValidasiPassword(form.password);
-    if (errPass) errBaru.password = errPass;
+    const errPass = cekValidasiPassword(form.password)
+    if (errPass) errBaru.password = errPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const { data: rows } = await supabase.from("users").select("*");
+      const { data: rows } = await supabase.from("users").select("*")
       const akunCocok = (rows || []).find(
         (u) =>
           u.email?.toLowerCase() === emailTarget &&
           (u.whatsapp === form.whatsapp ||
-            u.profil_dna?.whatsapp === form.whatsapp)
-      );
+            u.profil_dna?.whatsapp === form.whatsapp),
+      )
 
       if (!akunCocok) {
         setErrors({
           gmail:
             "Kombinasi alamat Gmail dan Nomor WhatsApp tidak cocok dengan akun mana pun.",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
       // Kirim juga notifikasi reset ke Gmail melalui Supabase Auth
       try {
-        await supabase.auth.resetPasswordForEmail(emailTarget);
+        await supabase.auth.resetPasswordForEmail(emailTarget)
       } catch {
         // Lanjut update database
       }
@@ -446,18 +445,18 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
       await supabase
         .from("users")
         .update({ password_hash: form.password })
-        .eq("id", akunCocok.id);
+        .eq("id", akunCocok.id)
 
       setInfoPesanHijau(
-        "Password baru berhasil disimpan! Silakan masuk menggunakan password barumu."
-      );
-      setMode("login");
+        "Password baru berhasil disimpan! Silakan masuk menggunakan password barumu.",
+      )
+      setMode("login")
     } catch (err) {
-      setErrors({ gmail: "Gagal memperbarui password: " + err.message });
+      setErrors({ gmail: "Gagal memperbarui password: " + err.message })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#fafafa] text-[#14141f] flex flex-col items-center justify-center p-4 font-sans antialiased">
@@ -506,8 +505,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="username email"
                   value={form.gmail}
                   onChange={(e) => {
-                    setForm({ ...form, gmail: e.target.value });
-                    setErrors({ ...errors, gmail: "" });
+                    setForm({ ...form, gmail: e.target.value })
+                    setErrors({ ...errors, gmail: "" })
                   }}
                   onBlur={() => {
                     if (
@@ -517,7 +516,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                       setForm({
                         ...form,
                         gmail: formatOtomatisGmail(form.gmail),
-                      });
+                      })
                     }
                   }}
                   placeholder="nama@gmail.com atau username"
@@ -553,9 +552,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setErrors({});
-                    setInfoPesanHijau("");
-                    setMode("forgot_password");
+                    setErrors({})
+                    setInfoPesanHijau("")
+                    setMode("forgot_password")
                   }}
                   className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] hover:underline"
                 >
@@ -569,15 +568,15 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="current-password"
                   value={form.password}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
                     setErrors({
                       ...errors,
                       password:
                         val.length > 0 && val.length < 8
                           ? `Baru ${val.length} karakter (Minimal wajib 8 angka/karakter)`
                           : "",
-                    });
+                    })
                   }}
                   placeholder="Masukkan password..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-3 pr-11 text-xs font-normal focus:bg-white focus:border-[#14141f] outline-none"
@@ -629,8 +628,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="name"
                 value={form.namaLengkap}
                 onChange={(e) => {
-                  setForm({ ...form, namaLengkap: e.target.value });
-                  setErrors({ ...errors, namaLengkap: "" });
+                  setForm({ ...form, namaLengkap: e.target.value })
+                  setErrors({ ...errors, namaLengkap: "" })
                 }}
                 placeholder="Masukkan nama lengkapmu..."
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs focus:bg-white focus:border-[#14141f] outline-none"
@@ -654,9 +653,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 onChange={(e) => {
                   const val = e.target.value
                     .toLowerCase()
-                    .replace(/[^a-z0-9._]/g, "");
-                  setForm({ ...form, username: val });
-                  setErrors({ ...errors, username: "" });
+                    .replace(/[^a-z0-9._]/g, "")
+                  setForm({ ...form, username: val })
+                  setErrors({ ...errors, username: "" })
                 }}
                 placeholder="contoh: budikreator"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs focus:bg-white focus:border-[#14141f] outline-none"
@@ -679,17 +678,17 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="email"
                   value={form.gmail}
                   onChange={(e) => {
-                    let val = e.target.value;
-                    if (val.endsWith("@")) val = val + "gmail.com";
-                    setForm({ ...form, gmail: val });
-                    setErrors({ ...errors, gmail: "" });
+                    let val = e.target.value
+                    if (val.endsWith("@")) val = val + "gmail.com"
+                    setForm({ ...form, gmail: val })
+                    setErrors({ ...errors, gmail: "" })
                   }}
                   onBlur={() => {
                     if (form.gmail.trim()) {
                       setForm((prev) => ({
                         ...prev,
                         gmail: formatOtomatisGmail(prev.gmail),
-                      }));
+                      }))
                     }
                   }}
                   placeholder="Ketik nama akun Gmail kamu..."
@@ -729,10 +728,10 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="tel"
                 value={form.whatsapp}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setForm({ ...form, whatsapp: val });
-                  const pesan = val ? cekValidasiWhatsApp(val) : "";
-                  setErrors({ ...errors, whatsapp: pesan });
+                  const val = e.target.value
+                  setForm({ ...form, whatsapp: val })
+                  const pesan = val ? cekValidasiWhatsApp(val) : ""
+                  setErrors({ ...errors, whatsapp: pesan })
                 }}
                 placeholder="Contoh: 081234567890"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs focus:bg-white focus:border-[#14141f] outline-none"
@@ -755,12 +754,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
                     setErrors({
                       ...errors,
                       password: val ? cekValidasiPassword(val) : "",
-                    });
+                    })
                   }}
                   placeholder="Minimal 8 angka atau huruf..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-11 text-xs focus:bg-white focus:border-[#14141f] outline-none"
@@ -839,7 +838,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             {tipeAktivasi === "berbayar" && (
               <div className="space-y-2.5">
                 {PILIHAN_PAKET_PENDAFTARAN.map((p) => {
-                  const sedangDipilih = paketTerpilih.id === p.id;
+                  const sedangDipilih = paketTerpilih.id === p.id
                   return (
                     <button
                       key={p.id}
@@ -870,7 +869,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                         </div>
                       </div>
                     </button>
-                  );
+                  )
                 })}
               </div>
             )}
@@ -898,7 +897,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   Mode Tester (Langsung Aktif • 2 Koin)
                 </div>
                 <p className="text-slate-600 leading-relaxed">
-                  Akunmu langsung aktif dengan 2 Koin untuk mencoba membuat skrip pertama.
+                  Akunmu langsung aktif dengan 2 Koin untuk mencoba membuat
+                  skrip pertama.
                 </p>
               </div>
             )}
@@ -926,8 +926,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 {isSubmitting
                   ? "Mengaktifkan Akun..."
                   : tipeAktivasi === "berbayar"
-                  ? `Beli ${paketTerpilih.nama} (${paketTerpilih.hargaTeks}) ➔`
-                  : "Aktifkan Akun & Masuk Sekarang ➔"}
+                    ? `Beli ${paketTerpilih.nama} (${paketTerpilih.hargaTeks}) ➔`
+                    : "Aktifkan Akun & Masuk Sekarang ➔"}
               </button>
             </div>
           </div>
@@ -1014,8 +1014,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="email"
                 value={form.gmail}
                 onChange={(e) => {
-                  setForm({ ...form, gmail: e.target.value });
-                  setErrors({});
+                  setForm({ ...form, gmail: e.target.value })
+                  setErrors({})
                 }}
                 onBlur={() =>
                   setForm((prev) => ({
@@ -1043,8 +1043,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="tel"
                 value={form.whatsapp}
                 onChange={(e) => {
-                  setForm({ ...form, whatsapp: e.target.value });
-                  setErrors({});
+                  setForm({ ...form, whatsapp: e.target.value })
+                  setErrors({})
                 }}
                 placeholder="Contoh: 081234567890"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:bg-white"
@@ -1066,12 +1066,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
                     setErrors({
                       ...errors,
                       password: val ? cekValidasiPassword(val) : "",
-                    });
+                    })
                   }}
                   placeholder="Minimal 8 angka atau huruf..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-11 text-xs outline-none focus:bg-white"
@@ -1123,9 +1123,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             <button
               type="button"
               onClick={() => {
-                setErrors({});
-                setInfoPesanHijau("");
-                setMode("register_step1");
+                setErrors({})
+                setInfoPesanHijau("")
+                setMode("register_step1")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
             >
@@ -1138,9 +1138,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             <button
               type="button"
               onClick={() => {
-                setErrors({});
-                setInfoPesanHijau("");
-                setMode("login");
+                setErrors({})
+                setInfoPesanHijau("")
+                setMode("login")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
             >
@@ -1150,5 +1150,5 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         )}
       </div>
     </div>
-  );
+  )
 }
