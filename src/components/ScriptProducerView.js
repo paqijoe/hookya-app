@@ -1,6 +1,49 @@
 "use client"
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { FlatIcon, StoryVoiceInput, SelectWithCustom } from "./SharedUI"
+
+// Kompres gambar screenshot marketplace agar ringan (< 200KB) dan cepat dibaca AI
+function kompresGambarScreenshot(file) {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          const maxDim = 900
+          let w = img.width
+          let h = img.height
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w)
+              w = maxDim
+            } else {
+              w = Math.round((w * maxDim) / h)
+              h = maxDim
+            }
+          }
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext("2d")
+          ctx.drawImage(img, 0, 0, w, h)
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75)
+          resolve({
+            base64: dataUrl.split(",")[1] || "",
+            mimeType: "image/jpeg",
+            previewUrl: dataUrl,
+          })
+        }
+        img.onerror = () => resolve(null)
+        img.src = e.target.result
+      }
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(file)
+    } catch {
+      resolve(null)
+    }
+  })
+}
 
 export default function ScriptProducerView({
   userId,
@@ -30,6 +73,8 @@ export default function ScriptProducerView({
   setModeTampilanSkrip,
 }) {
   const sliderIdeRef = useRef(null)
+  const storageKey = `hookya_draft_asesmen_${userId || "guest"}`
+
   const [kategoriKonten, setKategoriKonten] = useState("personal")
   const [jenisPromosi, setJenisPromosi] = useState("produk")
 
@@ -38,6 +83,7 @@ export default function ScriptProducerView({
     "Reels / TikTok (60 Detik)",
   )
 
+  // State Form Produk (Masalah, Spesifikasi, dan Cara Pakai kini OPSIONAL)
   const [formProduk, setFormProduk] = useState({
     namaProduk: "",
     brand: "",
@@ -52,6 +98,11 @@ export default function ScriptProducerView({
     targetAlasanEmosional: "",
   })
   const [tampilkanTargetBuyer, setTampilkanTargetBuyer] = useState(false)
+
+  // State Screenshot Produk & Spesifikasi Marketplace
+  const [ssProduk, setSsProduk] = useState(null)
+  const [ssSpesifikasi, setSsSpesifikasi] = useState(null)
+  const [isScanningSS, setIsScanningSS] = useState(false)
 
   const [formCampaign, setFormCampaign] = useState({
     namaCampaign: "",
@@ -100,6 +151,162 @@ export default function ScriptProducerView({
   const [targetKonversiBentuk, setTargetKonversiBentuk] = useState(
     SEPULUH_BENTUK_KONTEN[9]?.nama || "Slide Foto / Carousel",
   )
+  const [draftLoaded, setDraftLoaded] = useState(false)
+
+  // ============================================================================
+  // 1. AUTO-LOAD & AUTO-SAVE DRAFT (ANTI-HILANG SAAT JARINGAN ERROR / PINDAH APK)
+  // ============================================================================
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const savedRaw = localStorage.getItem(storageKey)
+      if (savedRaw) {
+        const parsed = JSON.parse(savedRaw)
+        if (parsed.kategoriKonten) setKategoriKonten(parsed.kategoriKonten)
+        if (parsed.jenisPromosi) setJenisPromosi(parsed.jenisPromosi)
+        if (parsed.rawTopicInput) setRawTopicInput(parsed.rawTopicInput)
+        if (parsed.targetPlatformInput)
+          setTargetPlatformInput(parsed.targetPlatformInput)
+        if (parsed.formProduk) setFormProduk(parsed.formProduk)
+        if (parsed.formCampaign) setFormCampaign(parsed.formCampaign)
+        if (parsed.ugcConfig) setUgcConfig(parsed.ugcConfig)
+        if (parsed.contentBrief) setContentBrief(parsed.contentBrief)
+        if (parsed.coPilotStage1Data)
+          setCoPilotStage1Data(parsed.coPilotStage1Data)
+        if (parsed.coPilotStage2Data)
+          setCoPilotStage2Data(parsed.coPilotStage2Data)
+        if (parsed.coPilotStage3Data)
+          setCoPilotStage3Data(parsed.coPilotStage3Data)
+        if (parsed.tempStoryInput) setTempStoryInput(parsed.tempStoryInput)
+        if (
+          typeof parsed.savedStage === "number" &&
+          parsed.savedStage >= 0 &&
+          parsed.savedStage <= 4 &&
+          !hasilSkrip
+        ) {
+          setStage(parsed.savedStage)
+        }
+      }
+    } catch {
+      // Abaikan jika gagal baca storage
+    } finally {
+      setDraftLoaded(true)
+    }
+  }, [storageKey])
+
+  useEffect(() => {
+    if (!draftLoaded || typeof window === "undefined") return
+    try {
+      const payloadSimpan = {
+        kategoriKonten,
+        jenisPromosi,
+        rawTopicInput,
+        targetPlatformInput,
+        formProduk,
+        formCampaign,
+        ugcConfig,
+        contentBrief,
+        coPilotStage1Data,
+        coPilotStage2Data,
+        coPilotStage3Data,
+        tempStoryInput,
+        savedStage: stage <= 4 ? stage : 0,
+      }
+      localStorage.setItem(storageKey, JSON.stringify(payloadSimpan))
+    } catch {
+      // Abaikan jika kuota storage penuh
+    }
+  }, [
+    draftLoaded,
+    storageKey,
+    kategoriKonten,
+    jenisPromosi,
+    rawTopicInput,
+    targetPlatformInput,
+    formProduk,
+    formCampaign,
+    ugcConfig,
+    contentBrief,
+    coPilotStage1Data,
+    coPilotStage2Data,
+    coPilotStage3Data,
+    tempStoryInput,
+    stage,
+  ])
+
+  // ============================================================================
+  // 2. HANDLER UPLOAD & SCAN SCREENSHOT PRODUK / SPESIFIKASI MARKETPLACE
+  // ============================================================================
+  const handleUploadSSProduk = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const hasil = await kompresGambarScreenshot(file)
+    if (hasil) {
+      setSsProduk({ ...hasil, namaFile: file.name })
+      showToast("Screenshot produk siap di-scan!")
+    }
+  }
+
+  const handleUploadSSSpesifikasi = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const hasil = await kompresGambarScreenshot(file)
+    if (hasil) {
+      setSsSpesifikasi({ ...hasil, namaFile: file.name })
+      showToast("Screenshot spesifikasi produk siap di-scan!")
+    }
+  }
+
+  const handleScanMarketplaceAI = async () => {
+    if (!ssProduk && !ssSpesifikasi) {
+      alert(
+        "Silakan pilih minimal 1 gambar Screenshot Produk dari Marketplace terlebih dahulu.",
+      )
+      return
+    }
+
+    setIsScanningSS(true)
+    showToast(
+      "AI sedang membaca nama produk, merek & spesifikasi dari screenshot...",
+    )
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_marketplace_screenshots",
+          userId,
+          namaUser,
+          productImageBase64: ssProduk?.base64 || "",
+          productImageMime: ssProduk?.mimeType || "image/jpeg",
+          specImageBase64: ssSpesifikasi?.base64 || "",
+          specImageMime: ssSpesifikasi?.mimeType || "image/jpeg",
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Gagal membaca screenshot")
+
+      setFormProduk((prev) => ({
+        ...prev,
+        namaProduk: data.namaProduk || prev.namaProduk,
+        brand: data.brand || prev.brand,
+        hargaPromo: data.hargaPromo || prev.hargaPromo,
+        keunggulanSpesifikasi:
+          data.keunggulanSpesifikasi || prev.keunggulanSpesifikasi,
+        masalahDipecahkan: data.masalahDipecahkan || prev.masalahDipecahkan,
+      }))
+
+      showToast(
+        "Berhasil! Nama produk, merek, dan spesifikasi otomatis terisi dari screenshot.",
+      )
+    } catch (err) {
+      showToast("Info Scan: " + err.message)
+    } finally {
+      setIsScanningSS(false)
+    }
+  }
 
   const handleUbahJumlahPemeranUGC = (jmlBaru) => {
     const angka = Math.max(2, Math.min(6, parseInt(jmlBaru) || 2))
@@ -149,6 +356,9 @@ export default function ScriptProducerView({
     }
   }
 
+  // ============================================================================
+  // TAHAP 1: PENAJAMAN SUDUT PANDANG (MASALAH/SPESIFIKASI/CARA PAKAI OPSIONAL)
+  // ============================================================================
   const mulaiTahap1Angle = async () => {
     let topikUtama = ""
     let detailPromosiPayload = null
@@ -163,25 +373,17 @@ export default function ScriptProducerView({
       topikUtama = rawTopicInput.trim()
     } else {
       if (jenisPromosi === "produk") {
-        if (
-          !formProduk.namaProduk.trim() ||
-          !formProduk.keunggulanSpesifikasi.trim()
-        ) {
+        if (!formProduk.namaProduk.trim()) {
           alert(
-            "Silakan isi minimal Nama Produk dan Detail Spesifikasi/Keunggulan Produk.",
+            "Silakan isi Nama Produk terlebih dahulu (atau gunakan fitur Scan Screenshot Produk di atas).",
           )
           return
         }
-        topikUtama = `Promosi Produk ${formProduk.namaProduk} (${formProduk.brand || "Pilihan"})`
+        topikUtama = `Promosi Produk ${formProduk.namaProduk} (${formProduk.brand || "Pilihan Terbaik"})`
         detailPromosiPayload = formProduk
       } else {
-        if (
-          !formCampaign.namaCampaign.trim() ||
-          !formCampaign.tujuanUtama.trim()
-        ) {
-          alert(
-            "Silakan isi minimal Nama Gerakan/Campaign dan Tujuan Utamanya.",
-          )
+        if (!formCampaign.namaCampaign.trim()) {
+          alert("Silakan isi Nama Gerakan / Campaign terlebih dahulu.")
           return
         }
         topikUtama = `Campaign / Gerakan: ${formCampaign.namaCampaign}`
@@ -582,21 +784,21 @@ export default function ScriptProducerView({
 
   return (
     <div className="bg-white p-4 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6 w-full max-w-full overflow-hidden">
-      {/* BANNER KETERANGAN PENGGUNAAN KOIN */}
+      {/* BANNER KETERANGAN PENGGUNAAN KOIN & INDIKATOR AUTO-SAVE */}
       <div className="bg-[#f4f5f7] px-4 py-2.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-[#14141f]">
+        <div className="flex items-center gap-2 font-bold text-[#14141f]">
           <FlatIcon name="coin" className="w-4 h-4 text-[#4d6b14]" />
-          <span>Info Penggunaan Koin:</span>
+          <span>Info Koin & Auto-Save Aktif:</span>
+          <span className="text-[10px] font-normal text-slate-500">
+            (Isian form otomatis tersimpan meski pindah aplikasi)
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-slate-600">
           <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">
-            Riset Sudut Pandang & Hook: <strong>Gratis</strong>
+            Scan Produk & Riset: <strong>Gratis</strong>
           </span>
           <span className="bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded-md font-bold">
             Buat Skrip Utuh: 1 Koin
-          </span>
-          <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">
-            Ubah Variasi Per Kerangka: <strong>Gratis</strong>
           </span>
         </div>
       </div>
@@ -885,8 +1087,7 @@ export default function ScriptProducerView({
                     1. Pemasaran Produk / Barang / Jasa (Affiliate & UMKM)
                   </div>
                   <p className="text-xs font-normal mt-0.5 opacity-80">
-                    Memasarkan produk fisik, digital, kuliner, atau layanan jasa
-                    secara mendetail.
+                    Bisa scan screenshot marketplace otomatis atau ketik manual.
                   </p>
                 </button>
 
@@ -903,17 +1104,119 @@ export default function ScriptProducerView({
                     2. Campaign / Gerakan Sosial / Event / Komunitas
                   </div>
                   <p className="text-xs font-normal mt-0.5 opacity-80">
-                    Memasarkan gerakan positif, acara, kampanye kesadaran, atau
-                    ajakan komunitas.
+                    Memasarkan gerakan positif, acara, atau ajakan komunitas.
                   </p>
                 </button>
               </div>
 
               {jenisPromosi === "produk" && (
                 <div className="bg-[#f4f5f7] p-4 sm:p-5 rounded-3xl border border-slate-200 space-y-4">
-                  <h3 className="text-sm font-bold text-[#14141f]">
-                    Informasi Mendetail Tentang Produk
-                  </h3>
+                  {/* FITUR BARU: SCAN SCREENSHOT PRODUK & SPESIFIKASI DARI MARKETPLACE */}
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded">
+                          FITUR CEPAT AFFILIATOR
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-[#14141f] mt-1">
+                          Isi Otomatis dari Screenshot Marketplace (Shopee /
+                          TikTok Shop / Tokopedia)
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Unggah screenshot halaman produk & spesifikasi, AI
+                          akan otomatis menuliskan nama produk, merek, dan
+                          keunggulannya untukmu.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Kotak 1: Screenshot Produk Utama */}
+                      <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-2xl p-3.5 flex items-center gap-3 transition">
+                        {ssProduk?.previewUrl ? (
+                          <img
+                            src={ssProduk.previewUrl}
+                            alt="SS Produk"
+                            className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-300"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
+                            <FlatIcon name="upload" className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-[#14141f] truncate">
+                            {ssProduk
+                              ? ssProduk.namaFile
+                              : "1. Upload Screenshot Produk"}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block">
+                            Untuk membaca Nama Produk, Merk & Harga
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadSSProduk}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Kotak 2: Screenshot Spesifikasi Produk (Opsional) */}
+                      <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-2xl p-3.5 flex items-center gap-3 transition">
+                        {ssSpesifikasi?.previewUrl ? (
+                          <img
+                            src={ssSpesifikasi.previewUrl}
+                            alt="SS Spesifikasi"
+                            className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-300"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-slate-200 text-[#14141f] flex items-center justify-center shrink-0">
+                            <FlatIcon name="upload" className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-[#14141f] truncate">
+                            {ssSpesifikasi
+                              ? ssSpesifikasi.namaFile
+                              : "2. Screenshot Spesifikasi (Opsional)"}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block">
+                            Untuk membaca Detail Bahan & Keunggulan
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadSSSpesifikasi}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {(ssProduk || ssSpesifikasi) && (
+                      <button
+                        type="button"
+                        disabled={isScanningSS}
+                        onClick={handleScanMarketplaceAI}
+                        className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2"
+                      >
+                        {isScanningSS && (
+                          <FlatIcon
+                            name="refresh"
+                            className="w-4 h-4 animate-spin"
+                          />
+                        )}
+                        <span>
+                          {isScanningSS
+                            ? "Sedang Membaca Screenshot Marketplace..."
+                            : "✨ Ekstrak Nama Produk, Merk & Spesifikasi dari Screenshot (Gratis)"}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* FORM DETAIL PRODUK (MASALAH, SPESIFIKASI & CARA PAKAI KINI OPSIONAL) */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
@@ -934,7 +1237,7 @@ export default function ScriptProducerView({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Merek / Brand / Toko
+                        Merek / Brand / Toko (Opsional)
                       </label>
                       <input
                         type="text"
@@ -951,7 +1254,7 @@ export default function ScriptProducerView({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Harga & Promo Saat Ini
+                        Harga & Promo Saat Ini (Opsional)
                       </label>
                       <input
                         type="text"
@@ -962,7 +1265,7 @@ export default function ScriptProducerView({
                             hargaPromo: e.target.value,
                           })
                         }
-                        placeholder="Contoh: Rp 300rb (Diskon + Gratis Ongkir)"
+                        placeholder="Contoh: Rp 300rb (Gratis Ongkir)"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
                       />
                     </div>
@@ -971,7 +1274,7 @@ export default function ScriptProducerView({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Masalah Utama yang Diselesaikan Produk Ini:
+                        Masalah Utama yang Diselesaikan (Opsional):
                       </label>
                       <StoryVoiceInput
                         rows={2}
@@ -982,13 +1285,13 @@ export default function ScriptProducerView({
                             masalahDipecahkan: val,
                           })
                         }
-                        placeholder="Contoh: Kaki sering pegal kalau pakai sepatu biasa..."
+                        placeholder="Opsional (Jika dikosongkan, AI akan merumuskan otomatis)..."
                         onNotify={showToast}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Detail Spesifikasi, Bahan & Keunggulan Utama (Wajib) *
+                        Detail Spesifikasi, Bahan & Keunggulan (Opsional):
                       </label>
                       <StoryVoiceInput
                         rows={2}
@@ -999,7 +1302,7 @@ export default function ScriptProducerView({
                             keunggulanSpesifikasi: val,
                           })
                         }
-                        placeholder="Contoh: Bantalan empuk, bahan adem, bobot ringan..."
+                        placeholder="Opsional (Otomatis terisi jika scan screenshot spesifikasi)..."
                         onNotify={showToast}
                       />
                     </div>
@@ -1007,7 +1310,7 @@ export default function ScriptProducerView({
 
                   <div>
                     <label className="block text-xs font-bold text-[#14141f] mb-1">
-                      Cara Pakai / Bukti Hasil Nyata Setelah Pemakaian:
+                      Cara Pakai / Bukti Hasil Pemakaian (Opsional):
                     </label>
                     <StoryVoiceInput
                       rows={2}
@@ -1018,7 +1321,7 @@ export default function ScriptProducerView({
                           buktiHasilCaraPakai: val,
                         })
                       }
-                      placeholder="Contoh: Dipakai lari 10K tetap nyaman dan tidak licin..."
+                      placeholder="Opsional: Ceritakan singkat cara pakai atau hasilnya..."
                       onNotify={showToast}
                     />
                   </div>
@@ -1102,7 +1405,7 @@ export default function ScriptProducerView({
               {jenisPromosi === "campaign" && (
                 <div className="bg-[#f4f5f7] p-4 sm:p-5 rounded-3xl border border-slate-200 space-y-4">
                   <h3 className="text-sm font-bold text-[#14141f]">
-                    Informasi Mendetail Tentang Campaign / Gerakan / Acara
+                    Informasi Campaign / Gerakan / Acara
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <input
@@ -1126,7 +1429,7 @@ export default function ScriptProducerView({
                           penyelenggara: e.target.value,
                         })
                       }
-                      placeholder="Penyelenggara / Komunitas / Inisiator"
+                      placeholder="Penyelenggara / Komunitas (Opsional)"
                       className="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
                     />
                   </div>
@@ -1136,7 +1439,7 @@ export default function ScriptProducerView({
                     onChange={(val) =>
                       setFormCampaign({ ...formCampaign, isuAtauMasalah: val })
                     }
-                    placeholder="Isu atau kebiasaan yang ingin diubah lewat gerakan ini..."
+                    placeholder="Isu atau kebiasaan yang ingin diubah (Opsional)..."
                     onNotify={showToast}
                   />
                   <StoryVoiceInput
@@ -1145,7 +1448,7 @@ export default function ScriptProducerView({
                     onChange={(val) =>
                       setFormCampaign({ ...formCampaign, tujuanUtama: val })
                     }
-                    placeholder="Tujuan utama & manfaat mengikuti gerakan/campaign ini (Wajib) *..."
+                    placeholder="Tujuan utama & manfaat mengikuti gerakan/campaign ini (Opsional)..."
                     onNotify={showToast}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1158,7 +1461,7 @@ export default function ScriptProducerView({
                           ajakanAksiNyata: e.target.value,
                         })
                       }
-                      placeholder="Ajakan Aksi Nyata (Contoh: Daftar gratis di bio)"
+                      placeholder="Ajakan Aksi Nyata (Opsional)"
                       className="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none"
                     />
                     <input
@@ -1620,7 +1923,7 @@ export default function ScriptProducerView({
         </div>
       )}
 
-      {/* STAGE 5: HASIL SKRIP (RESPONSIF PENUH DI HP TANPA MELEBAR KE SAMPING) */}
+      {/* STAGE 5 */}
       {stage === 5 && hasilSkrip && (
         <div className="space-y-5 w-full max-w-full overflow-hidden">
           <div className="bg-[#14141f] text-white p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
@@ -1637,7 +1940,6 @@ export default function ScriptProducerView({
             </button>
           </div>
 
-          {/* BAR SAKELAR & UBAH BENTUK YANG SUDAH DIPERBAIKI UNTUK LAYAR HP */}
           <div className="bg-[#f4f5f7] p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
             <div className="grid grid-cols-2 sm:inline-flex bg-white p-1 rounded-xl border border-slate-200 w-full sm:w-auto">
               <button

@@ -1,161 +1,167 @@
-import { NextResponse } from "next/server"
-import crypto from "crypto"
-import { createClient } from "@supabase/supabase-js"
+import { NextResponse } from "next/server";
+import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 
 function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json()
-    const supabase = getSupabaseClient()
+    const contentType = request.headers.get("content-type") || "";
+    let body = {};
+
+    // Duitku mengirimkan callback/webhook bisa dalam format x-www-form-urlencoded atau JSON
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await request.formData();
+      formData.forEach((value, key) => {
+        body[key] = value;
+      });
+    } else {
+      body = await request.json();
+    }
+
+    const supabase = getSupabaseClient();
 
     // =========================================================================
-    // A. JALUR WEBHOOK OTOMATIS DARI SERVER MIDTRANS (SAAT USER SELESAI BAYAR)
+    // A. JALUR WEBHOOK / CALLBACK OTOMATIS DARI SERVER DUITKU
     // =========================================================================
-    if (body.transaction_status && body.order_id) {
-      const serverKey = process.env.MIDTRANS_SERVER_KEY || ""
+    if (body.merchantOrderId && body.resultCode) {
+      const merchantCode = process.env.DUITKU_MERCHANT_CODE || body.merchantCode || "";
+      const apiKey = process.env.DUITKU_API_KEY || "";
       const {
-        order_id,
-        status_code,
-        gross_amount,
-        signature_key,
-        transaction_status,
-        fraud_status,
-        payment_type,
-      } = body
+        merchantOrderId,
+        amount,
+        resultCode,
+        signature,
+        paymentCode,
+      } = body;
 
-      // 1. Verifikasi Keamanan Signature Key Midtrans (Anti-Pemalsuan)
-      if (serverKey && signature_key) {
-        const rawSignature = `${order_id}${status_code}${gross_amount}${serverKey}`
-        const expectedSignature = crypto
-          .createHash("sha512")
-          .update(rawSignature)
-          .digest("hex")
+      // 1. Verifikasi Keamanan Signature MD5 Duitku: MD5(merchantCode + amount + merchantOrderId + apiKey)
+      if (merchantCode && apiKey && signature) {
+        const calcSignature = crypto
+          .createHash("md5")
+          .update(`${merchantCode}${amount}${merchantOrderId}${apiKey}`)
+          .digest("hex");
 
-        if (signature_key !== expectedSignature) {
+        if (signature.toLowerCase() !== calcSignature.toLowerCase()) {
           return NextResponse.json(
-            { error: "Signature Midtrans tidak valid" },
-            { status: 403 },
-          )
+            { error: "Signature Duitku tidak valid" },
+            { status: 403 }
+          );
         }
       }
 
-      // 2. Cek apakah pembayaran sudah berhasil / lunas
-      const isSuccess =
-        transaction_status === "settlement" ||
-        (transaction_status === "capture" && fraud_status === "accept")
-
-      const isFailed =
-        transaction_status === "cancel" ||
-        transaction_status === "deny" ||
-        transaction_status === "expire"
-
-      if (supabase && isSuccess) {
-        // Cari transaksi berdasarkan invoice_id (order_id)
+      // 2. resultCode "00" artinya pembayaran Sukses/Lunas di Duitku
+      if (supabase && resultCode === "00") {
         const { data: trx } = await supabase
           .from("transactions")
           .select("*")
-          .eq("invoice_id", order_id)
-          .single()
+          .eq("invoice_id", merchantOrderId)
+          .single();
 
-        // Jika transaksi ditemukan dan belum berstatus lunas, tambahkan koin ke user!
         if (trx && trx.status !== "lunas") {
           await supabase
             .from("transactions")
             .update({
               status: "lunas",
-              metode_bayar: payment_type
-                ? `Midtrans (${payment_type.toUpperCase()})`
-                : trx.metode_bayar,
+              metode_bayar: paymentCode
+                ? `Duitku (${paymentCode})`
+                : "Duitku Otomatis",
             })
-            .eq("id", trx.id)
+            .eq("id", trx.id);
 
           if (trx.user_id) {
             const { data: userRow } = await supabase
               .from("users")
               .select("koin")
               .eq("id", trx.user_id)
-              .single()
+              .single();
 
-            const koinLama = userRow?.koin || 0
-            const koinBaru = koinLama + (parseInt(trx.jumlah_koin) || 0)
+            const koinBaru =
+              (userRow?.koin || 0) + (parseInt(trx.jumlah_koin) || 0);
 
             await supabase
               .from("users")
               .update({ koin: koinBaru })
-              .eq("id", trx.user_id)
+              .eq("id", trx.user_id);
           }
         }
-      } else if (supabase && isFailed) {
+      } else if (supabase && resultCode !== "00") {
         await supabase
           .from("transactions")
           .update({ status: "batal" })
-          .eq("invoice_id", order_id)
+          .eq("invoice_id", merchantOrderId);
       }
 
-      return NextResponse.json({ status: "webhook_processed" })
+      return NextResponse.json({ status: "duitku_callback_ok" });
     }
 
     // =========================================================================
-    // B. JALUR PEMBUATAN TAGIHAN DARI HALAMAN PAKET KOIN HOOKYA
+    // B. JALUR PEMBUATAN TAGIHAN BARU KE DUITKU (SAAT USER KLIK BELI PAKET)
     // =========================================================================
     const {
       action,
       invoiceId,
       userId,
       namaUser,
+      emailUser,
       namaPaket,
       jumlahKoin,
       nominal,
-    } = body
+      duitkuConfigClient,
+    } = body;
 
     if (action === "create_gateway_invoice") {
-      const midtransServerKey = process.env.MIDTRANS_SERVER_KEY
-      const isProduction = process.env.MIDTRANS_IS_PRODUCTION === "true"
+      const merchantCode =
+        process.env.DUITKU_MERCHANT_CODE ||
+        duitkuConfigClient?.merchantCode ||
+        "";
+      const apiKey =
+        process.env.DUITKU_API_KEY || duitkuConfigClient?.apiKey || "";
+      const isProduction =
+        process.env.DUITKU_IS_PRODUCTION === "true" ||
+        duitkuConfigClient?.isProduction === true;
 
-      if (midtransServerKey) {
-        const baseUrl = isProduction
-          ? "https://app.midtrans.com/snap/v1/transactions"
-          : "https://app.sandbox.midtrans.com/snap/v1/transactions"
+      if (merchantCode && apiKey) {
+        const endpointDuitku = isProduction
+          ? "https://passport.duitku.com/webapi/api/merchant/v2/inquiry"
+          : "https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry";
 
-        const authString = Buffer.from(`${midtransServerKey}:`).toString(
-          "base64",
-        )
+        const paymentAmount = parseInt(nominal) || 10000;
+        // Rumus Signature Inquiry Duitku: MD5(merchantCode + merchantOrderId + paymentAmount + apiKey)
+        const signature = crypto
+          .createHash("md5")
+          .update(`${merchantCode}${invoiceId}${paymentAmount}${apiKey}`)
+          .digest("hex");
 
-        const response = await fetch(baseUrl, {
+        const originUrl =
+          request.headers.get("origin") || "https://hookya.site";
+
+        const payloadDuitku = {
+          merchantCode,
+          paymentAmount,
+          merchantOrderId: invoiceId,
+          productDetails: `${namaPaket} (${jumlahKoin || ""} Koin Hookya)`,
+          email: emailUser || "user@hookya.site",
+          customerVaName: namaUser || "Kreator Hookya",
+          callbackUrl: `${originUrl}/api/payment`,
+          returnUrl: originUrl,
+          signature,
+          expiryPeriod: 60,
+        };
+
+        const response = await fetch(endpointDuitku, {
           method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Basic ${authString}`,
-          },
-          body: JSON.stringify({
-            transaction_details: {
-              order_id: invoiceId,
-              gross_amount: nominal,
-            },
-            item_details: [
-              {
-                id: namaPaket.toLowerCase().replace(/\s+/g, "_"),
-                price: nominal,
-                quantity: 1,
-                name: `${namaPaket} (${jumlahKoin || ""} Koin Hookya)`,
-              },
-            ],
-            customer_details: {
-              first_name: namaUser || "Kreator Hookya",
-            },
-          }),
-        })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payloadDuitku),
+        });
 
-        const data = await response.json()
-        if (response.ok && data.redirect_url) {
-          // Catat transaksi pending ke Supabase agar saat Webhook masuk langsung dikenali
+        const data = await response.json();
+        if (response.ok && data.paymentUrl) {
           if (supabase) {
             await supabase.from("transactions").insert([
               {
@@ -164,35 +170,35 @@ export async function POST(request) {
                 nama_user: namaUser || "Kreator",
                 nama_paket: namaPaket,
                 jumlah_koin: jumlahKoin || 100,
-                nominal_asli: nominal,
-                nominal_bayar: nominal,
-                metode_bayar: "Midtrans Gateway",
+                nominal_asli: paymentAmount,
+                nominal_bayar: paymentAmount,
+                metode_bayar: "Duitku Payment Gateway",
                 status: "pending",
               },
-            ])
+            ]);
           }
 
           return NextResponse.json({
-            mode: "midtrans",
-            redirectUrl: data.redirect_url,
-            token: data.token,
-          })
+            mode: "duitku",
+            redirectUrl: data.paymentUrl,
+            reference: data.reference,
+          });
         }
       }
 
-      // Jika belum memasang MIDTRANS_SERVER_KEY, gunakan sistem QRIS Internal Hookya
+      // Fallback ke QRIS Internal jika kunci Duitku belum diisi
       return NextResponse.json({
         mode: "internal_qris",
         invoiceId,
         status: "ready",
-      })
+      });
     }
 
-    return NextResponse.json({ status: "ok" })
+    return NextResponse.json({ status: "ok" });
   } catch (err) {
     return NextResponse.json(
-      { error: err.message || "Gagal memproses pembayaran" },
-      { status: 500 },
-    )
+      { error: err.message || "Gagal memproses pembayaran Duitku" },
+      { status: 500 }
+    );
   }
 }

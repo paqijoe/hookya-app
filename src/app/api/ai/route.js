@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+// Simpan model tercepat yang berhasil di memori server agar panggilan berikutnya instan
+let CACHED_FAST_MODEL = null
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -19,6 +22,10 @@ function uraiJSONAman(dataRespons) {
     }
   }
   if (!teksMentah && parts[0]?.text) teksMentah = parts[0].text
+
+  if (!teksMentah) {
+    throw new Error("Respons AI kosong atau format file tidak didukung.")
+  }
 
   let bersih = teksMentah
     .replace(/```json/gi, "")
@@ -79,21 +86,22 @@ async function catatErrorDanGantiKoinDiamDiam({
       },
     ])
   } catch {
-    // Abaikan jika tabel log belum siap
+    // Abaikan jika tabel belum siap
   }
   return koinTerbaru
 }
 
-// Pemanggilan langsung ke model produksi tercepat tanpa antrean 404 yang membuang waktu
-async function panggilGeminiCepatDanMaksimal(apiKey, partsPayload) {
-  const daftarModelResmi = [
-    "gemini-2.5-flash",
+async function panggilGeminiInstan(apiKey, partsPayload) {
+  const daftarKandidat = [
+    ...(CACHED_FAST_MODEL ? [CACHED_FAST_MODEL] : []),
     "gemini-flash-latest",
-    "gemini-3-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
   ]
+  const modelUnik = [...new Set(daftarKandidat)]
 
   let errorTerakhir = ""
-  for (const model of daftarModelResmi) {
+  for (const model of modelUnik) {
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -111,17 +119,59 @@ async function panggilGeminiCepatDanMaksimal(apiKey, partsPayload) {
       )
 
       const data = await response.json()
-      if (response.ok) {
+      if (response.ok && data?.candidates?.length > 0) {
+        CACHED_FAST_MODEL = model // Kunci model yang sukses agar panggilan berikutnya 0ms delay
         return uraiJSONAman(data)
       } else {
-        errorTerakhir = data?.error?.message || `Kendala pada model ${model}`
+        errorTerakhir = data?.error?.message || `Model ${model} tidak merespons`
       }
     } catch (err) {
       errorTerakhir = err.message
     }
   }
 
-  throw new Error(errorTerakhir || "Sistem AI sedang padat, silakan coba lagi.")
+  // Jika semua kandidat statis gagal, tanya daftar model aktif dari akun API Key pengguna
+  try {
+    const listRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+    )
+    if (listRes.ok) {
+      const listData = await listRes.json()
+      const modelFlashAktif = (listData.models || [])
+        .filter(
+          (m) =>
+            m.supportedGenerationMethods?.includes("generateContent") &&
+            m.name.includes("flash"),
+        )
+        .map((m) => m.name.replace("models/", ""))
+
+      for (const mBaru of modelFlashAktif) {
+        const resRetry = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${mBaru}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: partsPayload }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.7,
+              },
+            }),
+          },
+        )
+        const dataRetry = await resRetry.json()
+        if (resRetry.ok && dataRetry?.candidates?.length > 0) {
+          CACHED_FAST_MODEL = mBaru
+          return uraiJSONAman(dataRetry)
+        }
+      }
+    }
+  } catch {
+    // Abaikan
+  }
+
+  throw new Error(errorTerakhir || "Sistem AI tidak dapat merespons saat ini.")
 }
 
 export async function POST(request) {
@@ -152,6 +202,10 @@ export async function POST(request) {
       mediaMimeType,
       audioBase64,
       audioMimeType,
+      productImageBase64,
+      productImageMime,
+      specImageBase64,
+      specImageMime,
       dataKinerja,
       customPrompts,
     } = body
@@ -167,7 +221,53 @@ export async function POST(request) {
     let promptFinal = ""
     let partsPayload = []
 
-    if (action === "transkrip_suara_mic") {
+    // =========================================================================
+    // 1. SCAN SCREENSHOT PRODUK & SPESIFIKASI DARI MARKETPLACE
+    // =========================================================================
+    if (action === "analyze_marketplace_screenshots") {
+      promptFinal = `
+Kamu adalah Asisten Analis Produk Marketplace (Shopee / TikTok Shop / Tokopedia).
+Perhatikan gambar tangkapan layar (screenshot) produk dan/atau spesifikasi yang dilampirkan.
+Ekstrak informasi berikut secara akurat dari gambar tersebut:
+1. "namaProduk": Nama lengkap produk yang tertera di gambar.
+2. "brand": Nama merek / brand / nama toko yang tertera di gambar (jika tidak tertulis jelas, tulis merek yang paling relevan atau "-").
+3. "hargaPromo": Harga produk atau diskon yang terlihat di gambar (jika ada).
+4. "keunggulanSpesifikasi": Rangkuman detail spesifikasi, bahan, ukuran, atau keunggulan produk dari gambar spesifikasi/deskripsi.
+5. "masalahDipecahkan": Manfaat utama produk ini bagi pembeli berdasarkan fungsinya.
+
+Keluarkan HANYA valid JSON:
+{
+  "namaProduk": "...",
+  "brand": "...",
+  "hargaPromo": "...",
+  "keunggulanSpesifikasi": "...",
+  "masalahDipecahkan": "..."
+}`
+
+      partsPayload = []
+      if (productImageBase64) {
+        partsPayload.push({
+          inlineData: {
+            mimeType: productImageMime || "image/jpeg",
+            data: productImageBase64,
+          },
+        })
+      }
+      if (specImageBase64) {
+        partsPayload.push({
+          inlineData: {
+            mimeType: specImageMime || "image/jpeg",
+            data: specImageBase64,
+          },
+        })
+      }
+      partsPayload.push({ text: promptFinal })
+    }
+
+    // =========================================================================
+    // 2. TRANSKRIP SUARA MIKROFON HYBRID
+    // =========================================================================
+    else if (action === "transkrip_suara_mic") {
       if (!audioBase64) {
         return NextResponse.json(
           { error: "Tidak ada rekaman suara yang diterima." },
@@ -175,10 +275,10 @@ export async function POST(request) {
         )
       }
       promptFinal = `
-Dengarkan rekaman suara pengguna ini dan salin persis ucapannya menjadi teks Bahasa Indonesia yang rapi.
+Dengarkan rekaman suara ini dan salin persis ucapannya menjadi teks Bahasa Indonesia yang rapi.
 Balas HANYA dalam format JSON:
 {
-  "teks": "Hasil transkrip ucapan pengguna..."
+  "teks": "..."
 }`
       partsPayload = [
         {
@@ -189,7 +289,12 @@ Balas HANYA dalam format JSON:
         },
         { text: promptFinal },
       ]
-    } else if (action === "extract_persona_dna") {
+    }
+
+    // =========================================================================
+    // 3. ANALISIS GAYA BICARA PENGGUNA
+    // =========================================================================
+    else if (action === "extract_persona_dna") {
       promptFinal = `
 Analisis profil dan contoh gaya bicara pengguna berikut untuk menyusun matriks gaya bahasa internal yang sangat natural:
 - Data Profil: ${JSON.stringify(onboardingAnswers)}
@@ -225,7 +330,12 @@ Keluarkan HANYA valid JSON:
   }
 }`
       partsPayload = [{ text: promptFinal }]
-    } else if (action === "assessment_copilot") {
+    }
+
+    // =========================================================================
+    // 4. CO-PILOT 4 TAHAP
+    // =========================================================================
+    else if (action === "assessment_copilot") {
       const infoKonteks = stageInput?.detailPromosi
         ? `DETAIL PROMOSI (${stageInput.jenisPromosi}):\n${JSON.stringify(stageInput.detailPromosi, null, 2)}`
         : `Topik Konten Kreator: "${stageInput?.rawTopic}"`
@@ -240,13 +350,9 @@ DATA KONTEN YANG INGIN DIBUAT:
 - ${infoKonteks}
 - Durasi & Platform: "${stageInput?.targetPlatform}"
 
-TUGAS TAHAP 1 (Penajaman Sudut Pandang):
+TUGAS TAHAP 1:
 1. Rumuskan 1 gagasan utama yang tajam pada "refined_core_idea".
-2. Berikan **3 Pilihan Sudut Pandang Bahasan** yang memikat penonton:
-   - Pilihan 1: Membongkar Mitos / Kesalahpahaman Umum
-   - Pilihan 2: Mengangkat Masalah / Kesalahan yang Sering Dialami Target Penonton
-   - Pilihan 3: Solusi / Rahasia Praktis yang Bikin Penasaran
-3. Gunakan bahasa sehari-hari yang ramah tanpa istilah koding.
+2. Berikan **3 Pilihan Sudut Pandang Bahasan** yang memikat penonton (1 Membongkar Mitos, 1 Masalah Nyata Penonton, 1 Solusi/Rahasia Praktis).
 
 Keluarkan HANYA valid JSON:
 {
@@ -270,10 +376,10 @@ DATA TAHAP SEBELUMNYA:
 - Cerita / Latar Belakang: "${stageInput?.userStory || "(Belum diisi)"}"
 - Detail Produk/Campaign (jika ada): ${JSON.stringify(stageInput?.detailPromosi || {})}
 
-TUGAS TAHAP 2 (Fakta Pendukung, Perumpamaan & Solusi):
-1. Buat **2 pilihan perumpamaan/skenario sehari-hari** ("relatable_analogies") yang sangat dekat dengan penonton.
-2. Berikan **3 Kartu Fakta/Referensi Pendukung** ("reference_cards": 1 Fakta Psikologi Penonton, 1 Bukti/Data Lapangan, 1 Fenomena Sehari-hari).
-3. Berikan **3 poin solusi atau keunggulan konkret** ("suggested_solutions") yang menjawab masalah penonton.
+TUGAS TAHAP 2:
+1. Buat **2 pilihan perumpamaan/skenario sehari-hari** ("relatable_analogies").
+2. Berikan **3 Kartu Fakta/Referensi Pendukung** ("reference_cards").
+3. Berikan **3 poin solusi atau keunggulan konkret** ("suggested_solutions").
 
 Keluarkan HANYA valid JSON:
 {
@@ -298,10 +404,10 @@ DATA TAHAP 1 & 2:
 - Fakta Pendukung: ${JSON.stringify(stageInput?.injectedReference)}
 - Solusi/Keunggulan: ${JSON.stringify(stageInput?.actionableSolutions)}
 
-TUGAS TAHAP 3 (Alur Copywriting, Kalimat Pembuka 3 Detik Awal & Ajakan Penutup):
+TUGAS TAHAP 3:
 1. Rekomendasikan 1 kerangka terbaik ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION").
-2. Buat **3 pilihan kalimat pembuka (Hook 3 detik pertama)** menggunakan sapaan dan kosakata khas pengguna.
-3. Buat **3 pilihan kalimat ajakan penutup (CTA)** yang memancing komentar atau tindakan penonton.
+2. Buat **3 pilihan kalimat pembuka (Hook 3 detik pertama)** sesuai gaya bicara pengguna.
+3. Buat **3 pilihan kalimat ajakan penutup (CTA)**.
 
 Keluarkan HANYA valid JSON:
 {
@@ -313,7 +419,12 @@ Keluarkan HANYA valid JSON:
 }`
       }
       partsPayload = [{ text: promptFinal }]
-    } else if (action === "assemble_humanized_script") {
+    }
+
+    // =========================================================================
+    // 5. PENYUSUN SKRIP UTAMA & DIALOG UGC
+    // =========================================================================
+    else if (action === "assemble_humanized_script") {
       const isModeUGC =
         Boolean(ugcConfig?.aktif) ||
         (bentukKonten && bentukKonten.toLowerCase().includes("ugc"))
@@ -325,8 +436,7 @@ Keluarkan HANYA valid JSON:
       const instruksiUGC = isModeUGC
         ? `
 # INSTRUKSI KHUSUS KONTEN UGC (DIALOG PERCAKAPAN ${ugcConfig?.jumlahOrang || 2} ORANG):
-- Konten ini WAJIB ditulis dalam bentuk **Teks Percakapan / Dialog Saling Bersahutan** antara **${ugcConfig?.jumlahOrang || 2} orang** dengan nama pemeran: **${daftarPemeran}**.
-- Pada setiap bagian kerangka ("voiceover"), tuliskan nama pemeran diikuti titik dua dan kalimat dialognya secara bergantian yang terdengar sangat natural seperti obrolan nyata.
+- Tulis dalam bentuk **Teks Percakapan / Dialog Saling Bersahutan** antara **${ugcConfig?.jumlahOrang || 2} orang** dengan nama pemeran: **${daftarPemeran}**.
 - Alur percakapan WAJIB mengikuti teori copywriting yang kuat sesuai kerangka "${contentBrief?.selected_framework}".`
         : `
 # INSTRUKSI SKRIP MONOLOG NATURAL:
@@ -342,14 +452,12 @@ ${JSON.stringify(contentBrief, null, 2)}
 
 Bentuk Eksekusi Visual: "${bentukKonten}"
 ${instruksiUGC}
-${customPrompts?.script_humanizer ? `\nInstruksi Tambahan: ${customPrompts.script_humanizer}` : ""}
 
 ATURAN WAJIB:
 1. Hindari semua kata kaku berikut: ${JSON.stringify(personaProfile?.linguistic_matrix?.forbidden_words || [])}.
-2. Gunakan kata sambung dan kosakata khas kreator secara natural.
-3. Pisahkan setiap 1-2 kalimat dengan baris baru (\\n) agar nyaman dibaca di teleprompter.
-4. Tambahkan petunjuk ekspresi/intonasi singkat di dalam kurung siku [...] seperti [Senyum tipis], [Nada serius].
-5. Susun dalam 4 kerangka copywriting yang menghantam (Pembuka/Hook, Cerita & Masalah, Bukti & Solusi Utama, Penutup/CTA).
+2. Pisahkan setiap 1-2 kalimat dengan baris baru (\\n) agar nyaman dibaca di teleprompter.
+3. Tambahkan petunjuk ekspresi/intonasi singkat di dalam kurung siku [...] seperti [Senyum tipis], [Nada serius].
+4. Susun dalam 4 kerangka copywriting yang menghantam (Pembuka/Hook, Cerita & Masalah, Bukti & Solusi Utama, Penutup/CTA).
 
 Keluarkan HANYA valid JSON:
 {
@@ -394,15 +502,20 @@ Keluarkan HANYA valid JSON:
   ]
 }`
       partsPayload = [{ text: promptFinal }]
-    } else if (action === "rewrite_video") {
+    }
+
+    // =========================================================================
+    // 6. EKSTRAK VIDEO KE TEKS & COPYWRITING PER KERANGKA (SUDAH DIPERBAIKI TOTAL)
+    // =========================================================================
+    else if (action === "rewrite_video") {
       promptFinal = `
 Kamu adalah Mesin Transkripsi Video Presisi & Pakar Copywriting.
 
-ATURAN KEAKURATAN MUTLAK (DILARANG KERAS MENGARANG / HALUSINASI):
-1. Periksa file video/audio dan tangkapan layar video yang dilampirkan.
-2. Salin **kata demi kata secara akurat** apa yang benar-benar diucapkan di audio video ATAU teks yang benar-benar tertulis di dalam gambar video ke dalam kolom "transkripAsliVideo".
-3. JIKA video tidak memiliki suara ucapan yang terdengar jelas DAN tidak memiliki teks yang dapat dibaca di layar, kamu **DILARANG KERAS MENEBAK ATAU MENGARANG CERITA SENDIRI**. Wajib isi "unreadableError": true.
-4. HANYA JIKA teks/suara asli di video berhasil terbaca dengan jelas ("unreadableError": false), buatkan rekomendasi Copywriting baru yang 100% orisinil sesuai gaya bicara pengguna:
+TUGAS UTAMA:
+1. Dengarkan suara ucapan pada audio yang dilampirkan DAN baca seluruh teks/subtitle/visual yang tampak pada gambar potongan frame video yang dilampirkan.
+2. Tuliskan **Teks Asli yang Ada di Dalam Video** (baik dari ucapan suara maupun teks yang tertulis di layar video) secara akurat ke dalam kolom "transkripAsliVideo".
+3. Jika tidak ada suara ucapan manusia sama sekali DAN tidak ada teks/informasi visual yang bisa dibaca di layar video, barulah isi "unreadableError": true. Namun jika ada suara ucapan ATAU ada teks tertulis di layar video, kamu WAJIB mengekstraknya dan mengisi "unreadableError": false!
+4. Buat rekomendasi Copywriting baru yang 100% orisinil sesuai gaya bicara pengguna:
 ${JSON.stringify(personaProfile, null, 2)}
    Catatan tambahan pengguna: "${detailInput || "-"}"
    Pecah rekomendasi copywriting baru tersebut ke dalam **4 kerangka terpisah** pada array "segmen".
@@ -411,8 +524,8 @@ Keluarkan HANYA valid JSON:
 {
   "unreadableError": false,
   "errorReason": "",
-  "transkripAsliVideo": "Teks asli kata demi kata dari dalam video...",
-  "intiPesanVideo": "1 kalimat topik video...",
+  "transkripAsliVideo": "Teks asli kata demi kata dari ucapan suara atau teks layar di dalam video...",
+  "intiPesanVideo": "1 kalimat topik utama video...",
   "segmen": [
     {
       "idSegmen": "HOOK",
@@ -452,7 +565,7 @@ Keluarkan HANYA valid JSON:
         })
       }
       if (Array.isArray(framesBase64) && framesBase64.length > 0) {
-        framesBase64.slice(0, 6).forEach((f) => {
+        framesBase64.slice(0, 5).forEach((f) => {
           if (f) {
             partsPayload.push({
               inlineData: { mimeType: "image/jpeg", data: f },
@@ -467,16 +580,16 @@ Kamu adalah Copywriter Profesional dengan gaya bicara berikut:
 ${JSON.stringify(personaProfile, null, 2)}
 
 Konteks Topik/Video: "${body.subyek || "Konten Video"}"
-Tugasmu HANYA menulis ulang **SATU kerangka spesifik ini saja** yaitu: **"${segmenTarget?.labelMini}"** agar menjadi variasi kalimat baru yang lebih segar dan menghantam:
+Tugasmu HANYA menulis ulang **SATU kerangka spesifik ini saja** yaitu: **"${segmenTarget?.labelMini}"**:
 - Kalimat saat ini: "${segmenTarget?.voiceover}"
 - Teks layar saat ini: "${segmenTarget?.teksLayar}"
 - Visual saat ini: "${segmenTarget?.visual}"
 
 Keluarkan HANYA valid JSON untuk 1 kerangka ini:
 {
-  "voiceover": "Kalimat baru khusus untuk ${segmenTarget?.labelMini}...",
-  "teksLayar": "Teks layar baru khusus untuk ${segmenTarget?.labelMini}...",
-  "visual": "Arahan visual baru yang mengikuti kalimat di atas..."
+  "voiceover": "...",
+  "teksLayar": "...",
+  "visual": "..."
 }`
       partsPayload = [{ text: promptFinal }]
     } else if (action === "analyze_script_diff") {
@@ -488,9 +601,7 @@ Bandingkan draf awal dengan hasil editan pengguna untuk memperbarui kebiasaan ga
 
 Keluarkan HANYA valid JSON:
 {
-  "learning_summary": [
-    "Gaya pilihan katamu telah disimpan untuk pembuatan skrip berikutnya."
-  ],
+  "learning_summary": ["Gaya pilihan katamu telah disimpan."],
   "updated_persona_profile": ${JSON.stringify(personaProfile)}
 }`
       partsPayload = [{ text: promptFinal }]
@@ -528,10 +639,7 @@ Balas HANYA dalam format JSON:
       partsPayload = [{ text: promptFinal }]
     }
 
-    const hasilParsed = await panggilGeminiCepatDanMaksimal(
-      apiKey,
-      partsPayload,
-    )
+    const hasilParsed = await panggilGeminiInstan(apiKey, partsPayload)
 
     if (action === "rewrite_video" && hasilParsed?.unreadableError) {
       const koinGanti = await catatErrorDanGantiKoinDiamDiam({
@@ -540,14 +648,14 @@ Balas HANYA dalam format JSON:
         fitur: `Ekstrak Video (${namaFileVideo || "File"})`,
         pesanError:
           hasilParsed.errorReason ||
-          "Audio/teks di dalam video tidak terbaca dengan jelas",
+          "Video tidak memiliki suara bicara maupun teks layar",
         koinKompensasi: 2,
       })
 
       return NextResponse.json(
         {
           error:
-            "ERROR: Sistem AI tidak dapat membaca suara atau teks di dalam video ini karena audio kurang jelas atau video hanya berisi musik latar tanpa teks.",
+            "ERROR: Video yang diunggah hanya berisi musik/visual tanpa ucapan suara maupun teks yang dapat dibaca.",
           silentCoinUpdated: koinGanti,
         },
         { status: 422 },
@@ -569,7 +677,7 @@ Balas HANYA dalam format JSON:
       {
         error:
           "ERROR: Sistem AI gagal memproses permintaan ini (" +
-          (err.message || "Koneksi terputus") +
+          (err.message || "Kendala koneksi") +
           "). Silakan coba kembali.",
         silentCoinUpdated: koinGanti,
       },

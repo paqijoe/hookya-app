@@ -2,8 +2,7 @@
 import { useState } from "react"
 import { FlatIcon, StoryVoiceInput } from "./SharedUI"
 
-// 1. Ekstrak 6 tangkapan gambar tajam dari video agar teks di layar video terbaca jelas oleh AI
-function ekstrakFrameVideoTajam(file, jumlahFrame = 6) {
+function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
   return new Promise((resolve) => {
     let selesai = false
     const finish = (res) => {
@@ -12,7 +11,7 @@ function ekstrakFrameVideoTajam(file, jumlahFrame = 6) {
         resolve(res)
       }
     }
-    const timer = setTimeout(() => finish([]), 3500)
+    const timer = setTimeout(() => finish([]), 4000)
 
     try {
       const video = document.createElement("video")
@@ -20,7 +19,7 @@ function ekstrakFrameVideoTajam(file, jumlahFrame = 6) {
       const ctx = canvas.getContext("2d")
       const url = URL.createObjectURL(file)
 
-      video.preload = "metadata"
+      video.preload = "auto"
       video.src = url
       video.muted = true
       video.playsInline = true
@@ -28,24 +27,24 @@ function ekstrakFrameVideoTajam(file, jumlahFrame = 6) {
       const frames = []
       video.onloadeddata = async () => {
         try {
-          const durasi = Math.min(video.duration || 4, 60)
-          const lebar = 480
+          const durasi = Math.min(video.duration || 5, 45)
+          const lebar = 420
           const tinggi =
             Math.round((video.videoHeight / (video.videoWidth || 1)) * lebar) ||
-            270
+            260
           canvas.width = lebar
           canvas.height = tinggi
 
           for (let i = 1; i <= jumlahFrame; i++) {
             const t = (durasi / (jumlahFrame + 1)) * i
             await new Promise((r) => {
-              const tSeek = setTimeout(r, 500)
+              const tSeek = setTimeout(r, 450)
               video.onseeked = () => {
                 clearTimeout(tSeek)
                 try {
                   ctx.drawImage(video, 0, 0, lebar, tinggi)
                   const base64 = canvas
-                    .toDataURL("image/jpeg", 0.65)
+                    .toDataURL("image/jpeg", 0.55)
                     .split(",")[1]
                   if (base64) frames.push(base64)
                 } catch {
@@ -74,78 +73,87 @@ function ekstrakFrameVideoTajam(file, jumlahFrame = 6) {
   })
 }
 
-// 2. Ekstrak jalur suara (Audio Track) dari video besar menjadi WAV Mono 8kHz ringan (< 1.2 MB)
-// Solusi agar video 30MB+ tetap bisa didengar suaranya oleh AI tanpa terkena limit 4.5MB Vercel!
-async function ekstrakAudioRinganDariVideo(file) {
-  try {
-    const arrayBuffer = await file.arrayBuffer()
-    const AudioCtx = window.AudioContext || window.webkitAudioContext
-    if (!AudioCtx) return null
-
-    const audioCtx = new AudioCtx()
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
-    audioCtx.close()
-
-    // Batasi maksimal 45 detik pertama dengan sample rate 8000Hz Mono (sangat jernih untuk suara manusia & ukuran < 750KB)
-    const targetSampleRate = 8000
-    const maxSeconds = Math.min(audioBuffer.duration, 45)
-    const numSamples = Math.floor(maxSeconds * targetSampleRate)
-
-    const offlineCtx = new OfflineAudioContext(1, numSamples, targetSampleRate)
-    const source = offlineCtx.createBufferSource()
-    source.buffer = audioBuffer
-    source.connect(offlineCtx.destination)
-    source.start(0)
-
-    const renderedBuffer = await offlineCtx.startRendering()
-    const channelData = renderedBuffer.getChannelData(0)
-
-    // Konversi PCM Float32 ke format file WAV 16-bit
-    const wavBuffer = new ArrayBuffer(44 + channelData.length * 2)
-    const view = new DataView(wavBuffer)
-
-    const writeString = (offset, str) => {
-      for (let i = 0; i < str.length; i++) {
-        view.setUint8(offset + i, str.charCodeAt(i))
+async function ekstrakAudioRinganAman(file) {
+  return new Promise(async (resolve) => {
+    const timer = setTimeout(() => resolve(null), 4000)
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) {
+        clearTimeout(timer)
+        return resolve(null)
       }
-    }
 
-    writeString(0, "RIFF")
-    view.setUint32(4, 36 + channelData.length * 2, true)
-    writeString(8, "WAVE")
-    writeString(12, "fmt ")
-    view.setUint32(16, 16, true)
-    view.setUint16(20, 1, true)
-    view.setUint16(22, 1, true)
-    view.setUint32(24, targetSampleRate, true)
-    view.setUint32(28, targetSampleRate * 2, true)
-    view.setUint16(32, 2, true)
-    view.setUint16(34, 16, true)
-    writeString(36, "data")
-    view.setUint32(40, channelData.length * 2, true)
+      const audioCtx = new AudioCtx()
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+      audioCtx.close()
 
-    let offset = 44
-    for (let i = 0; i < channelData.length; i++, offset += 2) {
-      const s = Math.max(-1, Math.min(1, channelData[i]))
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
-    }
+      // Gunakan 6000Hz Mono maksimal 35 detik agar ukuran audio hanya ~400KB (bebas error 413 Vercel)
+      const targetSampleRate = 6000
+      const maxSeconds = Math.min(audioBuffer.duration, 35)
+      const numSamples = Math.floor(maxSeconds * targetSampleRate)
 
-    const bytes = new Uint8Array(wavBuffer)
-    let binary = ""
-    const chunkSize = 8192
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(
-        null,
-        bytes.subarray(i, i + chunkSize),
+      const offlineCtx = new OfflineAudioContext(
+        1,
+        numSamples,
+        targetSampleRate,
       )
+      const source = offlineCtx.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(offlineCtx.destination)
+      source.start(0)
+
+      const renderedBuffer = await offlineCtx.startRendering()
+      const channelData = renderedBuffer.getChannelData(0)
+
+      const wavBuffer = new ArrayBuffer(44 + channelData.length * 2)
+      const view = new DataView(wavBuffer)
+
+      const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i))
+        }
+      }
+
+      writeString(0, "RIFF")
+      view.setUint32(4, 36 + channelData.length * 2, true)
+      writeString(8, "WAVE")
+      writeString(12, "fmt ")
+      view.setUint32(16, 16, true)
+      view.setUint16(20, 1, true)
+      view.setUint16(22, 1, true)
+      view.setUint32(24, targetSampleRate, true)
+      view.setUint32(28, targetSampleRate * 2, true)
+      view.setUint16(32, 2, true)
+      view.setUint16(34, 16, true)
+      writeString(36, "data")
+      view.setUint32(40, channelData.length * 2, true)
+
+      let offset = 44
+      for (let i = 0; i < channelData.length; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, channelData[i]))
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+      }
+
+      const bytes = new Uint8Array(wavBuffer)
+      let binary = ""
+      const chunkSize = 8192
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(
+          null,
+          bytes.subarray(i, i + chunkSize),
+        )
+      }
+      clearTimeout(timer)
+      resolve({
+        base64: btoa(binary),
+        mimeType: "audio/wav",
+      })
+    } catch {
+      clearTimeout(timer)
+      resolve(null)
     }
-    return {
-      base64: btoa(binary),
-      mimeType: "audio/wav",
-    }
-  } catch {
-    return null
-  }
+  })
 }
 
 export default function VideoExtractorView({
@@ -189,42 +197,42 @@ export default function VideoExtractorView({
     }))
 
     try {
-      // Jika file kecil (<= 2.8 MB), kirim langsung utuh
-      if (file.size <= 2.8 * 1024 * 1024) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64Clean =
-            (reader.result || "").toString().split(",")[1] || ""
-          setSumberVideo((prev) => ({
-            ...prev,
-            fileBase64: base64Clean,
-            fileMimeType: file.type || "video/mp4",
-          }))
-        }
-        reader.readAsDataURL(file)
-      } else {
-        // Jika file video besar (> 2.8 MB), ekstrak jalur suara WAV ringan agar lolos batas 4.5MB Vercel
-        const audioRingan = await ekstrakAudioRinganDariVideo(file)
-        if (audioRingan) {
-          setSumberVideo((prev) => ({
-            ...prev,
-            fileBase64: audioRingan.base64,
-            fileMimeType: audioRingan.mimeType,
-          }))
+      let audioData = null
+      let framesData = []
+
+      if (file.type.startsWith("video/")) {
+        framesData = await ekstrakFrameVideoStabil(file, 5)
+      }
+
+      // Ekstrak jalur audio ringan terlebih dahulu agar pasti lolos batas payload server
+      audioData = await ekstrakAudioRinganAman(file)
+
+      // Jika browser HP tidak mendukung WebAudio API tetapi ukuran file <= 2.4 MB, kirim file langsung
+      if (!audioData && file.size <= 2.4 * 1024 * 1024) {
+        const base64Raw = await new Promise((res) => {
+          const reader = new FileReader()
+          reader.onload = () =>
+            res((reader.result || "").toString().split(",")[1] || "")
+          reader.onerror = () => res("")
+          reader.readAsDataURL(file)
+        })
+        if (base64Raw) {
+          audioData = {
+            base64: base64Raw,
+            mimeType: file.type || "video/mp4",
+          }
         }
       }
 
-      if (file.type.startsWith("video/")) {
-        const frames = await ekstrakFrameVideoTajam(file, 6)
-        setSumberVideo((prev) => ({
-          ...prev,
-          framesBase64: frames,
-          sedangEkstrakFile: false,
-        }))
-      } else {
-        setSumberVideo((prev) => ({ ...prev, sedangEkstrakFile: false }))
-      }
-      showToast(`Suara & visual "${file.name}" siap diekstrak.`)
+      setSumberVideo((prev) => ({
+        ...prev,
+        framesBase64: framesData,
+        fileBase64: audioData?.base64 || "",
+        fileMimeType: audioData?.mimeType || "",
+        sedangEkstrakFile: false,
+      }))
+
+      showToast(`Video "${file.name}" siap diekstrak ke teks!`)
     } catch {
       setSumberVideo((prev) => ({ ...prev, sedangEkstrakFile: false }))
     }
@@ -284,7 +292,9 @@ export default function VideoExtractorView({
         intiPesanVideo: data.intiPesanVideo || sumberVideo.namaFileUpload,
         segmen: Array.isArray(data.segmen) ? data.segmen : [],
       })
-      showToast("Teks asli video berhasil diekstrak dan dipecah per kerangka!")
+      showToast(
+        "Teks asli video berhasil diekstrak (-2 Koin) dan dipecah per kerangka!",
+      )
     } catch (err) {
       setErrorRewriteAI(err.message)
     } finally {
@@ -344,15 +354,24 @@ export default function VideoExtractorView({
   }
 
   return (
-    <div className="bg-white p-5 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+    <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6 w-full max-w-full overflow-hidden">
+      <div className="bg-[#f4f5f7] px-4 py-2.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+        <span className="font-bold text-[#14141f]">
+          ✂️ Ekstrak Video ke Teks & Skrip Baru: 2 Koin
+        </span>
+        <span className="text-slate-600">
+          Generate ulang per kerangka: <strong>Gratis</strong>
+        </span>
+      </div>
+
       <div className="border-b border-slate-100 pb-4">
         <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
           Ekstrak Teks Asli Video & Buat Rekomendasi Copywriting Per Kerangka
         </h2>
         <p className="text-xs font-normal text-slate-600 mt-1">
-          Unggah file video dari perangkatmu. Sistem otomatis mengekstrak suara
-          asli dan teks layar video, lalu menyusun rekomendasi copywriting baru
-          yang dipecah per kerangka.
+          Unggah file video dari perangkatmu. Sistem akan menampilkan teks asli
+          yang ada di dalam video tersebut, lalu menyusun rekomendasi
+          copywriting baru per kerangka.
         </p>
       </div>
 
@@ -368,8 +387,7 @@ export default function VideoExtractorView({
               : "Klik di Sini untuk Upload File Video / Audio (.mp4, .mov, .mp3)"}
         </div>
         <span className="text-xs font-normal text-slate-500">
-          Mendukung video ukuran besar dari HP • Jika video tidak memiliki
-          suara/teks yang terbaca, sistem akan melaporkan Error secara jujur
+          Otomatis membaca ucapan suara & teks di dalam layar video
         </span>
         <input
           type="file"
@@ -406,7 +424,7 @@ export default function VideoExtractorView({
         <span>
           {isGenerating
             ? "Sedang Membaca Suara/Teks Asli Video & Menyusun Kerangka..."
-            : "Ekstrak Teks Asli Video & Buat Copywriting"}
+            : "Ekstrak Teks Asli Video & Buat Copywriting (Pakai 2 Koin)"}
         </span>
       </button>
 
@@ -418,7 +436,6 @@ export default function VideoExtractorView({
 
       {!isGenerating && hasilRewriteVideo && (
         <div className="space-y-6 pt-4 border-t border-slate-100">
-          {/* 1. TEKS ASLI YANG ADA DI VIDEO */}
           <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#14141f]">
@@ -443,7 +460,6 @@ export default function VideoExtractorView({
             </p>
           </div>
 
-          {/* 2. REKOMENDASI COPYWRITING BARU PER KERANGKA */}
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
