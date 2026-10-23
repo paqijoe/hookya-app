@@ -8,6 +8,76 @@ function getSupabase() {
   return createClient(url, key)
 }
 
+// ============================================================================
+// ATURAN INTI ANTI-SLOP BAHASA INDONESIA (ADAPTASI SKILL.MD)
+// ============================================================================
+const ATURAN_ANTISLOP_INDONESIA = `
+ATURAN WAJIB ANTI-AI SLOP (WAJIB DIPATUHI DI SETIAP KALIMAT):
+1. DILARANG MENGARANG FAKTA ATAU ANGKA (R-17, R-18, R-36):
+   - Jangan pernah mengarang angka persentase, statistik, tanggal, nama tokoh, atau testimoni yang tidak diberikan oleh pengguna.
+   - Dilarang menulis klaim kosong tanpa bukti seperti: "dipercaya oleh ribuan orang", "terbaik di kelasnya", "kualitas kelas dunia", "terbukti secara ilmiah", atau atribusi kabur seperti "para ahli mengatakan", "penelitian menunjukkan", "banyak orang melaporkan".
+   - Gunakan hanya detail produk, spesifikasi, atau pengalaman yang diberikan pengguna. Jika pengguna tidak memberikan angka, jelaskan cara kerja atau manfaat praktisnya secara jujur tanpa mengarang angka.
+
+2. DILARANG MENGGUNAKAN KOSAKATA KLISE AI & HIPERBOLA (R-16, R-36):
+   - Jangan gunakan kata atau frasa terjemahan AI berikut: "membuka potensi", "meningkatkan ke level berikutnya", "naik level", "memberdayakan", "menyelami", "bukti nyata", "lanskap", "perjalanan (untuk hal abstrak)", "pengubah permainan", "game-changer", "tanpa hambatan", "mutakhir", "revolusioner", "solusi komprehensif", "menandai momen penting", "memasuki era baru", "di era digital saat ini".
+
+3. DILARANG MENGGUNAKAN FORMULA KALIMAT AI (R-36):
+   - Larangan Paralelisme Negatif: Jangan pernah menulis "Bukan sekadar X, tapi Y", "Tidak hanya X, melainkan juga Y", "Lebih dari sekadar X".
+   - Larangan Pepatah Palsu: Jangan menulis "X adalah mata uang dari Y", "X bukanlah alat, melainkan cermin".
+   - Larangan Pengumuman Meta & Basa-basi: Jangan menulis "Mari kita bahas", "Ini yang perlu kamu tahu", "Tanpa basa-basi lagi", "Di video kali ini kita akan membahas", "Pada intinya", "Pertanyaan sebenarnya adalah", "Semoga membantu".
+   - Larangan Rentang Palsu: Jangan menulis "Mulai dari X hingga Y dan semua yang ada di antaranya".
+   - Larangan Kesimpulan Kosong: Jangan menutup dengan kalimat "Masa depan terlihat cerah" atau "Langkah besar menuju kesuksesan".
+
+4. ATURAN TANDA BACA, SUBJEK AKTIF, & RITME KALIMAT (R-02, R-36):
+   - DILARANG KERAS menggunakan karakter em dash (—) atau tanda hubung ganda (--) di bagian mana pun. Gunakan tanda koma, titik, atau pecah menjadi dua kalimat terpisah.
+   - Jangan gunakan huruf kapital penuh (ALL CAPS) pada klausa di tengah kalimat untuk memaksakan penekanan.
+   - Jangan gunakan kalimat pasif yang menyembunyikan pelaku, dan jangan beri kata kerja manusia pada benda mati (contoh salah: "produk ini memahami kebutuhanmu"; contoh benar: "sepatu ini menahan tumitmu tetap stabil saat lari").
+   - Variasikan panjang kalimat (gabungkan kalimat pendek dan kalimat sedang) agar terdengar seperti ucapan manusia asli saat dibaca keras, bukan potongan kalimat pendek-pendek yang dramatis (staccato drama) atau daftar yang selalu dipaksa berjumlah tiga (rule of three).
+   - Gunakan kalimat ringkas: ganti "dalam rangka untuk" menjadi "untuk", ganti "disebabkan oleh fakta bahwa" menjadi "karena".
+
+5. PERTAHANKAN SUARA ASLI PENGGUNA (R-37):
+   - Jika pengguna memberikan contoh kalimat asli, ikuti kosakata, sapaan, dan gaya bicaranya tanpa mengubahnya menjadi bahasa iklan yang kaku.
+
+6. SIKLUS AUDIT SEBELUM MENGELUARKAN JSON:
+   - Periksa kembali drafmu: Apakah ada klaim/angka yang dikarang sendiri? Apakah ada tanda em dash (—)? Apakah ada frasa "bukan sekadar X tapi Y"? Jika ada, tulis ulang bagian tersebut menjadi kalimat konkret sebelum mengeluarkan JSON.
+`
+
+// Pembersih otomatis level kode untuk menghapus em dash (—) dan pola slop yang lolos
+function bersihkanStringAntiSlop(teks) {
+  if (typeof teks !== "string") return teks
+  return (
+    teks
+      // Hapus em dash (—) dan en dash (–) yang diapit spasi menjadi koma atau titik dua
+      .replace(/\s*[—–]\s*/g, ", ")
+      .replace(/\s*--\s*/g, ", ")
+      // Rapikan koma ganda jika terjadi setelah penggantian
+      .replace(/,\s*,/g, ",")
+      .replace(/\.\s*,/g, ".")
+      // Ganti frasa filler terjemahan AI jika masih lolos
+      .replace(/dalam rangka untuk/gi, "untuk")
+      .replace(/disebabkan oleh fakta bahwa/gi, "karena")
+      .replace(/pada titik waktu ini/gi, "sekarang")
+      .trim()
+  )
+}
+
+function sanitasiObjekAntiSlop(obj) {
+  if (typeof obj === "string") {
+    return bersihkanStringAntiSlop(obj)
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitasiObjekAntiSlop(item))
+  }
+  if (obj && typeof obj === "object") {
+    const hasil = {}
+    for (const key of Object.keys(obj)) {
+      hasil[key] = sanitasiObjekAntiSlop(obj[key])
+    }
+    return hasil
+  }
+  return obj
+}
+
 function uraiJSONAman(teksMentah) {
   if (!teksMentah) {
     throw new Error("Respons AI kosong")
@@ -22,13 +92,15 @@ function uraiJSONAman(teksMentah) {
     bersih = bersih.substring(idxMulai, idxAkhir + 1)
   }
   try {
-    return JSON.parse(bersih)
+    const parsed = JSON.parse(bersih)
+    return sanitasiObjekAntiSlop(parsed)
   } catch {
     const sanitasi = bersih
       .replace(/[\u0000-\u0019]+/g, " ")
       .replace(/,\s*}/g, "}")
       .replace(/,\s*]/g, "]")
-    return JSON.parse(sanitasi)
+    const parsed = JSON.parse(sanitasi)
+    return sanitasiObjekAntiSlop(parsed)
   }
 }
 
@@ -67,28 +139,27 @@ async function catatErrorKeAdminDanRefund({
       },
     ])
   } catch {
-    // Abaikan jika gagal tulis log
+    // Abaikan jika tabel belum siap
   }
   return koinTerbaru
 }
 
 // ============================================================================
 // MESIN 1: MULTIMODAL PINTAR (GAMBAR, VIDEO, & SUARA VIA OPENROUTER ATAU GEMINI)
-// Memastikan fitur Suara & Video tetap jalan 100% memakai Saldo OpenRouter!
 // ============================================================================
 async function panggilMultimodalPintar({
   openRouterKey,
   geminiKey,
   promptText,
-  imagesList = [], // array of { mimeType, data }
-  audioItem = null, // { mimeType, data }
+  imagesList = [],
+  audioItem = null,
 }) {
   let errorCatatan = ""
+  const promptLengkap = `${promptText}\n\n${ATURAN_ANTISLOP_INDONESIA}`
 
-  // JALUR UTAMA: Gunakan Saldo OpenRouter (google/gemini-2.0-flash-001 mendukung Gambar, Frame Video & Audio!)
   if (openRouterKey && openRouterKey.trim() !== "") {
     try {
-      const contentArray = [{ type: "text", text: promptText }]
+      const contentArray = [{ type: "text", text: promptLengkap }]
 
       imagesList.forEach((img) => {
         if (img?.data) {
@@ -146,7 +217,6 @@ async function panggilMultimodalPintar({
     }
   }
 
-  // JALUR CADANGAN: Gunakan Direct Gemini API Key jika ada
   if (geminiKey && geminiKey.trim() !== "") {
     const partsPayload = []
     if (audioItem?.data) {
@@ -167,7 +237,7 @@ async function panggilMultimodalPintar({
         })
       }
     })
-    partsPayload.push({ text: promptText })
+    partsPayload.push({ text: promptLengkap })
 
     for (const model of ["gemini-2.0-flash", "gemini-2.5-flash"]) {
       try {
@@ -201,10 +271,11 @@ async function panggilMultimodalPintar({
 }
 
 // ============================================================================
-// MESIN 2: TEKS & COPYWRITING (DEEPSEEK-V3 / GPT-4O MINI VIA OPENROUTER)
+// MESIN 2: TEKS & COPYWRITING (DEEPSEEK-V3 / GPT-4O MINI DENGAN PROTOKOL ANTISLOP)
 // ============================================================================
 async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
   let errorCatatan = ""
+  const promptFinalAntiSlop = `${promptText}\n\n${ATURAN_ANTISLOP_INDONESIA}`
 
   if (openRouterKey && openRouterKey.trim() !== "") {
     const daftarModel = [
@@ -230,12 +301,12 @@ async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
                 {
                   role: "system",
                   content:
-                    "Kamu adalah Produser Konten & Copywriter Senior Indonesia yang berbicara sangat luwes, manusiawi, tajam, dan selalu membalas HANYA dalam format JSON yang valid.",
+                    "Kamu adalah penulis naskah dan copywriter Indonesia yang menulis secara konkret, jujur, dan spesifik. Kamu mematuhi seluruh aturan antislop-copywriting: tidak pernah mengarang fakta atau statistik palsu, tidak pernah menggunakan karakter em dash, tidak pernah menggunakan struktur 'bukan sekadar X tapi Y', dan tidak menggunakan kosakata klise AI. Kamu selalu membalas HANYA dalam format JSON yang valid.",
                 },
-                { role: "user", content: promptText },
+                { role: "user", content: promptFinalAntiSlop },
               ],
               response_format: { type: "json_object" },
-              temperature: 0.75,
+              temperature: 0.68,
             }),
           },
         )
@@ -255,48 +326,47 @@ async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
     return panggilMultimodalPintar({
       openRouterKey: "",
       geminiKey,
-      promptText,
+      promptText: promptFinalAntiSlop,
     })
   }
 
   throw new Error(errorCatatan || "API Key AI belum aktif")
 }
 
-// Panduan panjang kata berdasarkan pilihan durasi pengguna
 function getAturanPanjangDurasi(durasiStr = "60 Detik (1 Menit)") {
   const d = durasiStr.toLowerCase()
   if (d.includes("15")) {
     return {
-      estimasi: "15 Detik (Sangat Padat & Cepat)",
+      estimasi: "15 Detik (Padat & Langsung)",
       instruksi:
-        "DURASI 15 DETIK (SUPER PADAT): Total seluruh naskah voiceover dari Kerangka 1 sampai 4 wajib sekitar 35–45 kata saja (masing-masing kerangka 1 kalimat pendek yang langsung menghantam inti).",
+        "DURASI 15 DETIK: Total seluruh naskah voiceover dari Kerangka 1 sampai 4 wajib sekitar 35 sampai 45 kata (masing-masing kerangka terdiri dari 1 kalimat langsung yang konkret).",
     }
   }
   if (d.includes("30")) {
     return {
-      estimasi: "30 Detik (Ringkas & To-The-Point)",
+      estimasi: "30 Detik (Ringkas)",
       instruksi:
-        "DURASI 30 DETIK: Total seluruh naskah voiceover wajib sekitar 70–90 kata (masing-masing kerangka terdiri dari 2 kalimat yang padat dan mengalir cepat).",
+        "DURASI 30 DETIK: Total seluruh naskah voiceover wajib sekitar 70 sampai 90 kata (masing-masing kerangka terdiri dari 2 kalimat konkret).",
     }
   }
   if (d.includes("2 menit") || d.includes("120")) {
     return {
-      estimasi: "2 Menit (Storytelling & Bedah Mendalam)",
+      estimasi: "2 Menit (Pembahasan Mendalam)",
       instruksi:
-        "DURASI 2 MENIT (MENDALAM & PANJANG): DILARANG menulis terlalu pendek! Total seluruh naskah voiceover WAJIB sekitar 260–320 kata. Pada Kerangka 2 (Cerita/Masalah) dan Kerangka 3 (Solusi/Bukti), jabarkan secara mendalam menjadi 5–7 kalimat per kerangka lengkap dengan contoh nyata, analogi, dan detail langkah demi langkah.",
+        "DURASI 2 MENIT: Total seluruh naskah voiceover wajib sekitar 260 sampai 320 kata. Pada Kerangka 2 dan Kerangka 3, jabarkan menjadi 5 sampai 7 kalimat per kerangka menggunakan contoh konkret, situasi nyata, dan langkah spesifik tanpa kalimat pengisi yang berputar-putar.",
     }
   }
   if (d.includes("3 menit") || d.includes("180")) {
     return {
-      estimasi: "3 Menit (Edukasi Lengkap & Komprehensif)",
+      estimasi: "3 Menit (Penjelasan Lengkap)",
       instruksi:
-        "DURASI 3 MENIT (SANGAT MENDALAM & EKSTENSI PENUH): DILARANG KERAS menulis pendek! Total seluruh naskah voiceover WAJIB mencapai 380–450 kata. Jabarkan setiap kerangka (terutama Kerangka 2 dan Kerangka 3) menjadi 7–10 kalimat panjang yang mengupas tuntas latar belakang masalah, studi kasus/perumpamaan, rincian poin demi poin, serta argumen penutup yang sangat kuat.",
+        "DURASI 3 MENIT: Total seluruh naskah voiceover wajib mencapai 380 sampai 450 kata. Jabarkan Kerangka 2 dan Kerangka 3 menjadi 7 sampai 10 kalimat yang menjelaskan mekanisme nyata, simulasi situasi, dan rincian langkah praktis secara utuh.",
     }
   }
   return {
-    estimasi: "60 Detik / 1 Menit (Standar Ideal)",
+    estimasi: "60 Detik / 1 Menit (Standar)",
     instruksi:
-      "DURASI 60 DETIK (1 MENIT IDEAL): Total seluruh naskah voiceover wajib sekitar 140–170 kata. Pastikan Kerangka 2 dan Kerangka 3 masing-masing memiliki 3–4 kalimat utuh yang mengalir enak dan tidak terkesan terburu-buru.",
+      "DURASI 60 DETIK: Total seluruh naskah voiceover wajib sekitar 140 sampai 170 kata. Pastikan Kerangka 2 dan Kerangka 3 masing-masing memiliki 3 sampai 4 kalimat utuh dengan panjang kalimat yang bervariasi secara alami.",
   }
 }
 
@@ -345,30 +415,23 @@ export async function POST(request) {
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
 
-    // =========================================================================
-    // 1. TOMBOL "i" (SARAN REFERENSI AI BERDASARKAN AKUMULASI PROFILING)
-    // =========================================================================
+    // 1. TOMBOL "i" (SARAN REFERENSI PROFILING TANPA SLOP)
     if (action === "suggest_profiling_field") {
       const promptSaran = `
-Kamu adalah Konsultan Personal Branding & Copywriting.
-Pengguna sedang mengisi formulir Profiling 360° dirinya.
-Berikut adalah AKUMULASI JAWABAN PENGGUNA DARI PERTANYAAN SEBELUMNYA:
+Pengguna sedang mengisi kolom "${fieldLabel}" (Kode: "${fieldKey}").
+Data jawaban pengguna dari kolom sebelumnya:
 ${JSON.stringify(accumulatedProfile)}
 
-Saat ini pengguna mengklik tombol bantuan "i" pada kolom:
-- Nama Kolom: "${fieldLabel}" (Kode: "${fieldKey}")
-
-TUGASMU:
-Berdasarkan akumulasi data pengguna di atas (perannya, usianya, minatnya, sapaannya), berikan **4 rekomendasi isian yang sangat spesifik, realistis, dan siap pakai** untuk kolom "${fieldLabel}" tersebut agar pengguna tinggal mengklik salah satunya.
+Berikan 4 contoh isian yang konkret, spesifik, dan langsung menyebutkan fakta atau situasi sehari-hari tanpa kata-kata klise AI.
 
 Keluarkan HANYA valid JSON:
 {
-  "insight_singkat": "1 kalimat alasan kenapa pilihan di bawah cocok dengan profilmu...",
+  "insight_singkat": "1 kalimat alasan praktis kenapa opsi ini cocok dengan data sebelumnya.",
   "pilihan_referensi": [
-    "Pilihan spesifik 1...",
-    "Pilihan spesifik 2...",
-    "Pilihan spesifik 3...",
-    "Pilihan spesifik 4..."
+    "Opsi spesifik 1...",
+    "Opsi spesifik 2...",
+    "Opsi spesifik 3...",
+    "Opsi spesifik 4..."
   ]
 }`
       const hasil = await panggilTeksPintar(
@@ -379,19 +442,16 @@ Keluarkan HANYA valid JSON:
       return NextResponse.json(hasil)
     }
 
-    // =========================================================================
-    // 2. SCAN SCREENSHOT PRODUK & SPESIFIKASI MARKETPLACE (MULTIMODAL)
-    // =========================================================================
+    // 2. SCAN SCREENSHOT MARKETPLACE (HANYA FAKTA DARI GAMBAR, DILARANG MENGARANG)
     if (action === "analyze_marketplace_screenshots") {
       const promptSS = `
-Kamu adalah Analis Produk Marketplace (Shopee / TikTok Shop / Tokopedia).
-Perhatikan gambar screenshot produk dan spesifikasi yang dilampirkan.
-Ekstrak informasi berikut secara akurat:
-1. "namaProduk": Nama lengkap produk yang tertera di gambar.
-2. "brand": Nama merek / brand / nama toko yang tertera di gambar.
-3. "hargaPromo": Harga produk atau diskon yang terlihat di gambar.
-4. "keunggulanSpesifikasi": Rangkuman detail spesifikasi, bahan, ukuran, atau keunggulan produk.
-5. "masalahDipecahkan": Masalah utama pembeli yang diselesaikan oleh produk ini.
+Baca gambar screenshot produk atau spesifikasi marketplace yang dilampirkan.
+Salin hanya fakta yang benar-benar tertulis di dalam gambar. Jika suatu informasi (seperti merek atau harga) tidak tertulis di gambar, tulis "-" dan jangan menebak atau mengarang klaim sendiri.
+1. "namaProduk": Nama produk persis dari gambar.
+2. "brand": Merek atau nama toko yang tertulis di gambar.
+3. "hargaPromo": Angka harga yang tertulis di gambar.
+4. "keunggulanSpesifikasi": Daftar bahan, ukuran, atau fitur teknis yang tertulis di gambar.
+5. "masalahDipecahkan": Fungsi praktis barang tersebut dalam pemakaian sehari-hari.
 
 Keluarkan HANYA valid JSON:
 {
@@ -425,9 +485,7 @@ Keluarkan HANYA valid JSON:
       return NextResponse.json(hasil)
     }
 
-    // =========================================================================
-    // 3. TRANSKRIP SUARA MIKROFON (MULTIMODAL VIA OPENROUTER / GEMINI)
-    // =========================================================================
+    // 3. TRANSKRIP SUARA MIKROFON
     if (action === "transkrip_suara_mic") {
       if (!audioBase64) {
         return NextResponse.json(
@@ -436,7 +494,7 @@ Keluarkan HANYA valid JSON:
         )
       }
       const promptAudio = `
-Dengarkan rekaman suara ini dan salin persis ucapannya menjadi teks Bahasa Indonesia yang rapi.
+Salin ucapan di dalam rekaman suara ini kata demi kata menjadi teks Bahasa Indonesia. Jangan menambahkan kata sendiri.
 Balas HANYA dalam format JSON:
 {
   "teks": "..."
@@ -453,20 +511,16 @@ Balas HANYA dalam format JSON:
       return NextResponse.json(hasil)
     }
 
-    // =========================================================================
-    // 4. EKSTRAK VIDEO + BEDAH KOMPETITOR (MULTIMODAL VIA OPENROUTER / GEMINI)
-    // =========================================================================
+    // 4. EKSTRAK VIDEO + BEDAH KOMPETITOR
     if (action === "rewrite_video") {
       const promptVideo = `
-Kamu adalah Mesin Transkripsi Video Presisi & Analis Konten Viral.
-1. Dengarkan suara ucapan pada audio yang dilampirkan DAN baca seluruh teks/subtitle/visual yang tampak pada potongan gambar frame video.
-2. Tuliskan **Teks Asli yang Ada di Dalam Video** ke dalam "transkripAsliVideo".
-3. Jika benar-benar kosong tanpa suara dan tanpa visual yang bisa dibaca sama sekali, isi "unreadableError": true.
-4. Bedah **Mengapa Video Ini Menarik** pada "bedahKompetitor" ("jenisHookAsli", "pemicuEmosi", "rahasiaRetensi").
-5. Buat rekomendasi Copywriting baru yang 100% orisinil sesuai Positioning & Gaya Bicara pengguna:
+Tugasmu:
+1. Salin kata demi kata ucapan audio atau teks yang tertulis di layar video ke dalam "transkripAsliVideo". Jangan mengarang kata yang tidak ada di video.
+2. Jika video benar-benar kosong tanpa ucapan maupun teks layar yang terbaca, isi "unreadableError": true.
+3. Jelaskan secara konkret struktur video tersebut pada "bedahKompetitor" ("jenisHookAsli", "pemicuEmosi", "rahasiaRetensi") tanpa hiperbola.
+4. Tulis naskah baru yang orisinil berdasarkan fakta di dalam video tersebut menggunakan gaya bicara pengguna:
 ${JSON.stringify(personaProfile)}
-   Catatan tambahan: "${detailInput || "-"}"
-   Pecah ke dalam 4 kerangka ("segmen": HOOK, BODY_STORY, VALUE_SOLUTION, CTA).
+   Catatan tambahan pengguna: "${detailInput || "-"}"
 
 Keluarkan HANYA valid JSON:
 {
@@ -509,7 +563,7 @@ Keluarkan HANYA valid JSON:
           userId,
           namaUser,
           fitur: `Ekstrak Video (${namaFileVideo || "File"})`,
-          pesanErrorAsli: "Video tidak memiliki suara/teks yang terbaca",
+          pesanErrorAsli: "Video tidak memiliki suara atau teks yang terbaca",
           koinKompensasi: 2,
         })
         return NextResponse.json(
@@ -524,52 +578,70 @@ Keluarkan HANYA valid JSON:
       return NextResponse.json(hasilParsed)
     }
 
-    // =========================================================================
-    // 5. PROFILING 360°
-    // =========================================================================
+    // 5. PROFILING 360° (MEMPERTAHANKAN SUARA ASLI PENGGUNA SESUAI R-37)
     let promptFinal = ""
 
     if (action === "extract_persona_dna") {
       promptFinal = `
-Analisis data Profiling 360° (Positioning, Unique Selling Point, Psikologi Target Audiens, dan Contoh Gaya Bicara) pengguna berikut untuk menyusun matriks identitas konten yang 100% personal:
-- Data Onboarding Lengkap: ${JSON.stringify(onboardingAnswers)}
-- Contoh Kalimat Asli Pengguna: "${rawWritingSamples || "Santai, jujur, langsung ke inti pembahasan."}"
+Susun matriks gaya bahasa dan positioning pengguna dari data berikut:
+- Data Profil: ${JSON.stringify(onboardingAnswers)}
+- Sampel Tulisan Asli Pengguna: "${rawWritingSamples || ""}"
+
+ATURAN KALIBRASI SUARA (R-37):
+- Jika pengguna memberikan Sampel Tulisan Asli, pelajari panjang kalimatnya, kata ganti orangnya, dan pilihan katanya. Pertahankan ciri khas tersebut.
+- Masukkan daftar kata klise AI ke dalam "forbidden_words" agar selalu diblokir saat pembuatan skrip.
 
 Keluarkan HANYA valid JSON:
 {
   "user_id": "${onboardingAnswers?.user_id || "usr_99281"}",
-  "persona_summary": "Ringkasan tajam tentang Positioning, USP, dan gaya bicara khas pengguna...",
+  "persona_summary": "Ringkasan lugas tentang peran, keunikan pengalaman, dan cara bicara pengguna.",
   "positioning_and_usp": {
-    "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi & Teman Diskusi"}",
-    "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi praktik nyata tanpa teori rumit"}",
-    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Basa-basi motivasi kosong tanpa langkah nyata"}",
-    "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kehidupan sehari-hari, kerjaan, dan hobi"}"
+    "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi"}",
+    "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi praktik nyata"}",
+    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Teori tanpa langkah praktis"}",
+    "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kegiatan harian"}"
   },
   "target_audience": {
-    "segment_profile": "${onboardingAnswers?.target_segmen || "Anak muda & pekerja produktif"}",
-    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Takut jalan di tempat & boncos uang/waktu"}",
-    "secret_desires": "${onboardingAnswers?.target_impian || "Hasil nyata yang praktis dan terukur"}",
-    "common_objections": "${onboardingAnswers?.target_keraguan || "Merasa sibuk, bingung mulai dari mana, atau takut gagal"}"
+    "segment_profile": "${onboardingAnswers?.target_segmen || "Penonton umum"}",
+    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Rugi waktu dan biaya"}",
+    "secret_desires": "${onboardingAnswers?.target_impian || "Hasil yang terukur"}",
+    "common_objections": "${onboardingAnswers?.target_keraguan || "Bingung memulai dari mana"}"
   },
   "linguistic_matrix": {
     "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Aku"}",
     "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Kamu"}",
-    "greeting_signature": ["...", "...", "..."],
-    "favorite_transitions": ["...", "...", "..."],
-    "signature_vocabulary": ["...", "...", "..."],
-    "forbidden_words": ["Anda", "Pemirsa", "Oleh karena itu", "Selain itu", "Di era digital saat ini", "Kesimpulannya", "Tidak dapat dipungkiri"],
+    "greeting_signature": ["...", "..."],
+    "favorite_transitions": ["...", "..."],
+    "signature_vocabulary": ["...", "..."],
+    "forbidden_words": [
+      "membuka potensi",
+      "level berikutnya",
+      "memberdayakan",
+      "menyelami",
+      "bukti nyata",
+      "lanskap",
+      "pengubah permainan",
+      "game-changer",
+      "tanpa hambatan",
+      "mutakhir",
+      "revolusioner",
+      "bukan sekadar",
+      "tidak hanya",
+      "di era digital saat ini",
+      "mari kita bahas",
+      "tanpa basa-basi",
+      "para ahli mengatakan"
+    ],
     "code_switching_level": "Natural"
   },
   "rhythm_and_delivery": {
-    "sentence_length": "Pendek, lisan, maksimal 12-14 kata per kalimat",
-    "pacing": "Cepat di awal, mengalir di tengah, tegas di akhir"
+    "sentence_length": "Variasi kalimat pendek dan sedang yang alami saat diucapkan",
+    "pacing": "Langsung masuk ke pokok bahasan tanpa pengantar bertele-tele"
   }
 }`
     }
 
-    // =========================================================================
-    // 6. INTERACTIVE PRODUCER CHAT (MENDUKUNG REGENERATE BATCH 1, 2, 3 BERBEDA)
-    // =========================================================================
+    // 6. INTERACTIVE PRODUCER CHAT (TAHAP 1, 2, 3 BEBAS HALUSINASI & BEBAS SLOP)
     else if (action === "assessment_copilot") {
       const infoKonteks = stageInput?.detailPromosi
         ? `DETAIL PROMOSI (${stageInput.jenisPromosi}):\n${JSON.stringify(stageInput.detailPromosi)}`
@@ -577,13 +649,13 @@ Keluarkan HANYA valid JSON:
 
       const catatanHindariDuplikat =
         opsiSebelumnya && opsiSebelumnya.length > 0
-          ? `\nCATATAN PENTING (BATCH KE-${batchKe || 2}): Pengguna meminta alternatif pilihan baru! DILARANG mengulang kalimat pilihan sebelumnya berikut ini, berikan sudut pandang/kalimat yang 100% BERBEDA dan lebih segar: ${JSON.stringify(opsiSebelumnya)}`
+          ? `\nPENGGUNA MEMINTA OPSI BARU (SET KE-${batchKe || 2}): Berikan sudut pandang atau kalimat yang berbeda dari daftar sebelumnya ini: ${JSON.stringify(opsiSebelumnya)}`
           : ""
 
       if (stageNumber === 1) {
         promptFinal = `
-Kamu adalah Produser Konten Pribadi yang sedang mengobrol akrab 1-on-1 dengan kreator "${namaUser || "Sobat"}".
-Data Positioning, USP, Gaya Bahasa & Target Audiens kreator:
+Kamu adalah rekan diskusi konten untuk "${namaUser || "Kreator"}".
+Profil Kreator:
 ${JSON.stringify(personaProfile)}
 
 DATA KONTEN:
@@ -593,68 +665,72 @@ DATA KONTEN:
 ${catatanHindariDuplikat}
 
 TUGAS TAHAP 1:
-1. Pada "co_pilot_message", balas layaknya produser manusia yang antusias mengomentari ide topik tersebut dan mengaitkannya dengan Positioning/USP kreator serta rasa sakit target audiensnya.
-2. Rumuskan 1 gagasan inti pada "refined_core_idea".
-3. Berikan **3 Pilihan Sudut Pandang (Angle)** yang tajam dan berbeda.
-4. Pada "story_prompt_question", ajukan 1 pertanyaan obrolan santai.
+1. Pada "co_pilot_message", berikan tanggapan langsung yang membahas inti topik tanpa kalimat basa-basi pembuka.
+2. Rumuskan 1 gagasan pokok yang spesifik pada "refined_core_idea".
+3. Berikan 3 pilihan sudut pandang ("angle_options") yang konkret dan menyebutkan situasi nyata (jangan gunakan struktur "Bukan sekadar X tapi Y").
+4. Pada "story_prompt_question", tanyakan 1 hal spesifik tentang pengalaman nyata atau detail produk yang dimiliki pengguna terkait topik ini.
 
 Keluarkan HANYA valid JSON:
 {
   "co_pilot_message": "...",
   "refined_core_idea": "...",
   "angle_options": [
-    { "id": "angle_1", "type": "Contrarian / Bongkar Mitos", "angle_text": "..." },
-    { "id": "angle_2", "type": "Pain-Point Target Audiens", "angle_text": "..." },
-    { "id": "angle_3", "type": "USP & Solusi Praktis", "angle_text": "..." }
+    { "id": "angle_1", "type": "Koreksi Kesalahan Umum", "angle_text": "..." },
+    { "id": "angle_2", "type": "Masalah Spesifik Penonton", "angle_text": "..." },
+    { "id": "angle_3", "type": "Cara Kerja & Langkah Praktis", "angle_text": "..." }
   ],
   "story_prompt_question": "..."
 }`
       } else if (stageNumber === 2) {
         promptFinal = `
-Kamu adalah Produser Konten Pribadi untuk "${namaUser || "Sobat"}":
+Kamu adalah rekan diskusi konten untuk "${namaUser || "Kreator"}":
 ${JSON.stringify(personaProfile)}
 
 DATA TAHAP 1:
 - Inti Bahasan: "${stageInput?.coreIdea}"
 - Sudut Pandang Terpilih: "${stageInput?.chosenAngle}"
-- Balasan Cerita Kreator: "${stageInput?.userStory || "(Minta dicarikan perumpamaan yang relate)"}"
+- Pengalaman / Detail dari Pengguna: "${stageInput?.userStory || "(Tidak diisi)"}"
+- Detail Produk/Campaign (jika ada): ${JSON.stringify(stageInput?.detailPromosi || {})}
 ${catatanHindariDuplikat}
 
-TUGAS TAHAP 2:
-1. Tanggapi pilihan kreator dengan akrab di "co_pilot_message".
-2. Buat **2 pilihan perumpamaan/analogi sehari-hari** ("relatable_analogies").
-3. Berikan **3 Kartu Fakta/Bukti Pendukung** ("reference_cards").
-4. Berikan **3 poin solusi atau keunggulan unik (USP)** ("suggested_solutions").
+TUGAS TAHAP 2 (PENTING - DILARANG MENGARANG STATISTIK ATAU KLAIM PALSU):
+1. Tanggapi secara lugas di "co_pilot_message".
+2. Buat 2 perbandingan atau situasi sehari-hari ("relatable_analogies") yang mempermudah penonton memahami topik.
+3. Buat 3 Kartu Penjelasan Konkret ("reference_cards"). DILARANG mengarang angka riset, persentase palsu, atau klaim "para ahli mengatakan". Gunakan hanya:
+   - Kartu 1 ("Mekanisme / Sebab-Akibat"): Penjelasan logis bagaimana masalah atau produk tersebut bekerja.
+   - Kartu 2 ("Situasi Nyata di Lapangan"): Gambaran kejadian spesifik yang dialami target penonton.
+   - Kartu 3 ("Detail / Spesifikasi Faktual"): Fakta dari input pengguna (jika pengguna belum memasukkan angka/detail spesifik, tuliskan poin fakta mekanis tanpa mengarang angka).
+4. Berikan 3 langkah tindakan atau manfaat spesifik ("suggested_solutions").
 
 Keluarkan HANYA valid JSON:
 {
   "co_pilot_message": "...",
-  "relatable_analogies": ["Analogi 1...", "Analogi 2..."],
+  "relatable_analogies": ["Situasi 1...", "Situasi 2..."],
   "reference_cards": [
-    { "type": "Psikologi Target Audiens", "title": "...", "summary": "..." },
-    { "type": "Bukti & Logika Lapangan", "title": "...", "summary": "..." },
-    { "type": "Fenomena Sehari-hari", "title": "...", "summary": "..." }
+    { "type": "Mekanisme & Sebab-Akibat", "title": "...", "summary": "..." },
+    { "type": "Situasi Nyata Penonton", "title": "...", "summary": "..." },
+    { "type": "Fakta & Detail Spesifik", "title": "...", "summary": "..." }
   ],
-  "suggested_solutions": ["Solusi/USP 1...", "Solusi/USP 2...", "Solusi/USP 3..."]
+  "suggested_solutions": ["Langkah 1...", "Langkah 2...", "Langkah 3..."]
 }`
       } else if (stageNumber === 3) {
         promptFinal = `
-Kamu adalah Pakar Copywriting & Produser Konten Pribadi untuk "${namaUser || "Sobat"}":
+Kamu adalah rekan diskusi copywriting untuk "${namaUser || "Kreator"}":
 ${JSON.stringify(personaProfile)}
 
 DATA TAHAP 1 & 2:
 - Inti Bahasan: "${stageInput?.coreIdea}"
 - Sudut Pandang: "${stageInput?.chosenAngle}"
-- Cerita/Analogi: "${stageInput?.personalStory}"
-- Bukti Pendukung: ${JSON.stringify(stageInput?.injectedReference)}
-- Solusi/USP: ${JSON.stringify(stageInput?.actionableSolutions)}
+- Situasi/Pengalaman: "${stageInput?.personalStory}"
+- Penjelasan Pendukung: ${JSON.stringify(stageInput?.injectedReference)}
+- Solusi/Langkah: ${JSON.stringify(stageInput?.actionableSolutions)}
 ${catatanHindariDuplikat}
 
-TUGAS TAHAP 3 (6 Jenis Hook Psikologis Copywriting & 3 Jenis CTA):
-1. Sampaikan saran pengunci 3 detik pertama di "co_pilot_message".
-2. Rekomendasikan 1 kerangka copywriting terbaik ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION").
-3. WAJIB buatkan **6 Pilihan Kalimat Pembuka (Hook 3 Detik Pertama)** pada "hook_options" (Negative Hook, Positive Hook, Proof Hook, Contrarian Hook, Relatable POV Hook, Curiosity Gap Hook).
-4. WAJIB buatkan **3 Pilihan Kalimat Penutup (CTA)** pada "cta_options" (Engagement Bait, Save & Share, Conversion).
+TUGAS TAHAP 3:
+1. Sampaikan saran singkat di "co_pilot_message".
+2. Pilih 1 alur struktur ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION") beserta alasan praktisnya di "framework_reason".
+3. Buat 6 kalimat pembuka ("hook_options") yang langsung masuk ke pokok masalah atau situasi nyata di kalimat pertama. DILARANG menggunakan em dash (—), dILARANG mengarang angka palsu, dan dilarang menggunakan kalimat "Bukan sekadar X tapi Y".
+4. Buat 3 kalimat ajakan penutup ("cta_options") yang spesifik menyebutkan tindakan yang harus dilakukan penonton (R-15).
 
 Keluarkan HANYA valid JSON:
 {
@@ -662,25 +738,23 @@ Keluarkan HANYA valid JSON:
   "recommended_framework": "PAS_RELATABLE_BRIDGE",
   "framework_reason": "...",
   "hook_options": [
-    { "category": "Negative / Warning Hook", "why_it_works": "Memicu rasa takut rugi di 3 detik awal", "text": "..." },
-    { "category": "Positive / Dream Outcome Hook", "why_it_works": "Menawarkan hasil impian yang spesifik", "text": "..." },
-    { "category": "Proof / Result-First Hook", "why_it_works": "Membuka dengan bukti nyata sehingga langsung dipercaya", "text": "..." },
-    { "category": "Contrarian / Myth-Buster Hook", "why_it_works": "Mematahkan keyakinan umum penonton", "text": "..." },
-    { "category": "Relatable / POV Hook", "why_it_works": "Membuat target audiens merasa sangat dipahami", "text": "..." },
-    { "category": "Curiosity Gap / Secret Hook", "why_it_works": "Membuka rasa penasaran yang mengunci retensi", "text": "..." }
+    { "category": "Negative / Warning Hook", "why_it_works": "Menyebutkan risiko nyata yang sering diabaikan", "text": "..." },
+    { "category": "Positive / Dream Outcome Hook", "why_it_works": "Menyebutkan hasil spesifik yang bisa dicapai", "text": "..." },
+    { "category": "Proof / Result-First Hook", "why_it_works": "Membuka dengan hasil atau perubahan nyata", "text": "..." },
+    { "category": "Contrarian / Myth-Buster Hook", "why_it_works": "Mengoreksi kebiasaan keliru yang sering dilakukan", "text": "..." },
+    { "category": "Relatable / POV Hook", "why_it_works": "Menggambarkan kejadian spesifik yang dialami penonton", "text": "..." },
+    { "category": "Curiosity Gap / Secret Hook", "why_it_works": "Menunjukkan detail penting yang jarang diperhatikan", "text": "..." }
   ],
   "cta_options": [
-    { "category": "Engagement Bait (Pancing Komentar)", "text": "..." },
-    { "category": "Save & Share (Pancing Simpan/Bagikan)", "text": "..." },
-    { "category": "Conversion (Arahkan Beli / Cek Profil)", "text": "..." }
+    { "category": "Diskusi Komentar", "text": "..." },
+    { "category": "Simpan & Bagikan", "text": "..." },
+    { "category": "Tindakan Langsung / Cek Produk", "text": "..." }
   ]
 }`
       }
     }
 
-    // =========================================================================
-    // 7. PENYUSUN SKRIP UTAMA DENGAN PENGATUR DURASI (15 DETIK S/D 3 MENIT)
-    // =========================================================================
+    // 7. PENYUSUN SKRIP UTAMA (TUNDUK PENUH PADA SKILL.MD + AUDIT LOOP)
     else if (action === "assemble_humanized_script") {
       const aturanDurasi = getAturanPanjangDurasi(
         contentBrief?.target_platform || "60 Detik (1 Menit)",
@@ -695,29 +769,30 @@ Keluarkan HANYA valid JSON:
         : "Pemeran 1, Pemeran 2"
 
       const instruksiUGC = isModeUGC
-        ? `\n# INSTRUKSI KHUSUS KONTEN UGC (DIALOG PERCAKAPAN ${ugcConfig?.jumlahOrang || 2} ORANG: ${daftarPemeran}): Tulis dalam bentuk dialog saling bersahutan yang sangat natural.`
-        : `\n# INSTRUKSI SKRIP MONOLOG 100% PERSONAL: Tulis dengan bahasa lisan yang mengalir alami sesuai sapaan "${personaProfile?.linguistic_matrix?.self_pronoun}" dan "${personaProfile?.linguistic_matrix?.audience_pronoun}".`
+        ? `\nFORMAT DIALOG UGC (${ugcConfig?.jumlahOrang || 2} ORANG: ${daftarPemeran}): Tulis percakapan timbal balik yang langsung membahas topik tanpa basa-basi sapaan chatbot.`
+        : `\nFORMAT MONOLOG PERSONAL: Gunakan sapaan "${personaProfile?.linguistic_matrix?.self_pronoun}" dan "${personaProfile?.linguistic_matrix?.audience_pronoun}" sesuai karakter pengguna.`
 
       promptFinal = `
-Kamu adalah Copywriter Video Pendek & Produser Eksekutif Kelas Dunia.
-Profil 360° Kreator (Positioning, USP, Target Audiens & Gaya Bahasa):
+Tulis naskah skrip konten berdasarkan data berikut:
+Profil Kreator:
 ${JSON.stringify(personaProfile)}
 
-Rancangan Konten Terkunci:
+Rancangan Konten:
 ${JSON.stringify(contentBrief)}
 
-Bentuk Eksekusi Visual: "${bentukKonten}"
+Bentuk Visual: "${bentukKonten}"
 ${instruksiUGC}
 
-# ATURAN PANJANG & KEDALAMAN NASKAH SESUAI DURASI PILIHAN USER:
+ATURAN DURASI:
 ${aturanDurasi.instruksi}
 
-ATURAN WAJIB COPYWRITING:
-1. Hindari semua kata kaku berikut: ${JSON.stringify(personaProfile?.linguistic_matrix?.forbidden_words || [])}.
-2. Pisahkan setiap 1-2 kalimat dengan baris baru (\\n) agar nyaman dibaca.
-3. Tambahkan petunjuk ekspresi/intonasi di dalam kurung siku [...] seperti [Tatapan serius], [Senyum tipis].
-4. Susun dalam 4 kerangka copywriting yang mengunci retensi (HOOK, BODY_STORY, VALUE_SOLUTION, CTA) dengan panjang kalimat yang WAJIB mematuhi aturan durasi di atas!
-5. Berikan Evaluasi Skor Skrip ("script_score") & Paket Siap Upload ("upload_pack": cover_title, caption_seo, pinned_comment).
+INSTRUKSI PENULISAN & AUDIT ANTI-SLOP:
+1. Gunakan kalimat aktif yang menyebutkan pelaku dengan jelas.
+2. Jangan tambahkan fakta, klaim, nomor, atau testimoni yang tidak ada di dalam Rancangan Konten di atas.
+3. Jangan gunakan em dash (—) atau tanda hubung ganda (--).
+4. Pisahkan setiap 1 sampai 2 kalimat dengan baris baru (\\n) agar mudah dibaca.
+5. Tambahkan arahan ekspresi atau gerakan singkat di dalam kurung siku, misalnya [Menunjuk ke arah produk] atau [Nada bicara tenang].
+6. Isi juga evaluasi "script_score" dan "upload_pack" (judul cover, caption, dan komentar pertama) dengan bahasa yang lugas tanpa emoji berlebihan dan tanpa kata klise AI.
 
 Keluarkan HANYA valid JSON:
 {
@@ -727,10 +802,10 @@ Keluarkan HANYA valid JSON:
     "is_ugc": ${isModeUGC}
   },
   "script_score": {
-    "total_score": 93,
-    "hook_strength": "...",
-    "retention_bridge": "...",
-    "producer_tip": "..."
+    "total_score": 92,
+    "hook_strength": "Kalimat pembuka langsung menyebutkan masalah spesifik tanpa pengantar bertele-tele.",
+    "retention_bridge": "Alur kalimat mengalir dari masalah ke langkah praktis menggunakan contoh konkret.",
+    "producer_tip": "Pastikan kalimat pertama diucapkan langsung saat rekaman dimulai tanpa jeda kosong."
   },
   "upload_pack": {
     "cover_title": "...",
@@ -747,21 +822,21 @@ Keluarkan HANYA valid JSON:
     },
     {
       "idSegmen": "BODY_STORY",
-      "labelMini": "Kerangka 2 • Cerita, Agitasi Masalah & Penahan Scroll",
+      "labelMini": "Kerangka 2 • Situasi & Masalah",
       "voiceover": "...",
       "teksLayar": "...",
       "visual": "..."
     },
     {
       "idSegmen": "VALUE_SOLUTION",
-      "labelMini": "Kerangka 3 • Bukti, USP & Solusi Utama",
+      "labelMini": "Kerangka 3 • Cara Kerja & Solusi",
       "voiceover": "...",
       "teksLayar": "...",
       "visual": "..."
     },
     {
       "idSegmen": "CTA",
-      "labelMini": "Kerangka 4 • Penutup & Ajakan Aksi (CTA)",
+      "labelMini": "Kerangka 4 • Penutup & Ajakan (CTA)",
       "voiceover": "...",
       "teksLayar": "...",
       "visual": "..."
@@ -770,13 +845,11 @@ Keluarkan HANYA valid JSON:
 }`
     }
 
-    // =========================================================================
-    // 8. UBAH DURASI SKRIP (PADATKAN ATAU PERLUAS: 15s, 30s, 60s, 2m, 3m)
-    // =========================================================================
+    // 8. UBAH DURASI SKRIP (15s - 3m)
     else if (action === "ubah_durasi_skrip") {
       const aturanDurasi = getAturanPanjangDurasi(durasiTargetBaru)
       promptFinal = `
-Kamu adalah Editor Copywriting Senior.
+Sesuaikan panjang ke-4 kerangka skrip di bawah ini agar memenuhi target durasi baru: "${durasiTargetBaru}".
 Profil gaya bicara kreator:
 ${JSON.stringify(personaProfile)}
 
@@ -784,51 +857,46 @@ Topik Skrip: "${body.subyek || "Konten Video"}"
 Skrip Saat Ini:
 ${JSON.stringify(skripSebelumnya)}
 
-TUGASMU:
-Tulis ulang dan sesuaikan panjang/kedalaman ke-4 kerangka skrip di atas agar pas dengan target durasi baru: **"${durasiTargetBaru}"**.
 ${aturanDurasi.instruksi}
+Ingat: Jangan mengarang klaim atau angka palsu saat memperluas skrip. Perluas dengan menjelaskan langkah praktis, cara kerja, atau contoh situasi nyata secara konkret.
 
 Keluarkan HANYA valid JSON:
 {
   "estimated_duration": "${aturanDurasi.estimasi}",
   "segmen": [
     { "idSegmen": "HOOK", "labelMini": "Kerangka 1 • Pembuka (Hook)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Cerita & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Bukti & Solusi Utama", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Situasi & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Cara Kerja & Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
     { "idSegmen": "CTA", "labelMini": "Kerangka 4 • Penutup & Ajakan (CTA)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
   ]
 }`
     }
 
-    // =========================================================================
-    // 9. GENERATOR STOK KONTEN MASSAL (2X, 5X, ATAU 10X VARIASI SKRIP SEKALIGUS)
-    // =========================================================================
+    // 9. GENERATOR STOK KONTEN MASSAL (2X, 5X, 10X VARIASI SKRIP)
     else if (action === "multiply_script_variations") {
       const jml = Math.min(10, Math.max(2, parseInt(jumlahMultiplier) || 2))
       promptFinal = `
-Kamu adalah Produser Konten Massal & Pakar Copywriting.
+Buat ${jml} variasi naskah skrip yang berbeda sudut pandang pembahasannya dari skrip induk berikut.
 Profil gaya bicara kreator:
 ${JSON.stringify(personaProfile)}
 
 Topik Induk: "${body.subyek || "Konten Kreator"}"
-Skrip Induk Saat Ini:
+Skrip Induk:
 ${JSON.stringify(skripSebelumnya)}
 
-TUGAS UTAMA:
-Gandakan skrip induk di atas menjadi **${jml} Naskah Skrip Konten Baru yang Berbeda Sudut Pandang & Berbeda Jenis Hook-nya** (agar pengguna punya ${jml} stok video siap rekam untuk topik/produk ini tanpa terlihat mengulang konten yang sama).
-Setiap variasi wajib memiliki:
-- "judulVariasi": Judul sudut pandang unik + jenis Hook yang dipakai.
-- "segmen": 4 kerangka lengkap (HOOK, BODY_STORY, VALUE_SOLUTION, CTA) dengan bahasa lisan khas kreator.
+ATURAN:
+- Setiap variasi wajib mengangkat sudut situasi atau kalimat pembuka (Hook) yang berbeda.
+- Tetap gunakan hanya fakta yang ada di skrip induk tanpa mengarang klaim palsu atau menggunakan em dash (—).
 
 Keluarkan HANYA valid JSON:
 {
   "daftarVariasi": [
     {
-      "judulVariasi": "Variasi #1: [Sudut Pandang Unik / Jenis Hook]",
+      "judulVariasi": "Variasi 1 (Sudut Pandang Spesifik)",
       "segmen": [
         { "idSegmen": "HOOK", "labelMini": "Kerangka 1 • Pembuka (Hook)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Cerita & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Bukti & Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Situasi & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Cara Kerja & Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
         { "idSegmen": "CTA", "labelMini": "Kerangka 4 • Penutup (CTA)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
       ]
     }
@@ -836,14 +904,10 @@ Keluarkan HANYA valid JSON:
 }`
     } else if (action === "regenerate_satu_kerangka") {
       promptFinal = `
-Kamu adalah Copywriter Profesional dengan profil kreator berikut:
-${JSON.stringify(personaProfile)}
-
-Konteks Topik: "${body.subyek || "Konten Video"}"
-Tulis ulang **SATU kerangka spesifik ini saja** ("${segmenTarget?.labelMini}") agar menjadi variasi kalimat baru yang lebih segar dan menghantam:
-- Kalimat saat ini: "${segmenTarget?.voiceover}"
-- Teks layar saat ini: "${segmenTarget?.teksLayar}"
-- Visual saat ini: "${segmenTarget?.visual}"
+Tulis ulang satu bagian kerangka ini saja ("${segmenTarget?.labelMini}") dengan kalimat baru yang konkret dan langsung ke inti bahasan.
+Profil kreator: ${JSON.stringify(personaProfile)}
+Topik: "${body.subyek || "Konten Video"}"
+Kalimat saat ini: ${JSON.stringify(segmenTarget)}
 
 Keluarkan HANYA valid JSON:
 {
@@ -853,20 +917,22 @@ Keluarkan HANYA valid JSON:
 }`
     } else if (action === "analyze_script_diff") {
       promptFinal = `
-Bandingkan draf awal dengan hasil editan pengguna:
+Pelajari perubahan kata yang dilakukan pengguna antara draf awal dan hasil editannya untuk menyelaraskan kamus gaya bahasa pengguna:
 - Draf Awal: ${JSON.stringify(aiDraft)}
 - Editan Pengguna: ${JSON.stringify(userEditedScript)}
 - Profil Saat Ini: ${JSON.stringify(personaProfile)}
 
 Keluarkan HANYA valid JSON:
 {
-  "learning_summary": ["Gaya pilihan katamu telah disimpan."],
+  "learning_summary": ["Pilihan kata dari revisimu telah disimpan ke profil."],
   "updated_persona_profile": ${JSON.stringify(personaProfile)}
 }`
     } else if (action === "buat_10_ide_topik") {
       promptFinal = `
-Buatkan 10 ide topik konten yang sangat relevan dengan Positioning, USP, dan Target Audiens dari kreator berikut:
+Buat 10 ide topik konten yang spesifik dan praktis sesuai pengalaman, peran, serta masalah penonton dari kreator berikut:
 ${JSON.stringify(personaProfile)}
+
+Jangan gunakan judul klise seperti "Rahasia Sukses" atau "Membuka Potensi". Tuliskan topik masalah atau kegiatan yang spesifik.
 Balas HANYA dalam format JSON:
 {
   "ideTopik": [
@@ -875,20 +941,20 @@ Balas HANYA dalam format JSON:
 }`
     } else if (action === "ubah_bentuk_konten") {
       promptFinal = `
-Adaptasikan ke-4 kerangka skrip berikut menjadi bentuk konten: "${bentukKontenBaru}".
+Sesuaikan ke-4 kerangka skrip berikut ke dalam format eksekusi visual: "${bentukKontenBaru}".
 Skrip saat ini: ${JSON.stringify(skripSebelumnya)}
 Balas HANYA dalam format JSON:
 {
   "segmen": [
     { "idSegmen": "HOOK", "labelMini": "Kerangka 1 • Pembuka", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Cerita & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Isi & Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "BODY_STORY", "labelMini": "Kerangka 2 • Situasi & Masalah", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Kerangka 3 • Cara Kerja & Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
     { "idSegmen": "CTA", "labelMini": "Kerangka 4 • Penutup", "voiceover": "...", "teksLayar": "...", "visual": "..." }
   ]
 }`
     } else if (action === "evaluasi_kinerja_vt") {
       promptFinal = `
-Berikan evaluasi singkat (2-3 kalimat membangun) untuk kinerja konten mingguan berikut:
+Berikan evaluasi singkat dan objektif dalam 2 kalimat berdasarkan angka metrik kinerja konten berikut tanpa pujian berlebihan:
 ${JSON.stringify(dataKinerja)}
 Balas HANYA dalam format JSON:
 { "evaluasiAI": "..." }`
@@ -902,7 +968,6 @@ Balas HANYA dalam format JSON:
 
     return NextResponse.json(hasilParsed)
   } catch (err) {
-    // Catat detail error teknis sebenarnya ke Dashboard Admin & kembalikan koin diam-diam
     const koinKompensasi =
       body?.action === "rewrite_video"
         ? 2
@@ -920,7 +985,6 @@ Balas HANYA dalam format JSON:
       koinKompensasi,
     })
 
-    // JANGAN tampilkan pesan error limit/AI ke user agar citra aplikasi tetap terjaga!
     return NextResponse.json(
       {
         error: "Error sistem, silakan refresh atau hubungi admin.",
