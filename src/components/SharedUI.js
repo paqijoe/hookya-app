@@ -15,7 +15,73 @@ export function formatKoinSingkat(jumlah) {
 }
 
 // ============================================================================
-// 2. KOMPONEN IKON FLAT DESIGN (DITAMBAH IKON PRINT PDF & EDIT)
+// 2. KONVERSI BLOB REKAMAN SUara MIC KE WAV RINGAN (AGAR JALAN DI IPHONE & ANDROID)
+// ============================================================================
+async function ubahBlobSuaraKeWavBase64(audioBlob) {
+  try {
+    const arrayBuffer = await audioBlob.arrayBuffer()
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtx) return null
+
+    const audioCtx = new AudioCtx()
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+    audioCtx.close()
+
+    const targetRate = 8000
+    const durasiMaks = Math.min(audioBuffer.duration, 45)
+    const numSamples = Math.floor(durasiMaks * targetRate)
+
+    const offlineCtx = new OfflineAudioContext(1, numSamples, targetRate)
+    const source = offlineCtx.createBufferSource()
+    source.buffer = audioBuffer
+    source.connect(offlineCtx.destination)
+    source.start(0)
+
+    const rendered = await offlineCtx.startRendering()
+    const channelData = rendered.getChannelData(0)
+
+    const wavBuffer = new ArrayBuffer(44 + channelData.length * 2)
+    const view = new DataView(wavBuffer)
+    const writeStr = (offset, str) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i))
+      }
+    }
+
+    writeStr(0, "RIFF")
+    view.setUint32(4, 36 + channelData.length * 2, true)
+    writeStr(8, "WAVE")
+    writeStr(12, "fmt ")
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, targetRate, true)
+    view.setUint32(28, targetRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeStr(36, "data")
+    view.setUint32(40, channelData.length * 2, true)
+
+    let offset = 44
+    for (let i = 0; i < channelData.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+    }
+
+    const bytes = new Uint8Array(wavBuffer)
+    let binary = ""
+    const chunk = 8192
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+    }
+    return { base64: btoa(binary), mimeType: "audio/wav" }
+  } catch {
+    return null
+  }
+}
+
+// ============================================================================
+// 3. KOMPONEN IKON FLAT DESIGN
 // ============================================================================
 export function FlatIcon({ name, className = "w-5 h-5" }) {
   const icons = {
@@ -140,7 +206,7 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
 }
 
 // ============================================================================
-// 3. KOTAK LOADING AI DENGAN PENGHITUNG WAKTU DETIK KE-30 & KLIK IKON REFRESH
+// 4. KOTAK LOADING AI DENGAN PENGHITUNG WAKTU DETIK KE-30 & KLIK IKON REFRESH
 // ============================================================================
 export function AILoadingBox({
   label = "Sistem AI sedang menyusun rekomendasi terbaik untukmu...",
@@ -178,7 +244,8 @@ export function AILoadingBox({
       {detik >= 30 && (
         <div className="bg-amber-100 border border-amber-300 text-[#14141f] px-4 py-2.5 rounded-xl text-xs font-bold space-y-1 max-w-md">
           <div>
-            ⏱️ Sudah {detik} detik. Jaringan atau server AI sedang padat.
+            ⏱️ Sudah {detik} detik. Silakan tekan tombol di bawah untuk memuat
+            ulang.
           </div>
           {onRefresh && (
             <button
@@ -199,7 +266,7 @@ export function AILoadingBox({
 }
 
 // ============================================================================
-// 4. MIKROFON HYBRID + TIMER DETIK KE-30 & KLIK ULANG IKON BERPUTAR UNTUK REFRESH
+// 5. MIKROFON HYBRID + KONVERSI WAV UNIVERSAL + ANTI-ZOOM HP (text-base sm:text-sm)
 // ============================================================================
 export function StoryVoiceInput({
   value,
@@ -227,7 +294,7 @@ export function StoryVoiceInput({
     return () => clearInterval(timer)
   }, [isTranscribing])
 
-  const kirimBlobKeAI = (audioBlob, mimeType) => {
+  const kirimBlobKeAI = async (audioBlob, mimeAsli) => {
     if (!audioBlob) return
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -239,42 +306,51 @@ export function StoryVoiceInput({
     setDetikLoading(0)
     if (onNotify) onNotify("Mengubah rekaman suaramu menjadi teks...")
 
-    const reader = new FileReader()
-    reader.onloadend = async () => {
-      try {
-        const base64Audio = (reader.result || "").toString().split(",")[1]
-        const res = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            action: "transkrip_suara_mic",
-            audioBase64: base64Audio,
-            audioMimeType: mimeType || "audio/webm",
-          }),
+    try {
+      // Konversi ke WAV 8kHz ringan terlebih dahulu agar 100% terbaca oleh OpenRouter & Gemini
+      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob)
+      let base64Final = hasilWav?.base64 || ""
+      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav"
+
+      if (!base64Final) {
+        base64Final = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () =>
+            resolve((reader.result || "").toString().split(",")[1] || "")
+          reader.onerror = () => resolve("")
+          reader.readAsDataURL(audioBlob)
         })
-        const data = await res.json()
-        if (res.ok && data.teks) {
-          const gabungan = value ? `${value} ${data.teks}` : data.teks
-          onChange(gabungan)
-          if (onNotify) onNotify("Suara berhasil diubah menjadi teks!")
-        } else {
-          if (onNotify)
-            onNotify("Suara kurang terdengar jelas, silakan coba bicara lagi.")
-        }
-      } catch (err) {
-        if (err.name !== "AbortError" && onNotify) {
-          onNotify("Proses direset. Silakan klik mikrofon untuk bicara lagi.")
-        }
-      } finally {
-        setIsTranscribing(false)
       }
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          action: "transkrip_suara_mic",
+          audioBase64: base64Final,
+          audioMimeType: mimeFinal,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.teks) {
+        const gabungan = value ? `${value} ${data.teks}` : data.teks
+        onChange(gabungan)
+        if (onNotify) onNotify("Suara berhasil diubah menjadi teks!")
+      } else {
+        if (onNotify)
+          onNotify("Error sistem, silakan refresh atau hubungi admin.")
+      }
+    } catch (err) {
+      if (err.name !== "AbortError" && onNotify) {
+        onNotify("Error sistem, silakan refresh atau hubungi admin.")
+      }
+    } finally {
+      setIsTranscribing(false)
     }
-    reader.readAsDataURL(audioBlob)
   }
 
   const handleMicOrRefreshClick = async () => {
-    // Jika sedang berputar (loading transkrip), klik ulang ikon kuning ini berfungsi sebagai REFRESH!
     if (isTranscribing) {
       if (lastBlobRef.current) {
         if (onNotify) onNotify("🔄 Mengulang proses transkrip suara...")
@@ -297,6 +373,44 @@ export function StoryVoiceInput({
 
     if (typeof window === "undefined") return
 
+    // Prioritaskan Web Speech API instan jika tersedia di Chrome Android/Desktop
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRec && !navigator.userAgent.includes("iPhone")) {
+      try {
+        const rec = new SpeechRec()
+        rec.lang = "id-ID"
+        rec.interimResults = false
+        rec.maxAlternatives = 1
+
+        rec.onstart = () => {
+          setIsRecording(true)
+          if (onNotify) onNotify("🎙️ Silakan bicara sekarang...")
+        }
+        rec.onresult = (event) => {
+          const teksHasil = event.results?.[0]?.[0]?.transcript || ""
+          if (teksHasil) {
+            onChange(value ? `${value} ${teksHasil}` : teksHasil)
+            if (onNotify) onNotify("Suara berhasil ditulis!")
+          }
+        }
+        rec.onerror = () => {
+          setIsRecording(false)
+          mulaiMediaRecorderFallback()
+        }
+        rec.onend = () => {
+          setIsRecording(false)
+        }
+        rec.start()
+        return
+      } catch {
+        // Lanjut ke MediaRecorder
+      }
+    }
+
+    mulaiMediaRecorderFallback()
+  }
+
+  const mulaiMediaRecorderFallback = async () => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -329,7 +443,7 @@ export function StoryVoiceInput({
       } catch {
         if (onNotify)
           onNotify(
-            "Izin mikrofon belum aktif. Klik ikon gembok di browser atas lalu izinkan Mikrofon.",
+            "Izin mikrofon belum aktif. Izinkan akses mikrofon di browser kamu.",
           )
       }
     }
@@ -342,7 +456,7 @@ export function StoryVoiceInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3.5 pr-14 text-xs sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
+        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3.5 pr-14 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
       />
       <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5">
         {isTranscribing && detikLoading >= 30 && (
@@ -379,7 +493,7 @@ export function StoryVoiceInput({
 }
 
 // ============================================================================
-// 5. MODAL CROP & GESER FOTO PROFIL RASIO 1:1 (DRAG PAN & ZOOM)
+// 6. MODAL CROP & GESER FOTO PROFIL RASIO 1:1
 // ============================================================================
 export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
   const canvasRef = useRef(null)
@@ -413,7 +527,6 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
     ctx.fillStyle = "#14141f"
     ctx.fillRect(0, 0, size, size)
 
-    // Hitung skala dasar agar gambar menutupi kotak 1:1
     const baseScale = Math.max(size / img.width, size / img.height)
     const finalScale = baseScale * zoom
     const drawW = img.width * finalScale
@@ -520,7 +633,7 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
 }
 
 // ============================================================================
-// 6. DROPDOWN DENGAN OPSI "ISI SENDIRI..."
+// 7. DROPDOWN DENGAN OPSI "ISI SENDIRI..." (ANTI-ZOOM HP text-base sm:text-xs)
 // ============================================================================
 export function SelectWithCustom({
   label,
@@ -555,7 +668,7 @@ export function SelectWithCustom({
       <select
         value={modeIsiSendiri ? "__CUSTOM__" : value}
         onChange={handleSelectChange}
-        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
+        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-xs font-bold text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>
@@ -572,7 +685,7 @@ export function SelectWithCustom({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholderCustom}
           autoFocus
-          className="w-full bg-white border border-[#14141f] rounded-xl px-3.5 py-2 text-xs font-normal text-[#14141f] outline-none"
+          className="w-full bg-white border border-[#14141f] rounded-xl px-3.5 py-2 text-base sm:text-xs font-normal text-[#14141f] outline-none"
         />
       )}
     </div>
