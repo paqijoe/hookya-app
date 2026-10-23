@@ -1,9 +1,8 @@
-"use client";
-import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
-import { FlatIcon } from "./SharedUI";
+"use client"
+import { useState, useEffect } from "react"
+import { supabase } from "../lib/supabase"
+import { FlatIcon } from "./SharedUI"
 
-// 7 Pilihan Paket Kelipatan Rp5.000 (5k, 10k, 15k, 20k, 25k, 50k, 90k)
 const PILIHAN_PAKET_PENDAFTARAN = [
   {
     id: "5k",
@@ -13,7 +12,7 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 10,
     durasiHari: 30,
     isVIP: false,
-    ket: "10 Koin (Aktif 30 Hari) • Fitur dasar pembuatan skrip teks & 6 Hook.",
+    ket: "10 Koin (Aktif 30 Hari) untuk membuat skrip teks dan 6 pilihan Hook.",
   },
   {
     id: "10k",
@@ -23,7 +22,7 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 20,
     durasiHari: 30,
     isVIP: false,
-    ket: "20 Koin (Aktif 30 Hari) • Untuk latihan rutin membuat skrip mingguan.",
+    ket: "20 Koin (Aktif 30 Hari) untuk latihan rutin membuat skrip mingguan.",
   },
   {
     id: "15k",
@@ -33,7 +32,7 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 30,
     durasiHari: 30,
     isVIP: false,
-    ket: "30 Koin (Aktif 30 Hari) • Pilihan hemat untuk kreator konsisten.",
+    ket: "30 Koin (Aktif 30 Hari) untuk pembuatan skrip konten reguler.",
   },
   {
     id: "20k",
@@ -43,18 +42,18 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 40,
     durasiHari: 30,
     isVIP: true,
-    ket: "👑 40 Koin + BUKA FITUR VIP: Rekam Suara Mic, Scan Produk Marketplace & Ekstrak Video!",
+    ket: "40 Koin + Akses Fitur VIP: Rekam Suara Mic, Scan Produk Marketplace & Ekstrak Video.",
   },
   {
     id: "25k",
-    nama: "Paket 25K VIP (Terlaris)",
+    nama: "Paket 25K VIP",
     hargaTeks: "Rp25.000",
     nominal: 25000,
     koin: 55,
     durasiHari: 30,
     isVIP: true,
     populer: true,
-    ket: "👑 55 Koin + BUKA SEMUA FITUR VIP (Mic, Scan Produk, Ekstrak Video & Tanpa Watermark).",
+    ket: "55 Koin + Akses Semua Fitur VIP (Mic, Scan Produk, Ekstrak Video & Tanpa Watermark).",
   },
   {
     id: "50k",
@@ -64,25 +63,24 @@ const PILIHAN_PAKET_PENDAFTARAN = [
     koin: 120,
     durasiHari: 30,
     isVIP: true,
-    ket: "👑 120 Koin + Akses Penuh Seluruh Fitur VIP & Generator Stok Konten Massal.",
+    ket: "120 Koin + Akses Penuh Semua Fitur VIP & Pengganda Skrip 2x/5x/10x.",
   },
   {
     id: "90k",
-    nama: "Paket 90K VIP (Sultan)",
+    nama: "Paket 90K VIP (Agensi)",
     hargaTeks: "Rp90.000",
     nominal: 90000,
     koin: 230,
     durasiHari: 30,
     isVIP: true,
-    ket: "👑 230 Koin + Akses Maksimal Seluruh Fitur VIP untuk Produksi Konten Agensi/Harian.",
+    ket: "230 Koin + Akses Penuh Semua Fitur VIP untuk Produksi Konten Harian.",
   },
-];
+]
 
 export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
-  // mode: 'login' | 'register_step1' | 'register_step2_package' | 'register_step3_pay' | 'register_waiting_acc' | 'forgot_password'
-  const [mode, setMode] = useState("login");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState("login")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
     namaLengkap: "",
@@ -90,224 +88,216 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     gmail: "",
     whatsapp: "",
     password: "",
-  });
+  })
 
-  const [tipeAktivasi, setTipeAktivasi] = useState("berbayar"); // 'berbayar' | 'voucher'
+  const [tipeAktivasi, setTipeAktivasi] = useState("berbayar")
   const [paketTerpilih, setPaketTerpilih] = useState(
-    PILIHAN_PAKET_PENDAFTARAN[4]
-  );
-  const [kodeVoucherInput, setKodeVoucherInput] = useState("");
-  const [invoiceReg, setInvoiceReg] = useState(null);
+    PILIHAN_PAKET_PENDAFTARAN[4],
+  )
+  const [kodeVoucherInput, setKodeVoucherInput] = useState("")
+  const [invoiceReg, setInvoiceReg] = useState(null)
 
-  // Bukti Pembayaran QRIS pada Pendaftaran
-  const [buktiRegBase64, setBuktiRegBase64] = useState("");
-  const [namaFileBuktiReg, setNamaFileBuktiReg] = useState("");
+  const [buktiRegBase64, setBuktiRegBase64] = useState("")
+  const [namaFileBuktiReg, setNamaFileBuktiReg] = useState("")
 
-  // Pengaturan Payment & QRIS yang diambil langsung dari Dashboard Developer (Supabase)
   const [paymentConfigDB, setPaymentConfigDB] = useState({
-    modePembayaranAktif: "qris_manual", // 'qris_manual' | 'duitku_gateway'
+    modePembayaranAktif: "qris_manual",
     namaMerchant: "HOOKYA OFFICIAL",
     infoRekening: "QRIS / BCA / SeaBank / GoPay / DANA a.n Admin Hookya",
     noWaAdmin: "6281234567890",
     qrisImageUrl: "",
-  });
+  })
   const [voucherListDB, setVoucherListDB] = useState([
     { kode: "HOOKYA20", koin: 20, kuota: 50, terpakai: 0 },
-  ]);
+  ])
 
-  const [errors, setErrors] = useState({});
-  const [infoPesanHijau, setInfoPesanHijau] = useState("");
+  const [errors, setErrors] = useState({})
+  const [infoPesanHijau, setInfoPesanHijau] = useState("")
 
-  // Muat Gambar QRIS Statis & Nomor WA Admin yang sudah disimpan di Dashboard Developer
   useEffect(() => {
     const muatKonfigurasiAdmin = async () => {
       try {
         const { data: rows } = await supabase
           .from("users")
           .select("role, profil_dna")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true })
 
         if (rows && rows.length > 0) {
-          // Cari baris yang menyimpan pengaturanPayment (prioritaskan yang memiliki qrisImageUrl atau role admin)
           const rowDenganQRIS =
             rows.find((r) => r.profil_dna?.pengaturanPayment?.qrisImageUrl) ||
             rows.find(
-              (r) => r.role === "admin" && r.profil_dna?.pengaturanPayment
+              (r) => r.role === "admin" && r.profil_dna?.pengaturanPayment,
             ) ||
             rows.find((r) => r.profil_dna?.pengaturanPayment) ||
-            rows[0];
+            rows[0]
 
           if (rowDenganQRIS?.profil_dna?.pengaturanPayment) {
             setPaymentConfigDB((prev) => ({
               ...prev,
               ...rowDenganQRIS.profil_dna.pengaturanPayment,
-            }));
+            }))
           }
           if (Array.isArray(rowDenganQRIS?.profil_dna?.daftarVoucher)) {
-            setVoucherListDB(rowDenganQRIS.profil_dna.daftarVoucher);
+            setVoucherListDB(rowDenganQRIS.profil_dna.daftarVoucher)
           }
         }
       } catch {
         // Abaikan jika gagal koneksi awal
       }
-    };
-    muatKonfigurasiAdmin();
-  }, [mode]);
+    }
+    muatKonfigurasiAdmin()
+  }, [mode])
 
   const formatOtomatisGmail = (nilai) => {
-    const bersih = nilai.trim().toLowerCase().replace(/\s+/g, "");
-    if (!bersih) return "";
-    if (!bersih.includes("@")) return `${bersih}@gmail.com`;
-    const [depan] = bersih.split("@");
-    return `${depan}@gmail.com`;
-  };
+    const bersih = nilai.trim().toLowerCase().replace(/\s+/g, "")
+    if (!bersih) return ""
+    if (!bersih.includes("@")) return `${bersih}@gmail.com`
+    const [depan] = bersih.split("@")
+    return `${depan}@gmail.com`
+  }
 
   const buatAvatarDefaultGmail = (nama, email) => {
-    const namaBersih = encodeURIComponent(nama || email || "User");
-    return `https://ui-avatars.com/api/?name=${namaBersih}&background=d4f34a&color=14141f&bold=true&size=128`;
-  };
+    const namaBersih = encodeURIComponent(nama || email || "User")
+    return `https://ui-avatars.com/api/?name=${namaBersih}&background=d4f34a&color=14141f&bold=true&size=128`
+  }
 
   const cekValidasiWhatsApp = (nomor) => {
-    if (!nomor) return "Nomor WhatsApp wajib diisi.";
+    if (!nomor) return "Nomor WhatsApp wajib diisi."
     if (!/^\d+$/.test(nomor)) {
-      return "Nomor WhatsApp hanya boleh berisi angka.";
+      return "Nomor WhatsApp hanya boleh berisi angka."
     }
     if (!nomor.startsWith("08") && !nomor.startsWith("628")) {
-      return "Nomor WhatsApp wajib diawali angka 08 atau 628.";
+      return "Nomor WhatsApp wajib diawali angka 08 atau 628."
     }
     if (nomor.length < 10 || nomor.length > 14) {
-      return "Panjang nomor WhatsApp wajib 10–13 angka.";
+      return "Panjang nomor WhatsApp wajib 10 sampai 13 angka."
     }
-    return "";
-  };
+    return ""
+  }
 
   const cekValidasiPassword = (pass) => {
-    if (!pass) return "Password wajib diisi.";
+    if (!pass) return "Password wajib diisi."
     if (pass.length < 8) {
-      return `Password minimal wajib 8 karakter (saat ini ${pass.length}).`;
+      return `Password minimal wajib 8 karakter (saat ini ${pass.length}).`
     }
-    return "";
-  };
+    return ""
+  }
 
-  // Kompres Foto Bukti Pembayaran Pendaftaran
   const handleUploadBuktiPendaftaran = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setNamaFileBuktiReg(file.name);
-    const reader = new FileReader();
+    const file = e.target.files?.[0]
+    if (!file) return
+    setNamaFileBuktiReg(file.name)
+    const reader = new FileReader()
     reader.onload = (ev) => {
-      const img = new Image();
+      const img = new Image()
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const maxDim = 750;
-        let w = img.width;
-        let h = img.height;
+        const canvas = document.createElement("canvas")
+        const maxDim = 750
+        let w = img.width
+        let h = img.height
         if (w > maxDim || h > maxDim) {
           if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
+            h = Math.round((h * maxDim) / w)
+            w = maxDim
           } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
+            w = Math.round((w * maxDim) / h)
+            h = maxDim
           }
         }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
-        setBuktiRegBase64(dataUrl);
-        setErrors((prev) => ({ ...prev, bayar: "" }));
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0, w, h)
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.75)
+        setBuktiRegBase64(dataUrl)
+        setErrors((prev) => ({ ...prev, bayar: "" }))
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
 
-  // LANGKAH 1 PENDAFTARAN
   const handleLanjutKePilihPaket = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    setInfoPesanHijau("");
+    e.preventDefault()
+    const errBaru = {}
+    setInfoPesanHijau("")
 
-    const emailFinal = formatOtomatisGmail(form.gmail);
-    setForm((prev) => ({ ...prev, gmail: emailFinal }));
+    const emailFinal = formatOtomatisGmail(form.gmail)
+    setForm((prev) => ({ ...prev, gmail: emailFinal }))
 
     if (!form.namaLengkap.trim())
-      errBaru.namaLengkap = "Nama Lengkap wajib diisi.";
+      errBaru.namaLengkap = "Nama Lengkap wajib diisi."
     if (!form.username.trim() || form.username.trim().length < 3) {
-      errBaru.username = "Username minimal 3 karakter tanpa spasi.";
+      errBaru.username = "Username minimal 3 karakter tanpa spasi."
     }
     if (!emailFinal.endsWith("@gmail.com")) {
-      errBaru.gmail = "Wajib menggunakan alamat @gmail.com yang valid.";
+      errBaru.gmail = "Wajib menggunakan alamat @gmail.com yang valid."
     }
 
-    const pesanErrWA = cekValidasiWhatsApp(form.whatsapp);
-    if (pesanErrWA) errBaru.whatsapp = pesanErrWA;
+    const pesanErrWA = cekValidasiWhatsApp(form.whatsapp)
+    if (pesanErrWA) errBaru.whatsapp = pesanErrWA
 
-    const pesanErrPass = cekValidasiPassword(form.password);
-    if (pesanErrPass) errBaru.password = pesanErrPass;
+    const pesanErrPass = cekValidasiPassword(form.password)
+    if (pesanErrPass) errBaru.password = pesanErrPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       const { data: existingUsers } = await supabase
         .from("users")
         .select("id, username, email")
         .or(
-          `username.eq.${form.username.trim().toLowerCase()},email.eq.${emailFinal}`
-        );
+          `username.eq.${form.username.trim().toLowerCase()},email.eq.${emailFinal}`,
+        )
 
       if (existingUsers && existingUsers.length > 0) {
         setErrors({
           gmail:
             "Username atau alamat Gmail ini sudah terdaftar. Silakan langsung Masuk (Login).",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
-      setMode("register_step2_package");
+      setMode("register_step2_package")
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  // LANGKAH 2 PENDAFTARAN: PILIH PAKET (SKEMA 1: PAYMENT GATEWAY VS SKEMA 2: QRIS STATIS MANUAL)
   const handleProsesPaketPendaftaran = async () => {
-    setErrors({});
-    setIsSubmitting(true);
+    setErrors({})
+    setIsSubmitting(true)
 
     try {
-      // Jika menggunakan Kode Voucher Resmi dari Admin
       if (tipeAktivasi === "voucher") {
-        const kodeBersih = kodeVoucherInput.trim().toUpperCase();
+        const kodeBersih = kodeVoucherInput.trim().toUpperCase()
         if (!kodeBersih) {
-          setErrors({ paket: "Masukkan kode voucher terlebih dahulu." });
-          setIsSubmitting(false);
-          return;
+          setErrors({ paket: "Masukkan kode voucher terlebih dahulu." })
+          setIsSubmitting(false)
+          return
         }
         const vDitemukan = voucherListDB.find(
-          (v) => v.kode.toUpperCase() === kodeBersih
-        );
+          (v) => v.kode.toUpperCase() === kodeBersih,
+        )
         if (!vDitemukan || vDitemukan.terpakai >= vDitemukan.kuota) {
           setErrors({
             paket: "Kode voucher tidak ditemukan atau kuotanya sudah habis.",
-          });
-          setIsSubmitting(false);
-          return;
+          })
+          setIsSubmitting(false)
+          return
         }
 
-        const koinVoucher = parseInt(vDitemukan.koin) || 20;
+        const koinVoucher = parseInt(vDitemukan.koin) || 20
         const avatarDefault = buatAvatarDefaultGmail(
           form.namaLengkap.trim(),
-          form.gmail
-        );
+          form.gmail,
+        )
         const expISO = new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000
-        ).toISOString();
+          Date.now() + 30 * 24 * 60 * 60 * 1000,
+        ).toISOString()
 
         const { data: newUser, error } = await supabase
           .from("users")
@@ -336,21 +326,19 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             },
           ])
           .select()
-          .single();
+          .single()
 
-        if (error) throw error;
+        if (error) throw error
         if (onNotify)
-          onNotify(`Voucher berhasil! Akun aktif dengan ${koinVoucher} Koin.`);
-        onAuthSuccess(newUser);
-        return;
+          onNotify(`Voucher diaktifkan. Akun masuk dengan ${koinVoucher} Koin.`)
+        onAuthSuccess(newUser)
+        return
       }
 
-      // SKEMA 1 & 2: PENDAFTARAN PAKET BERBAYAR
-      const kodeUnik = Math.floor(101 + Math.random() * 499);
-      const nomorInv = `REG-${Date.now().toString().slice(-6)}`;
-      let duitkuUrl = "";
+      const kodeUnik = Math.floor(101 + Math.random() * 499)
+      const nomorInv = `REG-${Date.now().toString().slice(-6)}`
+      let duitkuUrl = ""
 
-      // Jika Skema 1 (Payment Gateway Duitku) sedang diaktifkan oleh Admin di Dashboard Dev
       if (paymentConfigDB.modePembayaranAktif === "duitku_gateway") {
         try {
           const resPay = await fetch("/api/payment", {
@@ -370,19 +358,19 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 isProduction: paymentConfigDB.duitkuIsProduction,
               },
             }),
-          });
-          const dataPay = await resPay.json();
+          })
+          const dataPay = await resPay.json()
           if (dataPay.mode === "duitku" && dataPay.redirectUrl) {
-            duitkuUrl = dataPay.redirectUrl;
-            window.open(dataPay.redirectUrl, "_blank");
+            duitkuUrl = dataPay.redirectUrl
+            window.open(dataPay.redirectUrl, "_blank")
           }
         } catch {
-          // Fallback otomatis ke Skema 2 (QRIS Statis Manual)
+          // Fallback ke QRIS Statis Manual
         }
       }
 
-      setBuktiRegBase64("");
-      setNamaFileBuktiReg("");
+      setBuktiRegBase64("")
+      setNamaFileBuktiReg("")
       setInvoiceReg({
         invoiceId: nomorInv,
         namaPaket: paketTerpilih.nama,
@@ -392,34 +380,32 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         nominalAsli: paketTerpilih.nominal,
         nominalUnik: paketTerpilih.nominal + kodeUnik,
         duitkuUrl,
-      });
-      setMode("register_step3_pay");
+      })
+      setMode("register_step3_pay")
     } catch (err) {
-      setErrors({ paket: "Gagal memproses paket: " + err.message });
+      setErrors({ paket: "Gagal memproses paket: " + err.message })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  // LANGKAH 3 PENDAFTARAN: UPLOAD BUKTI BAYAR QRIS -> SIMPAN PENDING (0 KOIN) -> PINDAH KE WA ADMIN
   const handleKonfirmasiPembayaranKeWAAdmin = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!buktiRegBase64) {
       setErrors({
         bayar:
-          "Wajib mengunggah foto / screenshot bukti pembayaran QRIS terlebih dahulu untuk dicek oleh Admin.",
-      });
-      return;
+          "Unggah foto atau screenshot bukti pembayaran QRIS terlebih dahulu untuk diperiksa oleh Admin.",
+      })
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       const avatarDefault = buatAvatarDefaultGmail(
         form.namaLengkap.trim(),
-        form.gmail
-      );
+        form.gmail,
+      )
 
-      // 1. Buat akun di database dengan KOIN = 0 (Menunggu ACC Admin di Dashboard Dev)
       const { data: userPending, error: errUser } = await supabase
         .from("users")
         .insert([
@@ -432,7 +418,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             avatar_url: avatarDefault,
             is_premium: false,
             email_verified: true,
-            koin: 0, // Koin masih 0 sampai Admin klik ACC di Dashboard Dev!
+            koin: 0,
             profil_dna: {
               nama: form.namaLengkap.trim(),
               username: form.username.trim().toLowerCase(),
@@ -446,11 +432,10 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
           },
         ])
         .select()
-        .single();
+        .single()
 
-      if (errUser) throw errUser;
+      if (errUser) throw errUser
 
-      // 2. Simpan Transaksi Pending + Foto Bukti Pembayaran + Detail Akun untuk WA Balasan Admin
       const infoAkunJSON = JSON.stringify({
         tipe: "PENDAFTARAN_BARU",
         username: form.username.trim().toLowerCase(),
@@ -459,7 +444,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         whatsapp: form.whatsapp,
         durasiHari: invoiceReg.durasiHari || 30,
         isVIP: invoiceReg.isVIP,
-      });
+      })
 
       await supabase.from("transactions").insert([
         {
@@ -475,96 +460,93 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
           catatan_user: infoAkunJSON,
           status: "pending",
         },
-      ]);
+      ])
 
-      // 3. Otomatis Pindah ke WhatsApp Admin untuk Mengirim Konfirmasi Pendaftaran
       const rawWA = (paymentConfigDB.noWaAdmin || "6281234567890").replace(
         /\D/g,
-        ""
-      );
+        "",
+      )
       const waAdminFinal = rawWA.startsWith("08")
         ? "62" + rawWA.slice(1)
         : rawWA.startsWith("8")
-        ? "62" + rawWA
-        : rawWA;
+          ? "62" + rawWA
+          : rawWA
 
       const pesanKeAdmin = encodeURIComponent(
-        `Halo Admin Hookya! 👋\nSaya baru saja mendaftar akun baru dan sudah mengunggah bukti pembayaran QRIS di aplikasi:\n\n` +
-          `• No. Tagihan: *#${invoiceReg.invoiceId}*\n` +
-          `• Nama Lengkap: *${form.namaLengkap.trim()}*\n` +
-          `• Username: *${form.username.trim().toLowerCase()}*\n` +
-          `• Gmail: *${form.gmail}*\n` +
-          `• Paket Dipilih: *${invoiceReg.namaPaket} (+${invoiceReg.koin} Koin • ${invoiceReg.durasiHari} Hari)*\n` +
-          `• Nominal Transfer: *Rp${invoiceReg.nominalUnik.toLocaleString("id-ID")}*\n\n` +
-          `Mohon dicek bukti pembayarannya dan di-ACC di Dashboard Developer ya Min. Terima kasih!`
-      );
+        `Halo Admin Hookya.\nSaya baru mendaftar akun dan sudah mengunggah bukti pembayaran QRIS di aplikasi:\n\n` +
+          `No. Tagihan: *#${invoiceReg.invoiceId}*\n` +
+          `Nama Lengkap: *${form.namaLengkap.trim()}*\n` +
+          `Username: *${form.username.trim().toLowerCase()}*\n` +
+          `Gmail: *${form.gmail}*\n` +
+          `Paket Dipilih: *${invoiceReg.namaPaket} (+${invoiceReg.koin} Koin, ${invoiceReg.durasiHari} Hari)*\n` +
+          `Nominal Transfer: *Rp${invoiceReg.nominalUnik.toLocaleString("id-ID")}*\n\n` +
+          `Mohon diperiksa bukti pembayarannya dan diaktifkan di Dashboard Developer. Terima kasih.`,
+      )
 
       window.open(
         `https://wa.me/${waAdminFinal}?text=${pesanKeAdmin}`,
-        "_blank"
-      );
+        "_blank",
+      )
 
-      setMode("register_waiting_acc");
+      setMode("register_waiting_acc")
     } catch (err) {
       setErrors({
         bayar: "Gagal mengirim konfirmasi pendaftaran: " + err.message,
-      });
+      })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  // LOGIN PENGGUNA
   const handleLogin = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    const identitas = form.gmail.trim().toLowerCase();
+    e.preventDefault()
+    const errBaru = {}
+    const identitas = form.gmail.trim().toLowerCase()
 
     if (!identitas) {
-      errBaru.gmail = "Masukkan Username atau alamat Gmail kamu.";
+      errBaru.gmail = "Masukkan Username atau alamat Gmail kamu."
     }
-    const errPass = cekValidasiPassword(form.password);
-    if (errPass) errBaru.password = errPass;
+    const errPass = cekValidasiPassword(form.password)
+    if (errPass) errBaru.password = errPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const { data: rows } = await supabase.from("users").select("*");
+      const { data: rows } = await supabase.from("users").select("*")
       const ditemukan = (rows || []).find(
         (u) =>
           u.email?.toLowerCase() === identitas ||
           u.email?.toLowerCase() === formatOtomatisGmail(identitas) ||
           u.username?.toLowerCase() === identitas ||
-          u.nama?.toLowerCase() === identitas
-      );
+          u.nama?.toLowerCase() === identitas,
+      )
 
       if (!ditemukan) {
         setErrors({
           gmail:
-            "Akun tidak ditemukan. Pastikan penulisan Gmail/Username benar atau Daftar Akun Baru.",
-        });
-        setIsSubmitting(false);
-        return;
+            "Akun tidak ditemukan. Periksa penulisan Gmail/Username atau Daftar Akun Baru.",
+        })
+        setIsSubmitting(false)
+        return
       }
 
       const passTersimpan =
-        ditemukan.password_hash || ditemukan.profil_dna?.pin || "";
+        ditemukan.password_hash || ditemukan.profil_dna?.pin || ""
       if (passTersimpan && passTersimpan !== form.password) {
         setErrors({
           password:
-            "Password yang kamu masukkan belum sesuai. Silakan cek kembali atau klik Lupa Password.",
-        });
-        setIsSubmitting(false);
-        return;
+            "Password yang kamu masukkan belum sesuai. Periksa kembali atau klik Lupa Password.",
+        })
+        setIsSubmitting(false)
+        return
       }
 
-      // Cek apakah akun masih berstatus menunggu ACC pendaftaran dan koin masih 0
       const isOwner =
         ditemukan.role === "admin" ||
         ditemukan.username?.toLowerCase() === "paqijoe" ||
-        ditemukan.nama?.toLowerCase().includes("faqih");
+        ditemukan.nama?.toLowerCase().includes("faqih")
 
       if (
         !isOwner &&
@@ -573,72 +555,71 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
       ) {
         setErrors({
           gmail:
-            "Akunmu sedang menunggu verifikasi bukti pembayaran oleh Admin. Begitu di-ACC, kamu akan menerima pesan WhatsApp dan bisa langsung masuk!",
-        });
-        setIsSubmitting(false);
-        return;
+            "Akunmu sedang menunggu pemeriksaan bukti pembayaran oleh Admin. Setelah di-ACC, kamu akan menerima pesan WhatsApp dan bisa langsung masuk.",
+        })
+        setIsSubmitting(false)
+        return
       }
 
-      if (onNotify) onNotify(`Selamat datang kembali, ${ditemukan.nama}!`);
-      onAuthSuccess(ditemukan);
+      if (onNotify) onNotify(`Selamat datang kembali, ${ditemukan.nama}.`)
+      onAuthSuccess(ditemukan)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  // LUPA PASSWORD
   const handleResetPasswordPasti = async (e) => {
-    e.preventDefault();
-    const errBaru = {};
-    const emailTarget = formatOtomatisGmail(form.gmail);
-    setForm((prev) => ({ ...prev, gmail: emailTarget }));
+    e.preventDefault()
+    const errBaru = {}
+    const emailTarget = formatOtomatisGmail(form.gmail)
+    setForm((prev) => ({ ...prev, gmail: emailTarget }))
 
     if (!emailTarget.endsWith("@gmail.com")) {
-      errBaru.gmail = "Masukkan alamat @gmail.com yang terdaftar.";
+      errBaru.gmail = "Masukkan alamat @gmail.com yang terdaftar."
     }
-    const errWA = cekValidasiWhatsApp(form.whatsapp);
-    if (errWA) errBaru.whatsapp = errWA;
+    const errWA = cekValidasiWhatsApp(form.whatsapp)
+    if (errWA) errBaru.whatsapp = errWA
 
-    const errPass = cekValidasiPassword(form.password);
-    if (errPass) errBaru.password = errPass;
+    const errPass = cekValidasiPassword(form.password)
+    if (errPass) errBaru.password = errPass
 
-    setErrors(errBaru);
-    if (Object.keys(errBaru).length > 0) return;
+    setErrors(errBaru)
+    if (Object.keys(errBaru).length > 0) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
-      const { data: rows } = await supabase.from("users").select("*");
+      const { data: rows } = await supabase.from("users").select("*")
       const akunCocok = (rows || []).find(
         (u) =>
           u.email?.toLowerCase() === emailTarget &&
           (u.whatsapp === form.whatsapp ||
-            u.profil_dna?.whatsapp === form.whatsapp)
-      );
+            u.profil_dna?.whatsapp === form.whatsapp),
+      )
 
       if (!akunCocok) {
         setErrors({
           gmail:
             "Kombinasi alamat Gmail dan Nomor WhatsApp tidak cocok dengan akun mana pun.",
-        });
-        setIsSubmitting(false);
-        return;
+        })
+        setIsSubmitting(false)
+        return
       }
 
       await supabase
         .from("users")
         .update({ password_hash: form.password })
-        .eq("id", akunCocok.id);
+        .eq("id", akunCocok.id)
 
       setInfoPesanHijau(
-        "Password baru berhasil disimpan! Silakan masuk menggunakan password barumu."
-      );
-      setMode("login");
+        "Password baru berhasil disimpan. Silakan masuk menggunakan password barumu.",
+      )
+      setMode("login")
     } catch (err) {
-      setErrors({ gmail: "Gagal memperbarui password: " + err.message });
+      setErrors({ gmail: "Gagal memperbarui password: " + err.message })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#fafafa] text-[#14141f] flex flex-col items-center justify-center p-4 font-sans antialiased">
@@ -652,23 +633,23 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
           </h1>
           <p className="text-xs font-normal text-slate-500">
             {mode === "login" &&
-              "Masuk untuk mulai meracik skrip konten dengan gaya bicaramu."}
+              "Masuk untuk mulai menyusun skrip konten dengan gaya bicaramu."}
             {mode === "register_step1" &&
               "Langkah 1 dari 3: Lengkapi data diri akun kreator barumu."}
             {mode === "register_step2_package" &&
               "Langkah 2 dari 3: Pilih paket koin aktivasi akunmu."}
             {mode === "register_step3_pay" &&
-              "Langkah 3 dari 3: Scan QRIS & unggah bukti pembayaran."}
+              "Langkah 3 dari 3: Scan QRIS dan unggah bukti pembayaran."}
             {mode === "register_waiting_acc" &&
-              "Bukti pembayaran diterima! Menunggu verifikasi Admin."}
+              "Bukti pembayaran diterima dan sedang diperiksa oleh Admin."}
             {mode === "forgot_password" &&
-              "Verifikasi Gmail & WhatsApp terdaftar untuk membuat password baru."}
+              "Verifikasi Gmail dan WhatsApp terdaftar untuk membuat password baru."}
           </p>
         </div>
 
         {infoPesanHijau && (
           <div className="bg-[#f2fce2] border border-[#4d6b14]/25 text-[#4d6b14] p-3.5 rounded-2xl text-xs font-bold leading-relaxed">
-            ✓ {infoPesanHijau}
+            {infoPesanHijau}
           </div>
         )}
 
@@ -685,15 +666,15 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="username email"
                 value={form.gmail}
                 onChange={(e) => {
-                  setForm({ ...form, gmail: e.target.value });
-                  setErrors({ ...errors, gmail: "" });
+                  setForm({ ...form, gmail: e.target.value })
+                  setErrors({ ...errors, gmail: "" })
                 }}
                 placeholder="nama@gmail.com atau username"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-3 text-base sm:text-xs font-normal focus:bg-white focus:border-[#14141f] outline-none"
               />
               {errors.gmail && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.gmail}
+                  {errors.gmail}
                 </p>
               )}
             </div>
@@ -706,9 +687,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setErrors({});
-                    setInfoPesanHijau("");
-                    setMode("forgot_password");
+                    setErrors({})
+                    setInfoPesanHijau("")
+                    setMode("forgot_password")
                   }}
                   className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] hover:underline"
                 >
@@ -722,9 +703,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   autoComplete="current-password"
                   value={form.password}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
-                    setErrors({ ...errors, password: "" });
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
+                    setErrors({ ...errors, password: "" })
                   }}
                   placeholder="Masukkan password..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-3 pr-11 text-base sm:text-xs font-normal focus:bg-white focus:border-[#14141f] outline-none"
@@ -742,7 +723,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               </div>
               {errors.password && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.password}
+                  {errors.password}
                 </p>
               )}
             </div>
@@ -774,15 +755,15 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="name"
                 value={form.namaLengkap}
                 onChange={(e) => {
-                  setForm({ ...form, namaLengkap: e.target.value });
-                  setErrors({ ...errors, namaLengkap: "" });
+                  setForm({ ...form, namaLengkap: e.target.value })
+                  setErrors({ ...errors, namaLengkap: "" })
                 }}
                 placeholder="Masukkan nama lengkapmu..."
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs focus:bg-white focus:border-[#14141f] outline-none"
               />
               {errors.namaLengkap && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.namaLengkap}
+                  {errors.namaLengkap}
                 </p>
               )}
             </div>
@@ -799,16 +780,16 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 onChange={(e) => {
                   const val = e.target.value
                     .toLowerCase()
-                    .replace(/[^a-z0-9._]/g, "");
-                  setForm({ ...form, username: val });
-                  setErrors({ ...errors, username: "" });
+                    .replace(/[^a-z0-9._]/g, "")
+                  setForm({ ...form, username: val })
+                  setErrors({ ...errors, username: "" })
                 }}
                 placeholder="contoh: budikreator"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs focus:bg-white focus:border-[#14141f] outline-none"
               />
               {errors.username && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.username}
+                  {errors.username}
                 </p>
               )}
             </div>
@@ -823,17 +804,17 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 autoComplete="email"
                 value={form.gmail}
                 onChange={(e) => {
-                  let val = e.target.value;
-                  if (val.endsWith("@")) val = val + "gmail.com";
-                  setForm({ ...form, gmail: val });
-                  setErrors({ ...errors, gmail: "" });
+                  let val = e.target.value
+                  if (val.endsWith("@")) val = val + "gmail.com"
+                  setForm({ ...form, gmail: val })
+                  setErrors({ ...errors, gmail: "" })
                 }}
                 onBlur={() => {
                   if (form.gmail.trim()) {
                     setForm((prev) => ({
                       ...prev,
                       gmail: formatOtomatisGmail(prev.gmail),
-                    }));
+                    }))
                   }
                 }}
                 placeholder="nama@gmail.com"
@@ -841,7 +822,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               />
               {errors.gmail && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.gmail}
+                  {errors.gmail}
                 </p>
               )}
             </div>
@@ -855,19 +836,19 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 inputMode="numeric"
                 value={form.whatsapp}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, "");
-                  setForm({ ...form, whatsapp: val });
+                  const val = e.target.value.replace(/\D/g, "")
+                  setForm({ ...form, whatsapp: val })
                   setErrors({
                     ...errors,
                     whatsapp: val ? cekValidasiWhatsApp(val) : "",
-                  });
+                  })
                 }}
                 placeholder="Contoh: 081234567890"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs focus:bg-white focus:border-[#14141f] outline-none"
               />
               {errors.whatsapp && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.whatsapp}
+                  {errors.whatsapp}
                 </p>
               )}
             </div>
@@ -881,12 +862,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   type={showPassword ? "text" : "password"}
                   value={form.password}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setForm({ ...form, password: val });
+                    const val = e.target.value
+                    setForm({ ...form, password: val })
                     setErrors({
                       ...errors,
                       password: val ? cekValidasiPassword(val) : "",
-                    });
+                    })
                   }}
                   placeholder="Minimal 8 angka atau huruf..."
                   className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 pr-11 text-base sm:text-xs focus:bg-white focus:border-[#14141f] outline-none"
@@ -904,7 +885,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               </div>
               {errors.password && (
                 <p className="text-[11px] font-bold text-rose-600 mt-1">
-                  ⚠️ {errors.password}
+                  {errors.password}
                 </p>
               )}
             </div>
@@ -914,14 +895,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               disabled={isSubmitting}
               className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
             >
-              {isSubmitting
-                ? "Memeriksa Data..."
-                : "Lanjut Pilih Paket Koin ➔"}
+              {isSubmitting ? "Memeriksa Data..." : "Lanjut Pilih Paket Koin"}
             </button>
           </form>
         )}
 
-        {/* 3. PENDAFTARAN LANGKAH 2: PILIH PAKET (5K, 10K, 15K, 20K, 25K, 50K, 90K) */}
+        {/* 3. PENDAFTARAN LANGKAH 2: PILIH PAKET */}
         {mode === "register_step2_package" && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-1.5 bg-[#f4f5f7] p-1.5 rounded-2xl">
@@ -952,7 +931,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             {tipeAktivasi === "berbayar" && (
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {PILIHAN_PAKET_PENDAFTARAN.map((p) => {
-                  const sedangDipilih = paketTerpilih.id === p.id;
+                  const sedangDipilih = paketTerpilih.id === p.id
                   return (
                     <button
                       key={p.id}
@@ -974,7 +953,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                           </span>
                           {p.isVIP && (
                             <span className="text-[10px] font-bold bg-white text-[#14141f] px-2 py-0.5 rounded-full border border-[#14141f]/20">
-                              👑 Fitur VIP
+                              Fitur VIP
                             </span>
                           )}
                         </div>
@@ -986,7 +965,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                         <div className="text-sm font-bold">{p.hargaTeks}</div>
                       </div>
                     </button>
-                  );
+                  )
                 })}
               </div>
             )}
@@ -994,7 +973,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             {tipeAktivasi === "voucher" && (
               <div className="bg-[#f4f5f7] p-5 rounded-2xl border border-slate-200 space-y-3">
                 <label className="block text-xs font-bold text-[#14141f]">
-                  Masukkan Kode Voucher Undangan Resmi:
+                  Masukkan Kode Voucher Undangan:
                 </label>
                 <input
                   type="text"
@@ -1010,7 +989,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
             {errors.paket && (
               <p className="text-[11px] font-bold text-rose-600">
-                ⚠️ {errors.paket}
+                {errors.paket}
               </p>
             )}
 
@@ -1020,7 +999,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 onClick={() => setMode("register_step1")}
                 className="cursor-pointer w-1/3 bg-[#f4f5f7] text-[#14141f] font-bold text-xs py-3.5 rounded-xl"
               >
-                ← Kembali
+                Kembali
               </button>
               <button
                 type="button"
@@ -1031,14 +1010,14 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 {isSubmitting
                   ? "Memproses..."
                   : tipeAktivasi === "berbayar"
-                  ? `Lanjut Pembayaran ${paketTerpilih.hargaTeks} ➔`
-                  : "Klaim Voucher & Masuk ➔"}
+                    ? `Lanjut Pembayaran ${paketTerpilih.hargaTeks}`
+                    : "Klaim Voucher & Masuk"}
               </button>
             </div>
           </div>
         )}
 
-        {/* 4. PENDAFTARAN LANGKAH 3: SCAN QRIS STATIS ASLI DARI ADMIN + UPLOAD BUKTI + KE WA ADMIN */}
+        {/* 4. PENDAFTARAN LANGKAH 3: SCAN QRIS STATIS + UPLOAD BUKTI + KE WA ADMIN */}
         {mode === "register_step3_pay" && invoiceReg && (
           <form
             onSubmit={handleKonfirmasiPembayaranKeWAAdmin}
@@ -1055,13 +1034,13 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               </div>
 
               <div className="text-xs font-bold text-slate-600">
-                1. Scan QRIS Resmi di Bawah Ini Sesuai Nominal:
+                1. Scan QRIS di Bawah Ini Sesuai Nominal:
               </div>
 
               {paymentConfigDB.qrisImageUrl ? (
                 <img
                   src={paymentConfigDB.qrisImageUrl}
-                  alt="QRIS Resmi Hookya"
+                  alt="QRIS Hookya"
                   className="w-56 h-56 mx-auto rounded-2xl object-contain bg-white p-2 border-2 border-[#14141f] shadow-xs"
                 />
               ) : (
@@ -1075,7 +1054,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
               <div>
                 <span className="text-[11px] text-slate-500 block">
-                  Total Nominal yang Harus Ditransfer:
+                  Total Nominal Transfer:
                 </span>
                 <div className="text-2xl font-bold text-[#14141f]">
                   Rp{invoiceReg.nominalUnik.toLocaleString("id-ID")}
@@ -1092,12 +1071,11 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   rel="noreferrer"
                   className="inline-block bg-[#d4f34a] text-[#14141f] text-xs font-bold px-4 py-2.5 rounded-xl"
                 >
-                  Buka Link Payment Gateway Otomatis ↗
+                  Buka Halaman Payment Gateway
                 </a>
               )}
             </div>
 
-            {/* KOLOM WAJIB UPLOAD BUKTI PEMBAYARAN */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-[#14141f]">
                 2. Upload Foto / Screenshot Bukti Pembayaran (Wajib):
@@ -1134,7 +1112,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
 
             {errors.bayar && (
               <p className="text-[11px] font-bold text-rose-600">
-                ⚠️ {errors.bayar}
+                {errors.bayar}
               </p>
             )}
 
@@ -1144,7 +1122,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 onClick={() => setMode("register_step2_package")}
                 className="cursor-pointer w-1/3 bg-[#f4f5f7] text-[#14141f] font-bold text-xs py-3.5 rounded-xl"
               >
-                ← Ganti Paket
+                Ganti Paket
               </button>
               <button
                 type="submit"
@@ -1153,32 +1131,34 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               >
                 {isSubmitting
                   ? "Mengirim Bukti..."
-                  : "Konfirmasi Pembayaran ke WA Admin ➔"}
+                  : "Konfirmasi Pembayaran ke WA Admin"}
               </button>
             </div>
           </form>
         )}
 
-        {/* 5. LAYAR TUNGGU VERIFIKASI ADMIN SETELAH KIRIM BUKTI KE WA */}
+        {/* 5. LAYAR TUNGGU ACC ADMIN */}
         {mode === "register_waiting_acc" && invoiceReg && (
           <div className="space-y-4 text-center py-2">
             <div className="w-12 h-12 rounded-2xl bg-[#f2fce2] text-[#4d6b14] flex items-center justify-center mx-auto">
               <FlatIcon name="check" className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-[#14141f]">
-              Bukti Pembayaran Terkirim ke Dashboard Admin!
+              Bukti Pembayaran Terkirim ke Dashboard Admin
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Admin kami sedang memverifikasi bukti transfer untuk{" "}
-              <strong>{invoiceReg.namaPaket}</strong>. Begitu di-ACC, kamu akan langsung menerima pesan WhatsApp berisi konfirmasi aktif beserta{" "}
-              <strong>Username, Password, dan +{invoiceReg.koin} Koin</strong> untuk langsung Login!
+              Admin sedang memeriksa bukti transfer untuk{" "}
+              <strong>{invoiceReg.namaPaket}</strong>. Setelah di-ACC, kamu akan
+              menerima pesan WhatsApp berisi konfirmasi aktif beserta{" "}
+              <strong>Username, Password, dan +{invoiceReg.koin} Koin</strong>{" "}
+              untuk langsung Login.
             </p>
             <button
               type="button"
               onClick={() => setMode("login")}
               className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
             >
-              Ke Halaman Login Sekarang ➔
+              Ke Halaman Login
             </button>
           </div>
         )}
@@ -1194,8 +1174,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 type="email"
                 value={form.gmail}
                 onChange={(e) => {
-                  setForm({ ...form, gmail: e.target.value });
-                  setErrors({});
+                  setForm({ ...form, gmail: e.target.value })
+                  setErrors({})
                 }}
                 onBlur={() =>
                   setForm((prev) => ({
@@ -1217,8 +1197,8 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                 inputMode="numeric"
                 value={form.whatsapp}
                 onChange={(e) => {
-                  setForm({ ...form, whatsapp: e.target.value });
-                  setErrors({});
+                  setForm({ ...form, whatsapp: e.target.value })
+                  setErrors({})
                 }}
                 placeholder="Contoh: 081234567890"
                 className="w-full bg-[#fafafa] border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white"
@@ -1243,7 +1223,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               disabled={isSubmitting}
               className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
             >
-              Simpan Password Baru Sekarang
+              Simpan Password Baru
             </button>
 
             <button
@@ -1251,7 +1231,7 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               onClick={() => setMode("login")}
               className="cursor-pointer w-full text-xs font-bold text-slate-600 py-1"
             >
-              ← Kembali ke Halaman Masuk
+              Kembali ke Halaman Masuk
             </button>
           </form>
         )}
@@ -1264,9 +1244,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             <button
               type="button"
               onClick={() => {
-                setErrors({});
-                setInfoPesanHijau("");
-                setMode("register_step1");
+                setErrors({})
+                setInfoPesanHijau("")
+                setMode("register_step1")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
             >
@@ -1279,9 +1259,9 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
             <button
               type="button"
               onClick={() => {
-                setErrors({});
-                setInfoPesanHijau("");
-                setMode("login");
+                setErrors({})
+                setInfoPesanHijau("")
+                setMode("login")
               }}
               className="cursor-pointer font-bold text-[#14141f] underline ml-1"
             >
@@ -1291,5 +1271,5 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
         )}
       </div>
     </div>
-  );
+  )
 }

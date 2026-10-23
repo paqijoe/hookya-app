@@ -1,9 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 
-// ============================================================================
-// 1. FUNGSI FORMAT KOIN MAKSIMAL 3 DIGIT & KELIPATAN 1000 MENJADI "k"
-// ============================================================================
 export function formatKoinSingkat(jumlah) {
   const n = Number(jumlah) || 0
   if (n < 1000) return String(n)
@@ -14,9 +11,6 @@ export function formatKoinSingkat(jumlah) {
   return `${Math.floor(n / 1000)}k`
 }
 
-// ============================================================================
-// 2. KONVERSI BLOB REKAMAN SUara MIC KE WAV RINGAN (AGAR JALAN DI IPHONE & ANDROID)
-// ============================================================================
 async function ubahBlobSuaraKeWavBase64(audioBlob) {
   try {
     const arrayBuffer = await audioBlob.arrayBuffer()
@@ -80,9 +74,6 @@ async function ubahBlobSuaraKeWavBase64(audioBlob) {
   }
 }
 
-// ============================================================================
-// 3. KOMPONEN IKON FLAT DESIGN
-// ============================================================================
 export function FlatIcon({ name, className = "w-5 h-5" }) {
   const icons = {
     menu: <path d="M4 6h16M4 12h16M4 18h16" />,
@@ -164,6 +155,12 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
       </>
     ),
+    lock: (
+      <>
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </>
+    ),
     close: <path d="M6 6l12 12M18 6L6 18" />,
     chevronDown: <path d="M6 9l6 6 6-6" />,
     chevronLeft: <path d="M15 18l-6-6 6-6" />,
@@ -205,11 +202,8 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
   )
 }
 
-// ============================================================================
-// 4. KOTAK LOADING AI DENGAN PENGHITUNG WAKTU DETIK KE-30 & KLIK IKON REFRESH
-// ============================================================================
 export function AILoadingBox({
-  label = "Sistem AI sedang menyusun rekomendasi terbaik untukmu...",
+  label = "Menyusun data dan naskah skrip...",
   onRefresh,
 }) {
   const [detik, setDetik] = useState(0)
@@ -222,30 +216,30 @@ export function AILoadingBox({
   }, [])
 
   return (
-    <div className="py-10 px-6 rounded-3xl bg-[#f4f5f7] border border-slate-200 flex flex-col items-center justify-center text-center space-y-3">
+    <div className="py-8 px-5 rounded-xl bg-[#f4f5f7] border border-slate-200 flex flex-col items-center justify-center text-center space-y-2.5">
       <button
         type="button"
         onClick={() => {
           setDetik(0)
           if (onRefresh) onRefresh()
         }}
-        title="Klik ikon ini untuk me-refresh / mengulang proses"
-        className="cursor-pointer w-12 h-12 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center shadow-md hover:scale-105 transition"
+        title="Klik untuk memuat ulang proses"
+        className="cursor-pointer w-10 h-10 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center transition hover:opacity-90"
       >
-        <FlatIcon name="refresh" className="w-5 h-5 animate-spin" />
+        <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
       </button>
 
       <div className="text-xs sm:text-sm font-bold text-[#14141f]">{label}</div>
 
-      <div className="text-[11px] font-bold text-slate-500">
-        Waktu berjalan: <span className="text-[#14141f]">{detik} detik</span>
+      <div className="text-xs text-slate-500">
+        Waktu proses:{" "}
+        <span className="font-bold text-[#14141f]">{detik} detik</span>
       </div>
 
       {detik >= 30 && (
-        <div className="bg-amber-100 border border-amber-300 text-[#14141f] px-4 py-2.5 rounded-xl text-xs font-bold space-y-1 max-w-md">
-          <div>
-            ⏱️ Sudah {detik} detik. Silakan tekan tombol di bawah untuk memuat
-            ulang.
+        <div className="bg-amber-50 border border-amber-300 text-[#14141f] px-4 py-2.5 rounded-lg text-xs space-y-1 max-w-md">
+          <div className="font-bold">
+            Proses berjalan {detik} detik karena antrean jaringan padat.
           </div>
           {onRefresh && (
             <button
@@ -256,7 +250,7 @@ export function AILoadingBox({
               }}
               className="cursor-pointer underline text-[#5b4bc4] font-bold block mx-auto"
             >
-              Klik Ikon Berputar di Atas atau Klik di Sini untuk Refresh Ulang
+              Muat Ulang Proses Sekarang
             </button>
           )}
         </div>
@@ -265,9 +259,6 @@ export function AILoadingBox({
   )
 }
 
-// ============================================================================
-// 5. MIKROFON HYBRID + KONVERSI WAV UNIVERSAL + ANTI-ZOOM HP (text-base sm:text-sm)
-// ============================================================================
 export function StoryVoiceInput({
   value,
   onChange,
@@ -304,10 +295,9 @@ export function StoryVoiceInput({
 
     setIsTranscribing(true)
     setDetikLoading(0)
-    if (onNotify) onNotify("Mengubah rekaman suaramu menjadi teks...")
+    if (onNotify) onNotify("Mengubah rekaman suara menjadi teks...")
 
     try {
-      // Konversi ke WAV 8kHz ringan terlebih dahulu agar 100% terbaca oleh OpenRouter & Gemini
       const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob)
       let base64Final = hasilWav?.base64 || ""
       let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav"
@@ -336,7 +326,7 @@ export function StoryVoiceInput({
       if (res.ok && data.teks) {
         const gabungan = value ? `${value} ${data.teks}` : data.teks
         onChange(gabungan)
-        if (onNotify) onNotify("Suara berhasil diubah menjadi teks!")
+        if (onNotify) onNotify("Rekaman suara berhasil ditulis.")
       } else {
         if (onNotify)
           onNotify("Error sistem, silakan refresh atau hubungi admin.")
@@ -353,7 +343,7 @@ export function StoryVoiceInput({
   const handleMicOrRefreshClick = async () => {
     if (isTranscribing) {
       if (lastBlobRef.current) {
-        if (onNotify) onNotify("🔄 Mengulang proses transkrip suara...")
+        if (onNotify) onNotify("Mengulang proses transkrip suara...")
         kirimBlobKeAI(lastBlobRef.current.blob, lastBlobRef.current.mime)
       } else {
         setIsTranscribing(false)
@@ -373,7 +363,6 @@ export function StoryVoiceInput({
 
     if (typeof window === "undefined") return
 
-    // Prioritaskan Web Speech API instan jika tersedia di Chrome Android/Desktop
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRec && !navigator.userAgent.includes("iPhone")) {
       try {
@@ -384,13 +373,13 @@ export function StoryVoiceInput({
 
         rec.onstart = () => {
           setIsRecording(true)
-          if (onNotify) onNotify("🎙️ Silakan bicara sekarang...")
+          if (onNotify) onNotify("Merekam suara, silakan bicara...")
         }
         rec.onresult = (event) => {
           const teksHasil = event.results?.[0]?.[0]?.transcript || ""
           if (teksHasil) {
             onChange(value ? `${value} ${teksHasil}` : teksHasil)
-            if (onNotify) onNotify("Suara berhasil ditulis!")
+            if (onNotify) onNotify("Suara berhasil ditulis.")
           }
         }
         rec.onerror = () => {
@@ -403,7 +392,7 @@ export function StoryVoiceInput({
         rec.start()
         return
       } catch {
-        // Lanjut ke MediaRecorder
+        // Fallback ke MediaRecorder
       }
     }
 
@@ -437,13 +426,11 @@ export function StoryVoiceInput({
         recorder.start()
         setIsRecording(true)
         if (onNotify)
-          onNotify(
-            "🎙️ Merekam suara... Klik tombol merah lagi jika selesai bicara.",
-          )
+          onNotify("Merekam suara. Tekan tombol merah jika selesai bicara.")
       } catch {
         if (onNotify)
           onNotify(
-            "Izin mikrofon belum aktif. Izinkan akses mikrofon di browser kamu.",
+            "Izin mikrofon belum aktif. Izinkan akses mikrofon di browser.",
           )
       }
     }
@@ -456,12 +443,12 @@ export function StoryVoiceInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3.5 pr-14 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
+        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-12 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
       />
-      <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5">
+      <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
         {isTranscribing && detikLoading >= 30 && (
-          <span className="bg-amber-100 text-[#14141f] border border-amber-300 text-[10px] font-bold px-2 py-1 rounded-lg">
-            {detikLoading}d • Klik ikon utk Refresh
+          <span className="bg-amber-100 text-[#14141f] border border-amber-300 text-[10px] font-bold px-2 py-1 rounded-md">
+            {detikLoading}d • Klik ikon utk ulang
           </span>
         )}
         <button
@@ -469,17 +456,17 @@ export function StoryVoiceInput({
           onClick={handleMicOrRefreshClick}
           title={
             isTranscribing
-              ? "Klik untuk me-refresh / mengulang proses"
+              ? "Klik untuk mengulang proses"
               : isRecording
-                ? "Klik untuk selesai bicara"
-                : "Klik untuk bicara dengan mikrofon"
+                ? "Klik untuk berhenti merekam"
+                : "Rekam suara dengan mikrofon"
           }
-          className={`cursor-pointer w-9 h-9 rounded-xl flex items-center justify-center transition shadow-2xs ${
+          className={`cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center transition ${
             isRecording
-              ? "bg-rose-600 text-white animate-pulse ring-4 ring-rose-300"
+              ? "bg-rose-600 text-white animate-pulse"
               : isTranscribing
                 ? "bg-amber-400 text-[#14141f]"
-                : "bg-[#14141f] text-[#d4f34a] hover:scale-105"
+                : "bg-[#14141f] text-[#d4f34a] hover:opacity-90"
           }`}
         >
           <FlatIcon
@@ -492,9 +479,6 @@ export function StoryVoiceInput({
   )
 }
 
-// ============================================================================
-// 6. MODAL CROP & GESER FOTO PROFIL RASIO 1:1
-// ============================================================================
 export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
   const canvasRef = useRef(null)
   const imgRef = useRef(null)
@@ -562,17 +546,17 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
 
   return (
     <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
-      <div className="bg-white text-[#14141f] w-full max-w-sm rounded-3xl p-6 space-y-4 text-center shadow-2xl">
+      <div className="bg-white text-[#14141f] w-full max-w-sm rounded-2xl p-6 space-y-4 text-center shadow-lg border border-slate-200">
         <div>
           <h3 className="text-base font-bold">Sesuaikan Foto Profil (1:1)</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Geser gambar dengan jari/mouse untuk menentukan titik tengah foto
-            yang ingin ditampilkan.
+          <p className="text-xs text-slate-500 mt-1">
+            Geser gambar untuk menentukan titik tengah foto yang ingin
+            ditampilkan.
           </p>
         </div>
 
         <div className="flex justify-center">
-          <div className="relative w-[260px] h-[260px] rounded-full overflow-hidden border-4 border-[#14141f] shadow-md touch-none cursor-move">
+          <div className="relative w-[260px] h-[260px] rounded-full overflow-hidden border-2 border-[#14141f] touch-none cursor-move">
             <canvas
               ref={canvasRef}
               width={260}
@@ -595,9 +579,9 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
           </div>
         </div>
 
-        <div className="space-y-1 text-left px-2">
+        <div className="space-y-1 text-left px-1">
           <div className="flex justify-between text-xs font-bold">
-            <span>Perbesar / Perkecil (Zoom):</span>
+            <span>Perbesar:</span>
             <span>{Math.round(zoom * 100)}%</span>
           </div>
           <input
@@ -615,16 +599,16 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
           <button
             type="button"
             onClick={onCancel}
-            className="cursor-pointer w-1/3 bg-[#f4f5f7] text-[#14141f] font-bold text-xs py-3 rounded-xl"
+            className="cursor-pointer w-1/3 bg-[#f4f5f7] text-[#14141f] font-bold text-xs py-3 rounded-lg"
           >
             Batal
           </button>
           <button
             type="button"
             onClick={handleSimpan}
-            className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-xl"
+            className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-lg"
           >
-            Simpan Foto 1:1
+            Simpan Foto
           </button>
         </div>
       </div>
@@ -632,9 +616,6 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
   )
 }
 
-// ============================================================================
-// 7. DROPDOWN DENGAN OPSI "ISI SENDIRI..." (ANTI-ZOOM HP text-base sm:text-xs)
-// ============================================================================
 export function SelectWithCustom({
   label,
   value,
@@ -661,14 +642,14 @@ export function SelectWithCustom({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-xs font-bold text-[#14141f] tracking-tight">
+        <label className="block text-xs font-bold text-[#14141f]">
           {label}
         </label>
       )}
       <select
         value={modeIsiSendiri ? "__CUSTOM__" : value}
         onChange={handleSelectChange}
-        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-xs font-bold text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
+        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs font-bold text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>
@@ -685,7 +666,7 @@ export function SelectWithCustom({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholderCustom}
           autoFocus
-          className="w-full bg-white border border-[#14141f] rounded-xl px-3.5 py-2 text-base sm:text-xs font-normal text-[#14141f] outline-none"
+          className="w-full bg-white border border-[#14141f] rounded-lg px-3.5 py-2 text-base sm:text-xs font-normal text-[#14141f] outline-none"
         />
       )}
     </div>

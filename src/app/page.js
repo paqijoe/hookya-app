@@ -18,97 +18,96 @@ const SEPULUH_BENTUK_KONTEN = [
     id: 1,
     nama: "B-Roll Estetik + Teks di Layar (Tanpa Ngomong & Tanpa Wajah)",
     modeDefault: "teks",
-    ket: "Cukup rekam suasana/aktivitas, cerita disampaikan 100% lewat teks di layar.",
+    ket: "Rekam suasana atau aktivitas, cerita disampaikan lewat teks di layar.",
   },
   {
     id: 2,
     nama: "POV Tangan / Meja + Suara AI TikTok (Tanpa Wajah)",
     modeDefault: "voiceover",
-    ket: "Kamera menyorot tangan di meja, naskah dibacakan suara otomatis/voiceover.",
+    ket: "Kamera menyorot tangan di meja, naskah dibacakan suara voiceover.",
   },
   {
     id: 3,
     nama: "B-Roll Aktivitas + Voiceover Santai (Rekam Suara Belakangan)",
     modeDefault: "voiceover",
-    ket: "Rekam kegiatan harianmu dulu, lalu baca naskah santai dari balik layar.",
+    ket: "Rekam kegiatan harianmu dulu, lalu isi suara naskah dari balik layar.",
   },
   {
     id: 4,
     nama: "Talking Head + Teleprompter (Ngobrol Langsung ke Kamera)",
     modeDefault: "voiceover",
-    ket: "Tampil wajah percaya diri membaca layar teleprompter Hookya.",
+    ket: "Bicara langsung ke kamera sambil membaca tampilan teks Hookya.",
   },
   {
     id: 5,
     nama: "ASMR / Suara Asli Aktivitas + Teks Pendek (Tanpa Bicara)",
     modeDefault: "teks",
-    ket: "Tonjolkan suara asli (ketikan, masakan, buka paket) dengan teks singkat.",
+    ket: "Gunakan suara asli aktivitas (ketikan, masakan, buka paket) dengan teks singkat.",
   },
   {
     id: 6,
     nama: "Green Screen Reaksi / Komentar Tren & Fakta Unik",
     modeDefault: "voiceover",
-    ket: "Tampilkan tangkapan layar artikel/tren di belakangmu lalu berikan opini.",
+    ket: "Tampilkan tangkapan layar berita atau produk di belakangmu lalu berikan tanggapan.",
   },
   {
     id: 7,
-    nama: "Vlog Mini Keseharian (A Day in My Life 20 Detik)",
+    nama: "Vlog Mini Keseharian (A Day in My Life)",
     modeDefault: "voiceover",
-    ket: "Gabungan 5-6 klip pendek kegiatanmu dari pagi/malam dengan cerita mengalir.",
+    ket: "Gabungan 5 sampai 6 klip pendek kegiatan harian dengan narasi cerita.",
   },
   {
     id: 8,
     nama: "Tutorial Layar HP / Laptop (Screen Recording)",
     modeDefault: "voiceover",
-    ket: "Rekam layar HP/Laptop saat membagikan tips aplikasi, desain, atau website.",
+    ket: "Rekam layar HP atau laptop saat menunjukkan langkah penggunaan aplikasi atau website.",
   },
   {
     id: 9,
-    nama: "Sketsa POV Situasi Relatable + Musik Trending",
+    nama: "Sketsa POV Situasi Sehari-hari",
     modeDefault: "teks",
-    ket: "Peragakan ekspresi singkat (1 orang) dengan teks situasi yang sering dialami orang.",
+    ket: "Peragakan situasi singkat dengan teks kejadian yang sering dialami penonton.",
   },
   {
     id: 10,
     nama: "Slide Foto / Carousel Cerita Bergambar (Geser Foto)",
     modeDefault: "teks",
-    ket: "Tidak perlu rekam video! Cukup susun 6 foto berurutan dengan teks cerita.",
+    ket: "Susun 4 sampai 6 foto berurutan dengan teks penjelasan di setiap halaman.",
   },
 ]
 
 const DEFAULT_PERSONA_PROFILE = {
   user_id: "usr_99281",
   persona_summary:
-    "Gaya bicara jujur, santai, namun peduli seperti kakak senior atau teman dekat yang sedang berbagi pengalaman nyata.",
+    "Gaya bicara jujur, santai, dan langsung membahas praktik nyata sehari-hari.",
   positioning_and_usp: {
-    authority_role: "Praktisi & Teman Diskusi Jujur",
-    unique_selling_point: "Berbagi praktik nyata tanpa teori rumit",
-    common_enemy: "Motivasi kosong tanpa langkah nyata",
-    personal_analogies: "Kehidupan sehari-hari, kerjaan, dan hobi",
+    authority_role: "Praktisi & Teman Diskusi",
+    unique_selling_point: "Berbagi praktik nyata di lapangan",
+    common_enemy: "Teori tanpa langkah praktis",
+    personal_analogies: "Kegiatan sehari-hari, kerjaan, dan hobi",
   },
   target_audience: {
-    segment_profile: "Anak muda & kreator produktif",
-    deepest_pain_points: "Takut boncos uang & waktu",
-    secret_desires: "Hasil nyata yang praktis",
+    segment_profile: "Anak muda & pekerja produktif",
+    deepest_pain_points: "Rugi uang dan waktu",
+    secret_desires: "Hasil praktis yang terukur",
     common_objections: "Bingung mulai dari mana",
   },
   linguistic_matrix: {
     self_pronoun: "Gue",
     audience_pronoun: "Lo / Kalian",
-    greeting_signature: ["Gini bro,", "Jujur ya,", "Coba pikir deh,"],
-    favorite_transitions: [
-      "Masalahnya gini,",
-      "Nah, lucunya adalah...",
-      "Intinya simpel:",
-    ],
-    signature_vocabulary: ["boncos", "valid", "mindset", "eksekusi"],
+    greeting_signature: ["Gini bro,", "Coba pikir deh,"],
+    favorite_transitions: ["Masalahnya,", "Intinya simpel:"],
+    signature_vocabulary: ["boncos", "valid", "eksekusi"],
     forbidden_words: [
-      "Anda",
-      "Pemirsa",
-      "Oleh karena itu",
-      "Selain itu",
-      "Di era digital saat ini",
-      "Kesimpulannya",
+      "membuka potensi",
+      "level berikutnya",
+      "memberdayakan",
+      "menyelami",
+      "bukti nyata",
+      "lanskap",
+      "pengubah permainan",
+      "bukan sekadar",
+      "di era digital saat ini",
     ],
   },
 }
@@ -144,7 +143,6 @@ export default function HookyaMainApp() {
   const [lastCheckinDate, setLastCheckinDate] = useState("")
 
   const [coins, setCoins] = useState(20)
-  const [paket, setPaket] = useState("Paket 10K")
   const [toastMsg, setToastMsg] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [multiplyingArchiveId, setMultiplyingArchiveId] = useState(null)
@@ -170,15 +168,14 @@ export default function HookyaMainApp() {
     targetKetakutanInput: "",
     targetImpianInput: "",
     targetKeraguanInput: "",
-    kepribadianSosial:
-      "Santai, jujur, dan peduli seperti kakak senior di warung kopi",
+    kepribadianSosial: "Santai, jujur, dan peduli seperti teman dekat",
     minatUtama: "Bisnis, Keuangan Praktis, Teknologi & Olahraga",
     lingkunganRekam: "Kamar / Meja Kerja di Dalam Ruangan",
     waktuFree: "Malam (20:00 - 21:30)",
     selfPronounInput: "Gue",
     audiencePronounInput: "Lo / Kalian",
     prinsipUtamaInput: "Praktik lebih penting dari teori",
-    opiniKontraInput: "Kurang suka motivasi kosong tanpa langkah nyata",
+    opiniKontraInput: "Kurang suka teori tanpa langkah praktik",
   })
 
   const [formUsulan, setFormUsulan] = useState({
@@ -200,7 +197,7 @@ export default function HookyaMainApp() {
     if (jadwalFleksibel) {
       setProfil((prev) => ({
         ...prev,
-        waktuFree: "Saya Fleksibel (Bisa Kapan Saja)",
+        waktuFree: "Fleksibel (Kapan Saja)",
       }))
       return
     }
@@ -235,24 +232,25 @@ export default function HookyaMainApp() {
   )
   const [deskripsiBentukSendiri, setDeskripsiBentukSendiri] = useState("")
   const bentukKontenFinal = deskripsiBentukSendiri.trim()
-    ? `${bentukKonten} — Catatan: ${deskripsiBentukSendiri.trim()}`
+    ? `${bentukKonten} (Catatan: ${deskripsiBentukSendiri.trim()})`
     : bentukKonten
 
   const [daftar10IdeTopik, setDaftar10IdeTopik] = useState([
     {
-      judul: "Menabung di Akhir Bulan Adalah Jebakan Psikologis",
-      nuansa: "Membongkar Mitos",
-      ringkasan: "Kenapa menunggu uang sisa di akhir bulan selalu gagal.",
+      judul: "Kesalahan Menabung dari Sisa Gaji Bulanan",
+      nuansa: "Koreksi Kebiasaan",
+      ringkasan:
+        "Alasan uang tabungan selalu habis jika menunggu sisa akhir bulan.",
     },
     {
-      judul: "Kesalahan Memulai Usaha Tanpa Menghitung Arus Kas",
-      nuansa: "Kesalahan Umum",
-      ringkasan: "Cerita nyata kenapa omzet ramai tapi tabungan kosong.",
+      judul: "Memulai Jualan Tanpa Mencatat Arus Kas Harian",
+      nuansa: "Masalah Lapangan",
+      ringkasan: "Penyebab penjualan ramai tetapi modal kerja habis.",
     },
     {
-      judul: "Berhenti Menunggu Mood, Bangun Rutinitas 15 Menit",
-      nuansa: "Tips Praktis",
-      ringkasan: "Langkah kecil yang konsisten mengalahkan niat besar.",
+      judul: "Membangun Kebiasaan Lari 15 Menit Setiap Pagi",
+      nuansa: "Langkah Praktis",
+      ringkasan: "Cara menjaga jadwal olahraga tetap jalan di sela jam kerja.",
     },
   ])
 
@@ -292,7 +290,7 @@ export default function HookyaMainApp() {
 
   const [customPrompts, setCustomPrompts] = useState({
     persona_engine: "Ekstrak sapaan dan kosakata khas pengguna dengan akurat.",
-    assessment_copilot: "Berikan 3 pilihan sudut pandang yang tajam.",
+    assessment_copilot: "Berikan 3 pilihan sudut pandang yang konkret.",
     script_humanizer:
       "Tulis dengan bahasa lisan yang mengalir alami saat diucapkan.",
   })
@@ -330,7 +328,7 @@ export default function HookyaMainApp() {
         })
         .eq("id", userId)
     }
-    showToast("Foto profil 1:1 berhasil diperbarui!")
+    showToast("Foto profil 1:1 berhasil diperbarui.")
   }
 
   const handleUploadBuktiBayarUser = (e) => {
@@ -360,14 +358,13 @@ export default function HookyaMainApp() {
         ctx.drawImage(img, 0, 0, w, h)
         const dataUrl = canvas.toDataURL("image/jpeg", 0.75)
         setBuktiBayarBase64(dataUrl)
-        showToast("Foto bukti pembayaran berhasil dilampirkan!")
+        showToast("Foto bukti pembayaran berhasil dilampirkan.")
       }
       img.src = ev.target.result
     }
     reader.readAsDataURL(file)
   }
 
-  // SINKRONISASI SUPABASE + MEMBACA KONFIGURASI QRIS DARI BARIS ADMIN MANA PUN
   const muatUlangDataSupabase = async (idTarget) => {
     try {
       const { data: userRows } = await supabase
@@ -387,7 +384,6 @@ export default function HookyaMainApp() {
 
         activeUser = userRows.find((u) => u.id === savedId)
 
-        // Cari baris yang menyimpan pengaturanPayment / QRIS Statis
         const configRow =
           userRows.find((u) => u.profil_dna?.pengaturanPayment?.qrisImageUrl) ||
           userRows.find(
@@ -593,7 +589,6 @@ export default function HookyaMainApp() {
       .eq("id", userId)
   }
 
-  // FUNGSI SIMPAN PERMANEN KONFIGURASI QRIS STATIS & WA ADMIN KE SEMUA BARIS ADMIN SUPABASE
   const simpanPengaturanDevPermanen = async (
     paymentOverride = pengaturanPayment,
   ) => {
@@ -625,7 +620,7 @@ export default function HookyaMainApp() {
 
       await muatUlangDataSupabase()
       showToast(
-        "Berhasil! Gambar QRIS Statis & Nomor WA Admin telah tersimpan permanen di Database!",
+        "Gambar QRIS Statis dan Nomor WA Admin berhasil disimpan ke Database.",
       )
     } catch (err) {
       showToast("Gagal menyimpan pengaturan: " + err.message)
@@ -681,7 +676,6 @@ export default function HookyaMainApp() {
     return skripObj
   }
 
-  // FITUR GANDAKAN 2X / 5X / 10X LANGSUNG DARI MENU ARSIP SKRIP TERSIMPAN
   const handleGandakanDariArsip = async (itemArsip, jumlahX, biayaKoin) => {
     if (multiplyingArchiveId) return
     if (coins < biayaKoin) {
@@ -695,7 +689,7 @@ export default function HookyaMainApp() {
     setMultiplyingArchiveId(itemArsip.id)
     await updateKoinDatabase(coins - biayaKoin)
     showToast(
-      `Sedang menggandakan "${itemArsip.judul}" menjadi ${jumlahX} variasi skrip baru...`,
+      `Menyusun ${jumlahX} variasi skrip baru dari "${itemArsip.judul}"...`,
     )
 
     try {
@@ -739,9 +733,7 @@ export default function HookyaMainApp() {
         const objekSkripVariasi = {
           id: Date.now() + i + 1,
           dbId: null,
-          judul: `${itemArsip.judul} — ${
-            v.judulVariasi || `Variasi #${i + 1}`
-          }`,
+          judul: `${itemArsip.judul} (${v.judulVariasi || `Variasi ${i + 1}`})`,
           kategori: itemArsip.kategori || "Stok Konten Massal",
           bentuk: itemArsip.bentuk,
           waktuDibuat: waktuSekarang,
@@ -756,7 +748,7 @@ export default function HookyaMainApp() {
 
       setKoleksiSkripTersimpan((prev) => [...arsipBaruList, ...prev])
       showToast(
-        `Berhasil! ${arsipBaruList.length} variasi skrip baru telah ditambahkan ke Arsipmu!`,
+        `${arsipBaruList.length} variasi skrip baru telah ditambahkan ke Arsip.`,
       )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -768,22 +760,20 @@ export default function HookyaMainApp() {
   const handleCheckinHarian = async () => {
     const hariIni = new Date().toISOString().split("T")[0]
     if (lastCheckinDate === hariIni) {
-      showToast(
-        "Kamu sudah melakukan Check-in hari ini. Kembali lagi besok ya!",
-      )
+      showToast("Kamu sudah melakukan Check-in hari ini.")
       return
     }
 
     const streakBaru = checkinStreak + 1
     let koinBaru = coins
-    let pesan = `Check-in Hari ke-${streakBaru} berhasil! (${
+    let pesan = `Check-in Hari ke-${streakBaru} tercatat (${
       3 - (streakBaru % 3 || 3)
-    } hari lagi dapat bonus +1 Koin)`
+    } hari lagi dapat bonus +1 Koin).`
 
     if (streakBaru % 3 === 0) {
       koinBaru = coins + 1
       await updateKoinDatabase(koinBaru)
-      pesan = `🎉 Check-in 3 Hari Berturut-turut! Kamu mendapat Bonus +1 Koin!`
+      pesan = `Check-in 3 hari berturut-turut selesai. Kamu mendapat +1 Koin.`
     }
 
     setCheckinStreak(streakBaru)
@@ -834,9 +824,7 @@ export default function HookyaMainApp() {
         ...riwayatUsulanSaya,
       ])
       setFormUsulan({ ...formUsulan, pesan: "" })
-      showToast(
-        "Terima kasih! Usulan/masukan kamu telah dikirim langsung ke Dashboard Developer.",
-      )
+      showToast("Usulan kamu telah dikirim ke Dashboard Developer.")
     } catch (err) {
       showToast("Gagal mengirim usulan: " + err.message)
     } finally {
@@ -898,7 +886,7 @@ export default function HookyaMainApp() {
       !buktiBayarBase64
     ) {
       alert(
-        "Silakan unggah foto / screenshot bukti pembayaran QRIS terlebih dahulu.",
+        "Silakan unggah foto atau screenshot bukti pembayaran QRIS terlebih dahulu.",
       )
       return
     }
@@ -940,17 +928,17 @@ export default function HookyaMainApp() {
           : nomorWA
 
       const pesanWA = encodeURIComponent(
-        `Halo Admin Hookya! 👋\nSaya sudah melakukan pembayaran Top-Up QRIS dan mengunggah bukti pembayaran di aplikasi:\n\n` +
-          `• Invoice: *#${checkoutModal.invoiceId}*\n` +
-          `• Nama Akun: *${profil.nama}* (${profil.kontak})\n` +
-          `• Paket: *${checkoutModal.namaPaket} (+${checkoutModal.koin} Koin • +30 Hari)*\n` +
-          `• Nominal Transfer: *Rp${checkoutModal.nominalBayar.toLocaleString("id-ID")}*\n\n` +
-          `Mohon dicek dan di-ACC di Dashboard Admin Hookya. Terima kasih!`,
+        `Halo Admin Hookya.\nSaya sudah melakukan pembayaran Top-Up QRIS dan mengunggah bukti pembayaran di aplikasi:\n\n` +
+          `Invoice: *#${checkoutModal.invoiceId}*\n` +
+          `Nama Akun: *${profil.nama}* (${profil.kontak})\n` +
+          `Paket: *${checkoutModal.namaPaket} (+${checkoutModal.koin} Koin, +30 Hari)*\n` +
+          `Nominal Transfer: *Rp${checkoutModal.nominalBayar.toLocaleString("id-ID")}*\n\n` +
+          `Mohon diperiksa di Dashboard Admin Hookya. Terima kasih.`,
       )
 
       window.open(`https://wa.me/${nomorWAFinal}?text=${pesanWA}`, "_blank")
       showToast(
-        "Bukti pembayaran tersimpan ke Dashboard Admin & membuka WhatsApp Admin!",
+        "Bukti pembayaran disimpan ke Dashboard Admin dan membuka WhatsApp Admin.",
       )
     } finally {
       setSedangProsesBayar(false)
@@ -980,7 +968,7 @@ export default function HookyaMainApp() {
       ),
     )
     setInputKodeVoucherUser("")
-    showToast(`Voucher berhasil diklaim! +${tambahan} Koin ditambahkan.`)
+    showToast(`Voucher diklaim. +${tambahan} Koin ditambahkan.`)
   }
 
   const handleToggleSudahUpload = async (item, checked) => {
@@ -1049,7 +1037,7 @@ export default function HookyaMainApp() {
     await simpanAtauUpdateSkripDatabase(updated)
     if (!item.sudahEvaluasi) await updateKoinDatabase(coins + 2)
     setIsGenerating(false)
-    showToast("Laporan kinerja disimpan!")
+    showToast("Laporan kinerja disimpan.")
   }
 
   const isAdminAccount =
@@ -1087,9 +1075,6 @@ export default function HookyaMainApp() {
     )
   }
 
-  // ============================================================================
-  // LAYAR DASHBOARD DEVELOPER (ACC PEMBAYARAN OTOMATIS PINDAH KE WA USER LENGKAP DENGAN USERNAME & PASSWORD)
-  // ============================================================================
   if (viewMode === "dev") {
     return (
       <DeveloperDashboardView
@@ -1173,7 +1158,6 @@ export default function HookyaMainApp() {
               setSisaHariPaket(totalHariBaru)
             }
 
-            // OTOMATIS PINDAH KE WHATSAPP USER UNTUK MENGIRIM KONFIRMASI ACC + USERNAME + PASSWORD + PAKET + KOIN + DURASI
             const rawWaUser =
               infoCatatan?.whatsapp ||
               targetU.whatsapp ||
@@ -1205,26 +1189,26 @@ export default function HookyaMainApp() {
                 "12345678"
 
               const teksKonfirmasiWA = encodeURIComponent(
-                `✅ *PEMBAYARAN & PENDAFTARAN DI-ACC — HOOKYA.SITE*\n\n` +
-                  `Halo Kak *${targetU.nama}*! Pembayaran kamu telah berhasil diverifikasi oleh Admin. Berikut adalah rincian paket dan akunmu:\n\n` +
-                  `📦 *RINCIAN PAKET AKTIF:*\n` +
-                  `• No. Invoice: *#${trx.invoice_id}*\n` +
-                  `• Nama Paket: *${trx.nama_paket}*\n` +
-                  `• Nominal Pembayaran: *Rp${Number(
+                `*KONFIRMASI PEMBAYARAN & AKTIVASI AKUN HOOKYA.SITE*\n\n` +
+                  `Halo Kak *${targetU.nama}*, pembayaran kamu telah diverifikasi oleh Admin. Berikut adalah rincian paket dan akunmu:\n\n` +
+                  `*RINCIAN PAKET AKTIF:*\n` +
+                  `No. Invoice: *#${trx.invoice_id}*\n` +
+                  `Nama Paket: *${trx.nama_paket}*\n` +
+                  `Nominal Pembayaran: *Rp${Number(
                     trx.nominal_bayar,
                   ).toLocaleString("id-ID")} (LUNAS)*\n` +
-                  `• Jumlah Koin Masuk: *+${trx.jumlah_koin} Koin* (Total Saldo: *${totalKoinBaru} Koin*)\n` +
-                  `• Durasi Masa Aktif: *${totalHariBaru} Hari*\n` +
-                  `• Status Akses: *${
+                  `Jumlah Koin Masuk: *+${trx.jumlah_koin} Koin* (Total Saldo: *${totalKoinBaru} Koin*)\n` +
+                  `Durasi Masa Aktif: *${totalHariBaru} Hari*\n` +
+                  `Status Akses: *${
                     jadiVIP
-                      ? "👑 Member VIP (Semua Fitur Mic, Scan Produk & Video Terbuka)"
+                      ? "Member VIP (Fitur Mic, Scan Produk & Ekstrak Video Aktif)"
                       : "Member Standar"
                   }*\n\n` +
-                  `🔐 *INFORMASI LOGIN AKUNMU:*\n` +
-                  `• Username: *${usernameLogin}*\n` +
-                  `• Gmail: *${emailLogin}*\n` +
-                  `• Password: *${passwordLogin}*\n\n` +
-                  `Silakan langsung Login sekarang di: https://hookya.site 🚀`,
+                  `*INFORMASI LOGIN AKUN:*\n` +
+                  `Username: *${usernameLogin}*\n` +
+                  `Gmail: *${emailLogin}*\n` +
+                  `Password: *${passwordLogin}*\n\n` +
+                  `Silakan masuk ke aplikasi melalui: https://hookya.site`,
               )
 
               window.open(
@@ -1241,7 +1225,7 @@ export default function HookyaMainApp() {
           )
           await muatUlangDataSupabase()
           showToast(
-            "Pembayaran di-ACC! Koin & masa aktif telah aktif dan mengarahkan ke WhatsApp User!",
+            "Pembayaran di-ACC. Koin dan masa aktif telah ditambahkan dan membuka WhatsApp User.",
           )
         }}
         simpanPengaturanDevKeDB={simpanPengaturanDevPermanen}
@@ -1252,13 +1236,11 @@ export default function HookyaMainApp() {
   }
 
   const daftarMenuUser = [
-    { id: "dna", label: "Profil & Positioning 360°", icon: "dna" },
+    { id: "dna", label: "Profil & Gaya Bicara", icon: "dna" },
     { id: "produksi", label: "Buat Skrip Konten", icon: "bolt" },
     {
       id: "rewrite",
-      label: statusVIPFinal
-        ? "Ekstrak Video Kompetitor"
-        : "👑 Ekstrak Video (VIP)",
+      label: statusVIPFinal ? "Ekstrak Video ke Skrip" : "Ekstrak Video (VIP)",
       icon: "scissors",
     },
     {
@@ -1277,7 +1259,6 @@ export default function HookyaMainApp() {
     { id: "usulan", label: "Usulan Pengembangan", icon: "code" },
   ]
 
-  // 7 PILIHAN PAKET KELIPATAN Rp5.000 (5K, 10K, 15K, 20K, 25K, 50K, 90K)
   const daftarPaketKoin = [
     {
       nama: "Paket 5K (Coba)",
@@ -1285,7 +1266,7 @@ export default function HookyaMainApp() {
       nominalAngka: 5000,
       koin: 10,
       isVIP: false,
-      ket: "Aktif 30 Hari • Akses Buat Skrip Teks, 6 Hook & Durasi 15s–3m.",
+      ket: "Aktif 30 Hari • Akses Buat Skrip Teks, 6 Hook & Durasi 15s sampai 3m.",
     },
     {
       nama: "Paket 10K (Pemula)",
@@ -1301,7 +1282,7 @@ export default function HookyaMainApp() {
       nominalAngka: 15000,
       koin: 30,
       isVIP: false,
-      ket: "Aktif 30 Hari • Pilihan hemat untuk rutin membuat skrip mingguan.",
+      ket: "Aktif 30 Hari • Pilihan untuk rutin menyusun skrip mingguan.",
     },
     {
       nama: "Paket 20K VIP",
@@ -1309,16 +1290,16 @@ export default function HookyaMainApp() {
       nominalAngka: 20000,
       koin: 40,
       isVIP: true,
-      ket: "👑 BUKA FITUR VIP: Rekam Suara Mic, Scan Produk Marketplace, Ekstrak Video & Tanpa Watermark!",
+      ket: "Buka Fitur VIP: Rekam Suara Mic, Scan Produk Marketplace, Ekstrak Video & Tanpa Watermark.",
     },
     {
-      nama: "Paket 25K VIP (Terlaris)",
+      nama: "Paket 25K VIP",
       harga: "Rp25.000",
       nominalAngka: 25000,
       koin: 55,
       isVIP: true,
       populer: true,
-      ket: "👑 BUKA SEMUA FITUR VIP + Bonus Koin Ekstra untuk Kreator & Affiliator Aktif!",
+      ket: "Buka Semua Fitur VIP + 55 Koin untuk Kreator & Affiliator Aktif.",
     },
     {
       nama: "Paket 50K VIP (Pro)",
@@ -1326,15 +1307,15 @@ export default function HookyaMainApp() {
       nominalAngka: 50000,
       koin: 120,
       isVIP: true,
-      ket: "👑 BUKA SEMUA FITUR VIP + Kuota Besar untuk Stok Konten Massal 2x/5x/10x.",
+      ket: "Buka Semua Fitur VIP + Kuota 120 Koin untuk Pengganda Stok Skrip 2x/5x/10x.",
     },
     {
-      nama: "Paket 90K VIP (Sultan)",
+      nama: "Paket 90K VIP (Agensi)",
       harga: "Rp90.000",
       nominalAngka: 90000,
       koin: 230,
       isVIP: true,
-      ket: "👑 BUKA SEMUA FITUR VIP + Kuota Maksimal 230 Koin untuk Produksi Harian & Tim.",
+      ket: "Buka Semua Fitur VIP + Kuota 230 Koin untuk Produksi Harian & Tim.",
     },
   ]
 
@@ -1345,7 +1326,7 @@ export default function HookyaMainApp() {
           <div className="flex items-center gap-3">
             <label
               className="cursor-pointer relative shrink-0 group"
-              title="Klik untuk ganti & geser foto profil 1:1"
+              title="Klik untuk ganti dan geser foto profil 1:1"
             >
               <img
                 src={getAvatarUrlUser()}
@@ -1374,7 +1355,7 @@ export default function HookyaMainApp() {
 
           <div className="flex items-center justify-between text-[10px] pt-1 border-t border-white/10">
             <span className="text-[#d4f34a] font-bold">
-              {statusVIPFinal ? "👑 Member VIP" : "Member Standar"}
+              {statusVIPFinal ? "Member VIP" : "Member Standar"}
             </span>
             <span className="text-slate-300">
               Masa Aktif: <strong>{sisaHariPaket} Hari</strong>
@@ -1408,14 +1389,13 @@ export default function HookyaMainApp() {
         }}
         className="cursor-pointer w-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold py-2.5 rounded-xl transition"
       >
-        {isCompact ? "✕" : "Keluar / Ganti Akun"}
+        {isCompact ? "Keluar" : "Keluar / Ganti Akun"}
       </button>
     </div>
   )
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-[#14141f] flex flex-col font-sans antialiased tracking-tight overflow-x-hidden w-full max-w-[100vw] pt-16">
-      {/* KUNCI ANTI-ZOOM OTOMATIS DI BROWSER HP SAAT MENGETIK DI TEXTBOX */}
       <style jsx global>{`
         @media screen and (max-width: 640px) {
           input,
@@ -1441,30 +1421,32 @@ export default function HookyaMainApp() {
         />
       )}
 
-      {/* MODAL PAYWALL UPGRADE PAKET VIP (>= Rp20.000) */}
+      {/* MODAL PAYWALL UPGRADE PAKET VIP */}
       {showUpgradeVIPModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4 text-center shadow-2xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-xl mx-auto">
-              👑
+            <div className="w-12 h-12 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-sm font-bold mx-auto">
+              VIP
             </div>
             <h3 className="text-base sm:text-lg font-bold">
-              Fitur Unggulan Khusus Paket VIP (Rp20.000 ke Atas)
+              Fitur Khusus Paket VIP (Rp20.000 ke Atas)
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
               Fitur <strong>Rekam Suara Mikrofon</strong>,{" "}
               <strong>Scan Screenshot Produk Marketplace</strong>,{" "}
-              <strong>Ekstrak Video Kompetitor</strong>, dan{" "}
-              <strong>Hapus Watermark</strong> khusus dibuka untuk pengguna yang
+              <strong>Ekstrak Video ke Skrip</strong>, dan{" "}
+              <strong>Tanpa Watermark</strong> terbuka untuk pengguna yang
               mengaktifkan paket minimal <strong>Rp20.000</strong> ke atas.
             </p>
             <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-3.5 rounded-2xl text-xs text-left space-y-1">
               <div className="font-bold text-[#4d6b14]">
-                Keuntungan Upgrade ke Paket 20K / 25K VIP:
+                Rincian Paket 20K / 25K VIP:
               </div>
-              <div>• Langsung dapat tambahan Koin & Masa Aktif +30 Hari</div>
-              <div>• Sisa koin lamamu otomatis terakumulasi (Tidak Hangus)</div>
-              <div>• Terbuka seluruh fitur Mikrofon, Scan Produk & Video</div>
+              <div>1. Tambahan Koin & Masa Aktif +30 Hari</div>
+              <div>2. Sisa koin lama tetap aktif (terakumulasi)</div>
+              <div>
+                3. Akses penuh fitur Mikrofon, Scan Produk & Ekstrak Video
+              </div>
             </div>
             <div className="flex gap-2 pt-1">
               <button
@@ -1472,7 +1454,7 @@ export default function HookyaMainApp() {
                 onClick={() => setShowUpgradeVIPModal(false)}
                 className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3.5 rounded-xl"
               >
-                Nanti Saja
+                Tutup
               </button>
               <button
                 type="button"
@@ -1482,14 +1464,14 @@ export default function HookyaMainApp() {
                 }}
                 className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
               >
-                👑 Lihat Paket VIP Sekarang ➔
+                Lihat Pilihan Paket VIP
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* HEADER FIXED STATIS */}
+      {/* HEADER STATIS */}
       <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10">
         <div className="flex items-center">
           <button
@@ -1554,7 +1536,7 @@ export default function HookyaMainApp() {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <label
                     className="cursor-pointer relative shrink-0"
-                    title="Ubah & sesuaikan foto profil 1:1"
+                    title="Ubah dan sesuaikan foto profil 1:1"
                   >
                     <img
                       src={getAvatarUrlUser()}
@@ -1618,19 +1600,19 @@ export default function HookyaMainApp() {
                 {showDetailKoinPopup && (
                   <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-700 space-y-1.5">
                     <div className="flex justify-between">
-                      <span>• Buat 1 Skrip Konten Utuh:</span>
+                      <span>Buat 1 Skrip Konten Utuh:</span>
                       <strong>1 Koin</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>• Gandakan 2x / 5x / 10x Skrip:</span>
+                      <span>Gandakan 2x / 5x / 10x Skrip:</span>
                       <strong>1 / 2 / 3 Koin</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>• Regenerate Kerangka (Tiap 3x):</span>
+                      <span>Tulis Ulang Kerangka (Tiap 3x):</span>
                       <strong>1 Koin</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>• Ekstrak Video Kompetitor (VIP):</span>
+                      <span>Ekstrak Video ke Skrip (VIP):</span>
                       <strong>2 Koin</strong>
                     </div>
                   </div>
@@ -1793,11 +1775,11 @@ export default function HookyaMainApp() {
               <div>
                 <strong className="font-bold">
                   {sisaHariPaket === 0
-                    ? "⚠️ Masa Aktif Paket Koinmu Telah Habis!"
-                    : `🚨 Masa Aktif Koinmu Tinggal ${sisaHariPaket} Hari Lagi!`}
+                    ? "Masa Aktif Paket Koinmu Telah Berakhir"
+                    : `Masa Aktif Koinmu Tersisa ${sisaHariPaket} Hari Lagi`}
                 </strong>
                 <p className="text-slate-700 mt-0.5">
-                  Perpanjang paket sekarang agar sisa{" "}
+                  Perpanjang paket sebelum masa aktif habis agar sisa{" "}
                   <strong>{coins} Koin</strong> kamu tidak hangus dan masa
                   aktifnya langsung ditambah +30 hari.
                 </p>
@@ -1807,7 +1789,7 @@ export default function HookyaMainApp() {
                 onClick={() => setActiveMenu("topup")}
                 className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-xl shrink-0"
               >
-                Perpanjang & Selamatkan Koin ➔
+                Perpanjang Paket Koin
               </button>
             </div>
           )}
@@ -1889,19 +1871,17 @@ export default function HookyaMainApp() {
             />
           )}
 
-          {/* MENU ARSIP SKRIP TERSIMPAN (DILENGKAPI GENERATOR STOK 2X / 5X / 10X SKRIP) */}
           {activeMenu === "tersimpan" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-                    Arsip Skrip Tersimpan & Generator Stok Materi (2x / 5x /
-                    10x)
+                    Arsip Skrip Tersimpan & Pengganda Stok (2x / 5x / 10x)
                   </h2>
                   <p className="text-xs text-slate-600 mt-1">
-                    Buka kembali skripmu, ceklis status upload VT, atau gandakan
-                    skrip yang ada menjadi 2x, 5x, hingga 10x variasi skrip baru
-                    sekaligus.
+                    Buka kembali skripmu, tandai status unggah VT, atau gandakan
+                    skrip yang ada menjadi 2x, 5x, hingga 10x variasi skrip
+                    baru.
                   </p>
                 </div>
                 <button
@@ -1950,10 +1930,9 @@ export default function HookyaMainApp() {
                         </button>
                       </div>
 
-                      {/* BAR GANDAKAN 2X / 5X / 10X LANGSUNG DARI ARSIP */}
                       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-bold text-[#14141f]">
-                          📚 Gandakan Jadi Stok Materi Baru:
+                          Gandakan Jadi Stok Materi Baru:
                         </span>
 
                         {sedangGandakanIni ? (
@@ -1962,7 +1941,7 @@ export default function HookyaMainApp() {
                               name="refresh"
                               className="w-4 h-4 animate-spin"
                             />
-                            <span>Sedang menggandakan variasi skrip...</span>
+                            <span>Menyusun variasi skrip...</span>
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -1973,7 +1952,7 @@ export default function HookyaMainApp() {
                               }
                               className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition"
                             >
-                              ⚡ 2x Skrip (1 Koin)
+                              Buat 2x Skrip (1 Koin)
                             </button>
                             <button
                               type="button"
@@ -1982,7 +1961,7 @@ export default function HookyaMainApp() {
                               }
                               className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition"
                             >
-                              🔥 5x Skrip (2 Koin)
+                              Buat 5x Skrip (2 Koin)
                             </button>
                             <button
                               type="button"
@@ -1991,7 +1970,7 @@ export default function HookyaMainApp() {
                               }
                               className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold px-3 py-1.5 rounded-xl border border-[#14141f]/20 transition"
                             >
-                              🚀 10x Skrip (3 Koin)
+                              Buat 10x Skrip (3 Koin)
                             </button>
                           </div>
                         )}
@@ -2122,7 +2101,7 @@ export default function HookyaMainApp() {
                         </div>
                         {item.evaluasiAI && (
                           <p className="text-xs bg-white p-3 rounded-xl">
-                            <strong>Evaluasi AI:</strong> {item.evaluasiAI}
+                            <strong>Catatan Evaluasi:</strong> {item.evaluasiAI}
                           </p>
                         )}
                       </div>
@@ -2132,21 +2111,20 @@ export default function HookyaMainApp() {
             </div>
           )}
 
-          {/* MENU TOPUP PAKET KOIN (7 PILIHAN: 5K, 10K, 15K, 20K, 25K, 50K, 90K) */}
           {activeMenu === "topup" && (
             <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-3xl flex items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-bold bg-[#14141f] text-[#d4f34a] px-2 py-0.5 rounded">
-                      RETENSI HARIAN
+                      CHECK-IN HARIAN
                     </span>
                     <h4 className="text-xs sm:text-sm font-bold text-[#14141f] mt-1">
-                      Check-in Harian (Streak: {checkinStreak} Hari)
+                      Check-in Harian (Beruntun: {checkinStreak} Hari)
                     </h4>
                     <p className="text-[11px] text-slate-600">
-                      Check-in 3 hari berturut-turut otomatis dapat +1 Koin
-                      gratis.
+                      Check-in 3 hari berturut-turut untuk mendapatkan +1 Koin
+                      tambahan.
                     </p>
                   </div>
                   <button
@@ -2154,29 +2132,29 @@ export default function HookyaMainApp() {
                     onClick={handleCheckinHarian}
                     className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2.5 rounded-xl shrink-0"
                   >
-                    🎁 Check-in
+                    Check-in Hari Ini
                   </button>
                 </div>
 
                 <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-4 rounded-3xl flex items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-bold bg-[#5b4bc4] text-white px-2 py-0.5 rounded">
-                      PROGRAM REFERRAL
+                      KODE UNDANGAN
                     </span>
                     <h4 className="text-xs sm:text-sm font-bold text-[#14141f] mt-1">
                       Kode Undanganmu: {kodeReferralSaya}
                     </h4>
                     <p className="text-[11px] text-slate-600">
-                      Ajak teman kreator pakai Hookya.site & klaim bonus koin.
+                      Bagikan kode undanganmu kepada teman sesama kreator.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `Yuk racik skrip konten VT pakai Produser AI Hookya! Gunakan kode undanganku ${kodeReferralSaya} di https://hookya.site`,
+                        `Susun skrip konten di Hookya.site dan gunakan kode undanganku: ${kodeReferralSaya} di https://hookya.site`,
                       )
-                      showToast("Link & kode referral berhasil disalin!")
+                      showToast("Tautan dan kode undangan disalin.")
                     }}
                     className="cursor-pointer bg-white border border-slate-300 text-[#14141f] text-xs font-bold px-3.5 py-2.5 rounded-xl shrink-0"
                   >
@@ -2193,8 +2171,7 @@ export default function HookyaMainApp() {
                   </h2>
                   <p className="text-xs text-slate-500">
                     Masa aktif saat ini: <strong>{sisaHariPaket} Hari</strong>.
-                    Paket Rp20.000 ke atas otomatis membuka seluruh fitur 👑
-                    VIP!
+                    Paket Rp20.000 ke atas membuka seluruh fitur VIP.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 bg-[#f4f5f7] p-1.5 rounded-2xl border border-slate-200">
@@ -2230,7 +2207,7 @@ export default function HookyaMainApp() {
                         <h3 className="font-bold text-sm">{p.nama}</h3>
                         {p.isVIP && (
                           <span className="text-[10px] font-bold bg-[#d4f34a] text-[#14141f] px-2 py-0.5 rounded-full">
-                            👑 VIP
+                            VIP
                           </span>
                         )}
                       </div>
@@ -2308,7 +2285,7 @@ export default function HookyaMainApp() {
                 >
                   {isSendingUsulan
                     ? "Mengirim ke Developer..."
-                    : "Kirim Usulan ke Developer Sekarang ➔"}
+                    : "Kirim Usulan ke Developer"}
                 </button>
               </form>
             </div>
@@ -2316,7 +2293,7 @@ export default function HookyaMainApp() {
         </main>
       </div>
 
-      {/* MODAL PEMBAYARAN QRIS MANUAL (UPLOAD FOTO BUKTI + KONFIRMASI WA ADMIN) */}
+      {/* MODAL PEMBAYARAN QRIS MANUAL */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl my-auto">
@@ -2341,7 +2318,7 @@ export default function HookyaMainApp() {
 
             <div className="bg-[#f4f5f7] p-4 rounded-2xl text-center space-y-2 border border-slate-200">
               <div className="text-xs font-bold text-slate-600">
-                1. Scan QRIS Statis Resmi & Bayar Sesuai Nominal Berikut:
+                1. Scan QRIS Statis & Bayar Sesuai Nominal Berikut:
               </div>
               {pengaturanPayment.qrisImageUrl ? (
                 <img
@@ -2384,7 +2361,7 @@ export default function HookyaMainApp() {
                     {namaFileBukti || "Klik untuk Pilih Foto Bukti Transfer"}
                   </div>
                   <span className="text-[11px] text-slate-500 block">
-                    Otomatis masuk ke arsip pengecekan Admin
+                    Bukti pembayaran akan diperiksa Admin
                   </span>
                 </div>
                 <input
@@ -2412,7 +2389,7 @@ export default function HookyaMainApp() {
               >
                 {sedangProsesBayar
                   ? "Mengirim Bukti..."
-                  : "Konfirmasi & Kirim ke WA Admin ➔"}
+                  : "Konfirmasi & Kirim ke WA Admin"}
               </button>
             </div>
           </div>
@@ -2464,20 +2441,20 @@ export default function HookyaMainApp() {
         <div className="fixed inset-0 bg-[#14141f]/95 z-50 flex flex-col justify-between p-6 text-white">
           <div className="flex justify-between items-center border-b border-white/10 pb-4">
             <span className="text-sm font-bold text-[#d4f34a]">
-              Tampilan Teks — {hasilSkrip.judul}
+              Tampilan Teks: {hasilSkrip.judul}
             </span>
             <button
               onClick={() => setModeTeleprompter(false)}
               className="cursor-pointer bg-white/10 px-4 py-2 rounded-xl text-xs font-bold"
             >
-              ✕ Tutup
+              Tutup
             </button>
           </div>
           <div className="max-w-2xl mx-auto my-auto space-y-6 text-center overflow-y-auto py-6">
             {hasilSkrip.segmen.map((s, idx) => (
               <div key={idx} className="space-y-1.5">
                 <div className="text-xs text-[#d4f34a] font-bold">
-                  {s.labelMini} — [{s.visual}]
+                  {s.labelMini} [{s.visual}]
                 </div>
                 <p className="text-xl sm:text-2xl font-bold leading-snug whitespace-pre-line">
                   {modeTampilanSkrip === "teks" ? s.teksLayar : s.voiceover}

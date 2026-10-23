@@ -38,7 +38,7 @@ export default function DeveloperDashboardView({
   muatUlangDataSupabase,
   showToast,
 }) {
-  const [devTab, setDevTab] = useState("overview")
+  const [devTab, setDevTab] = useState("transaksi")
   const [daftarErrorLog, setDaftarErrorLog] = useState([])
   const [daftarUsulan, setDaftarUsulan] = useState([])
   const [balasanInput, setBalasanInput] = useState({})
@@ -84,7 +84,6 @@ export default function DeveloperDashboardView({
     muatErrorDanUsulan()
   }, [])
 
-  // Upload Gambar QRIS Statis & LANGSUNG SIMPAN PERMANEN KE SUPABASE
   const handleUploadGambarQRISAdmin = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -151,7 +150,7 @@ export default function DeveloperDashboardView({
             : item,
         ),
       )
-      showToast("Status usulan/komplain berhasil diperbarui!")
+      showToast("Status usulan berhasil diperbarui.")
     } catch (err) {
       showToast("Gagal memperbarui usulan: " + err.message)
     }
@@ -169,7 +168,7 @@ export default function DeveloperDashboardView({
       await supabase.from("users").update(updatePayload).eq("id", uId)
       setEditingUserId(null)
       await muatUlangDataSupabase()
-      showToast("Email & Password akun berhasil diperbarui!")
+      showToast("Email dan Password akun berhasil diperbarui.")
     } catch (err) {
       showToast("Gagal memperbarui akun: " + err.message)
     }
@@ -183,8 +182,8 @@ export default function DeveloperDashboardView({
     }
     const pesan =
       sisaHari > 0
-        ? `Halo Kak *${u.nama}*! 👋\n\nKami dari tim *Hookya.site* ingin mengingatkan bahwa masa aktif paket kamu tinggal *${sisaHari} hari lagi*.\n\nSaat ini kamu masih memiliki sisa *${u.koin || 0} Koin*. Yuk perpanjang paketmu mulai Rp5.000 saja sebelum masa aktif habis, supaya sisa *${u.koin || 0} Koin* kamu *tidak hangus* dan masa aktifnya langsung diakumulasikan +30 hari! 🚀\n\nCek di sini ya: https://hookya.site`
-        : `Halo Kak *${u.nama}*! 👋\n\nMasa aktif paket *Hookya.site* kamu saat ini sudah berakhir. Yuk aktifkan kembali paket koinmu di https://hookya.site 🚀`
+        ? `Halo Kak *${u.nama}*.\n\nKami dari *Hookya.site* menginformasikan bahwa masa aktif paket kamu tersisa *${sisaHari} hari lagi*.\n\nSaat ini kamu masih memiliki sisa *${u.koin || 0} Koin*. Silakan perpanjang paket mulai Rp5.000 sebelum masa aktif berakhir agar sisa *${u.koin || 0} Koin* kamu tidak hangus dan masa aktifnya langsung ditambah 30 hari.\n\nAkses di sini: https://hookya.site`
+        : `Halo Kak *${u.nama}*.\n\nMasa aktif paket *Hookya.site* kamu saat ini sudah berakhir. Silakan aktifkan kembali paket koinmu di https://hookya.site`
 
     window.open(
       `https://wa.me/${noWA}?text=${encodeURIComponent(pesan)}`,
@@ -205,8 +204,8 @@ export default function DeveloperDashboardView({
       await muatUlangDataSupabase()
       showToast(
         `Status akun ${u.nama} diubah menjadi ${
-          statusBaru ? "👑 Member VIP (>= 20rb)" : "Member Standar"
-        }`,
+          statusBaru ? "Member VIP (>= 20rb)" : "Member Standar"
+        }.`,
       )
     } catch (err) {
       showToast("Gagal mengubah status VIP: " + err.message)
@@ -232,7 +231,7 @@ export default function DeveloperDashboardView({
         .eq("id", u.id)
       await muatUlangDataSupabase()
       showToast(
-        `Masa aktif ${u.nama} diakumulasikan menjadi ${totalHariBaru} hari!`,
+        `Masa aktif ${u.nama} diakumulasikan menjadi ${totalHariBaru} hari.`,
       )
     } catch (err) {
       showToast("Gagal menambah masa aktif: " + err.message)
@@ -291,7 +290,7 @@ export default function DeveloperDashboardView({
               Hookya Developer Console
             </span>
             <span className="text-[11px] text-[#d4f34a] hidden sm:inline">
-              Kendali 10.000 User, ACC QRIS Pendaftaran & Monitor Error Sistem
+              Manajemen Pengguna, Verifikasi Bukti QRIS & Monitor Sistem
             </span>
           </div>
         </div>
@@ -303,7 +302,7 @@ export default function DeveloperDashboardView({
               onClick={() => setDevTab("error_logs")}
               className="cursor-pointer bg-rose-600 text-white px-3 py-1.5 rounded-full text-[11px] font-bold animate-pulse"
             >
-              ⚠️ {daftarErrorLog.length} Notif Error AI
+              {daftarErrorLog.length} Notif Error AI
             </button>
           )}
           <button
@@ -312,18 +311,17 @@ export default function DeveloperDashboardView({
             className="cursor-pointer flex items-center gap-2 bg-[#d4f34a] text-[#14141f] px-3.5 py-2 rounded-full text-xs font-bold shadow-md hover:opacity-95 transition shrink-0"
           >
             <FlatIcon name="user" className="w-4 h-4" />
-            <span>Ke Dashboard User ➔</span>
+            <span>Ke Dashboard User</span>
           </button>
         </div>
       </header>
 
       <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 pt-20 sm:pt-24 space-y-6">
-        {/* PITA NOTIFIKASI LANGSUNG JIKA ADA USER MENGALAMI ERROR AI */}
         {daftarErrorLog.length > 0 && devTab !== "error_logs" && (
           <div className="bg-rose-500/20 border border-rose-400/40 text-white p-4 rounded-3xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div>
               <strong className="text-rose-300 block">
-                🔔 Notifikasi Admin: Terdapat {daftarErrorLog.length} Laporan
+                Notifikasi Admin: Terdapat {daftarErrorLog.length} Laporan
                 Kendala AI dari Pengguna
               </strong>
               <span>
@@ -332,9 +330,7 @@ export default function DeveloperDashboardView({
                 <strong>{daftarErrorLog[0]?.nama_user}</strong>:{" "}
                 <em className="text-rose-200">
                   "{daftarErrorLog[0]?.pesan_error}"
-                </em>{" "}
-                (Di layar user hanya ditampilkan pesan aman: "Error sistem,
-                silakan refresh atau hubungi admin").
+                </em>
               </span>
             </div>
             <button
@@ -342,7 +338,7 @@ export default function DeveloperDashboardView({
               onClick={() => setDevTab("error_logs")}
               className="cursor-pointer bg-white text-[#14141f] font-bold px-3.5 py-2 rounded-xl shrink-0"
             >
-              Cek Detail Error ➔
+              Buka Log Error
             </button>
           </div>
         )}
@@ -351,11 +347,11 @@ export default function DeveloperDashboardView({
           {[
             {
               id: "transaksi",
-              label: `ACC Pembayaran & Pengaturan QRIS (${jumlahTransaksiPending} Pending)`,
+              label: `ACC Pembayaran & QRIS (${jumlahTransaksiPending} Pending)`,
             },
             {
               id: "users",
-              label: `Kelola User & H-3 Hangus (${daftarUserH3Hangus.length} Siap Tagih)`,
+              label: `Kelola User & H-3 Hangus (${daftarUserH3Hangus.length})`,
             },
             { id: "overview", label: "Ringkasan & PIN Dev" },
             {
@@ -385,22 +381,18 @@ export default function DeveloperDashboardView({
         </div>
 
         <div className="bg-white text-[#14141f] rounded-4xl p-5 sm:p-8 shadow-xl space-y-6">
-          {/* TAB 1: PENGATURAN QRIS STATIS + WA ADMIN & ACC PEMBAYARAN PENDAFTARAN/TOPUP */}
+          {/* TAB 1: PENGATURAN QRIS STATIS + WA ADMIN & ACC PEMBAYARAN */}
           {devTab === "transaksi" && (
             <div className="space-y-6">
               <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-bold">
-                      Pengaturan QRIS Statis & Nomor WhatsApp Admin (Tersimpan
-                      Permanen)
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Gambar QRIS dan Nomor WA Admin di bawah ini otomatis
-                      muncul di halaman Pendaftaran Akun Baru maupun Top-Up
-                      Koin.
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-bold">
+                    Pengaturan QRIS Statis & Nomor WhatsApp Admin
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Gambar QRIS dan Nomor WA Admin di bawah ini tampil di
+                    halaman Pendaftaran Akun Baru maupun Top-Up Koin.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -421,13 +413,13 @@ export default function DeveloperDashboardView({
                     }`}
                   >
                     <div className="text-xs sm:text-sm font-bold">
-                      Skema 2 (Aktif Sekarang): QRIS Statis Manual + Upload
-                      Bukti + ACC WA Admin
+                      Skema 2 (Aktif): QRIS Statis Manual + Upload Bukti + ACC
+                      WA Admin
                     </div>
                     <p className="text-[11px] mt-0.5 opacity-85">
-                      User scan QRIS statis di bawah, upload bukti transfer,
-                      kirim WA ke Admin, lalu Admin klik ACC untuk mengirim WA
-                      berisi Username, Password & Koin.
+                      User scan QRIS statis, upload bukti transfer, kirim WA ke
+                      Admin, lalu Admin klik ACC untuk mengirim WA berisi
+                      Username, Password & Koin.
                     </p>
                   </button>
 
@@ -449,13 +441,12 @@ export default function DeveloperDashboardView({
                       Skema 1: Payment Gateway Otomatis (Duitku)
                     </div>
                     <p className="text-[11px] mt-0.5 opacity-85">
-                      Gunakan skema ini sewaktu-waktu ketika verifikasi akun
-                      Payment Gateway Duitku kamu sudah disetujui.
+                      Aktifkan skema ini ketika akun Payment Gateway Duitku
+                      sudah disetujui.
                     </p>
                   </button>
                 </div>
 
-                {/* FORM NOMOR WA ADMIN, NAMA REKENING & UPLOAD GAMBAR QRIS STATIS */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-3 border-t border-slate-200 items-center">
                   <div className="sm:col-span-8 space-y-3">
                     <div>
@@ -519,15 +510,14 @@ export default function DeveloperDashboardView({
                       >
                         {sedangSimpanConfig
                           ? "Menyimpan..."
-                          : "✓ Simpan Nomor WA & QRIS Sekarang"}
+                          : "Simpan Nomor WA & QRIS Sekarang"}
                       </button>
                     </div>
                   </div>
 
-                  {/* PRATINJAU GAMBAR QRIS STATIS YANG SEDANG TERSIMPAN */}
                   <div className="sm:col-span-4 bg-white p-3.5 rounded-2xl border border-slate-200 text-center space-y-1.5">
                     <span className="text-[10px] font-bold text-slate-500 block">
-                      PRATINJAU QRIS AKTIF SAAT INI:
+                      PRATINJAU QRIS TERSIMPAN:
                     </span>
                     {pengaturanPayment.qrisImageUrl ? (
                       <img
@@ -538,7 +528,7 @@ export default function DeveloperDashboardView({
                     ) : (
                       <div className="w-36 h-36 mx-auto rounded-xl bg-[#f4f5f7] flex flex-col items-center justify-center text-[11px] text-slate-400 p-2">
                         <FlatIcon name="qr" className="w-10 h-10 mb-1" />
-                        <span>Belum ada gambar QRIS diupload</span>
+                        <span>Belum ada gambar QRIS</span>
                       </div>
                     )}
                     <span className="text-[10px] font-bold text-[#4d6b14] block">
@@ -548,7 +538,7 @@ export default function DeveloperDashboardView({
                 </div>
               </div>
 
-              {/* DAFTAR PENGECEKAN BUKTI PEMBAYARAN PENDAFTARAN & TOPUP */}
+              {/* DAFTAR TRANSAKSI */}
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-1.5">
@@ -559,9 +549,9 @@ export default function DeveloperDashboardView({
                       },
                       {
                         id: "pending",
-                        label: `⏳ Menunggu ACC (${jumlahTransaksiPending})`,
+                        label: `Menunggu ACC (${jumlahTransaksiPending})`,
                       },
-                      { id: "lunas", label: "✓ Sudah Di-ACC (Lunas)" },
+                      { id: "lunas", label: "Sudah Di-ACC (Lunas)" },
                     ].map((f) => (
                       <button
                         key={f.id}
@@ -627,12 +617,12 @@ export default function DeveloperDashboardView({
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <strong className="font-bold text-sm">
-                                {trx.invoice_id} • {trx.nama_user} —{" "}
-                                {trx.nama_paket} (+{trx.jumlah_koin} Koin)
+                                {trx.invoice_id} • {trx.nama_user} (
+                                {trx.nama_paket} +{trx.jumlah_koin} Koin)
                               </strong>
                               {infoReg?.tipe === "PENDAFTARAN_BARU" && (
                                 <span className="bg-[#14141f] text-[#d4f34a] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                  PENDAFTARAN AKUN BARU
+                                  PENDAFTARAN BARU
                                 </span>
                               )}
                             </div>
@@ -665,7 +655,7 @@ export default function DeveloperDashboardView({
                                   }
                                   className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] underline"
                                 >
-                                  🔍 Perbesar Foto Bukti Pembayaran
+                                  Lihat Foto Bukti Pembayaran Ukuran Penuh
                                 </button>
                               </div>
                             )}
@@ -679,11 +669,11 @@ export default function DeveloperDashboardView({
                               onClick={() => handleApproveTransaksiAdmin(trx)}
                               className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-xl shadow-xs"
                             >
-                              ✓ ACC Pembayaran & Kirim WA Info Akun ke User ➔
+                              ACC Pembayaran & Kirim Info Login ke WA User
                             </button>
                           ) : (
                             <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3.5 py-1.5 rounded-full">
-                              ✓ Sudah Di-ACC (Lunas)
+                              Sudah Di-ACC (Lunas)
                             </span>
                           )}
                         </div>
@@ -695,18 +685,18 @@ export default function DeveloperDashboardView({
             </div>
           )}
 
-          {/* TAB 2: KELOLA USER & FILTER H-3 KOIN HANGUS */}
+          {/* TAB 2: KELOLA USER & FILTER H-3 HANGUS */}
           {devTab === "users" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold">
-                    Database Pengguna, Filter H-3 Koin Hangus & Pengingat WA
+                    Database Pengguna & Filter Sisa Masa Aktif
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Filter pengguna yang masa aktifnya tinggal 1–3 hari lalu
-                    klik tombol WA untuk mengirim pesan pengingat perpanjangan
-                    paket.
+                    Filter pengguna yang masa aktifnya tersisa 1 sampai 3 hari
+                    lalu klik tombol WA untuk mengirim pesan pengingat
+                    perpanjangan paket.
                   </p>
                 </div>
                 <button
@@ -727,10 +717,10 @@ export default function DeveloperDashboardView({
                     },
                     {
                       id: "h3_hangus",
-                      label: `🚨 H-3 Koin Hangus (${daftarUserH3Hangus.length})`,
+                      label: `H-3 Koin Hangus (${daftarUserH3Hangus.length})`,
                     },
-                    { id: "sudah_hangus", label: "❌ Sudah Hangus (0 Hari)" },
-                    { id: "vip", label: "👑 Member VIP (>= 20rb)" },
+                    { id: "sudah_hangus", label: "Sudah Hangus (0 Hari)" },
+                    { id: "vip", label: "Member VIP (>= 20rb)" },
                   ].map((f) => (
                     <button
                       key={f.id}
@@ -792,9 +782,7 @@ export default function DeveloperDashboardView({
                                 : "bg-slate-200 text-slate-700"
                             }`}
                           >
-                            {isVIP
-                              ? "👑 VIP (Fitur Lengkap)"
-                              : "Member Standar (< 20rb)"}
+                            {isVIP ? "VIP (Fitur Lengkap)" : "Standar (< 20rb)"}
                           </span>
                           <span
                             className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
@@ -806,8 +794,8 @@ export default function DeveloperDashboardView({
                             }`}
                           >
                             {sisaHari === 0
-                              ? "❌ Paket Hangus (0 Hari)"
-                              : `⏳ Aktif ${sisaHari} Hari Lagi`}
+                              ? "Paket Hangus (0 Hari)"
+                              : `Aktif ${sisaHari} Hari Lagi`}
                           </span>
                         </div>
 
@@ -826,7 +814,7 @@ export default function DeveloperDashboardView({
                           onClick={() => kirimWAPengingatHangus(u, sisaHari)}
                           className="cursor-pointer bg-[#f2fce2] hover:bg-[#d4f34a] text-[#14141f] border border-[#4d6b14]/30 font-bold px-3 py-1.5 rounded-xl"
                         >
-                          📲 WA Pengingat
+                          WA Pengingat
                         </button>
 
                         <button
@@ -834,7 +822,7 @@ export default function DeveloperDashboardView({
                           onClick={() => handleToggleVIPUser(u)}
                           className="cursor-pointer bg-white border border-slate-300 font-bold px-2.5 py-1.5 rounded-xl"
                         >
-                          {isVIP ? "Cabut VIP" : "Jadikan 👑 VIP"}
+                          {isVIP ? "Cabut VIP" : "Jadikan VIP"}
                         </button>
 
                         <button
@@ -922,7 +910,7 @@ export default function DeveloperDashboardView({
           {devTab === "overview" && (
             <div className="space-y-6">
               <h2 className="text-lg font-bold">
-                Ringkasan Bisnis Margin 90% & Keamanan PIN Developer
+                Ringkasan Operasional & Keamanan PIN Developer
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="p-5 rounded-2xl bg-[#14141f] text-white">
@@ -936,7 +924,7 @@ export default function DeveloperDashboardView({
 
                 <div className="p-5 rounded-2xl bg-[#fff0e6] border border-[#d97736]/30">
                   <span className="text-xs font-bold text-[#d97736]">
-                    🚨 User H-3 Koin Hangus
+                    User H-3 Koin Hangus
                   </span>
                   <div className="text-2xl font-bold text-[#14141f] mt-1">
                     {daftarUserH3Hangus.length} User
@@ -945,7 +933,7 @@ export default function DeveloperDashboardView({
 
                 <div className="p-5 rounded-2xl bg-[#f4f5f7] border border-slate-200">
                   <span className="text-xs text-slate-500">
-                    Total Skrip Diproduksi
+                    Total Skrip Tersimpan
                   </span>
                   <div className="text-2xl font-bold mt-1">
                     {koleksiSkripTersimpan.length} Skrip
@@ -974,12 +962,11 @@ export default function DeveloperDashboardView({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-bold">
-                    Notifikasi Kendala Sistem AI & Auto-Refund Koin
+                    Log Kendala Sistem AI & Pengembalian Koin
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Detail error teknis hanya tampil di layar Admin ini,
-                    sedangkan pengguna hanya melihat pesan sopan "Error sistem,
-                    silakan refresh atau hubungi admin".
+                    Rincian error teknis dicatat di halaman ini untuk pengecekan
+                    Admin.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -996,7 +983,7 @@ export default function DeveloperDashboardView({
                       onClick={handleBersihkanErrorLogs}
                       className="cursor-pointer bg-rose-100 text-rose-700 px-3.5 py-2 rounded-xl text-xs font-bold"
                     >
-                      Bersihkan Semua Notifikasi
+                      Bersihkan Semua Log
                     </button>
                   )}
                 </div>
@@ -1021,7 +1008,7 @@ export default function DeveloperDashboardView({
                       </p>
                     </div>
                     <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
-                      ✓ +{log.koin_diganti || 0} Koin Dikembalikan
+                      +{log.koin_diganti || 0} Koin Dikembalikan
                     </span>
                   </div>
                 ))
@@ -1134,7 +1121,7 @@ export default function DeveloperDashboardView({
                       ...daftarVoucher,
                     ])
                     setVoucherBaru({ kode: "", koin: "20", kuota: "25" })
-                    showToast("Voucher ditambahkan!")
+                    showToast("Voucher ditambahkan.")
                   }}
                   className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
                 >
@@ -1188,7 +1175,7 @@ export default function DeveloperDashboardView({
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1">
-                  2. Instruksi Sistem Co-Pilot 4 Tahap:
+                  2. Instruksi Sistem Diskusi Tahap 1-3:
                 </label>
                 <textarea
                   rows={2}
