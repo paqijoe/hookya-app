@@ -158,6 +158,8 @@ async function ekstrakAudioRinganAman(file) {
 export default function VideoExtractorView({
   userId,
   namaUser,
+  isPremiumUser = true,
+  onTriggerUpgradeVIP,
   coins,
   updateKoinDatabase,
   personaProfile,
@@ -222,6 +224,10 @@ export default function VideoExtractorView({
   }
 
   const handleFileVideoUpload = async (e) => {
+    if (!isPremiumUser) {
+      onTriggerUpgradeVIP()
+      return
+    }
     const file = e.target.files?.[0]
     if (!file) return
     setErrorRewriteAI("")
@@ -268,13 +274,17 @@ export default function VideoExtractorView({
         sedangEkstrakFile: false,
       }))
 
-      showToast(`Video "${file.name}" siap diekstrak ke teks!`)
+      showToast(`Video "${file.name}" siap diekstrak & dibedah!`)
     } catch {
       setSumberVideo((prev) => ({ ...prev, sedangEkstrakFile: false }))
     }
   }
 
   const handleEkstrakVideoSekarang = async () => {
+    if (!isPremiumUser) {
+      onTriggerUpgradeVIP()
+      return
+    }
     if (coins < 2) {
       alert(
         "Saldo koin belum mencukupi. Silakan isi ulang koin terlebih dahulu.",
@@ -326,9 +336,12 @@ export default function VideoExtractorView({
       setHasilRewriteVideo({
         transkripAsliVideo: data.transkripAsliVideo,
         intiPesanVideo: data.intiPesanVideo || sumberVideo.namaFileUpload,
+        bedahKompetitor: data.bedahKompetitor || null,
         segmen: Array.isArray(data.segmen) ? data.segmen : [],
       })
-      showToast("Teks asli video berhasil diekstrak dan dipecah per kerangka!")
+      showToast(
+        "Video berhasil diekstrak, dibedah rumus viralnya & ditulis ulang!",
+      )
     } catch (err) {
       setErrorRewriteAI(err.message)
     } finally {
@@ -336,7 +349,6 @@ export default function VideoExtractorView({
     }
   }
 
-  // SETIAP 3X REGENERATE KERANGKA TERHITUNG 1 KOIN
   const handleRegenerateSatuKerangkaVideo = async (indexBaris, fokusTarget) => {
     if (!hasilRewriteVideo) return
     const hitunganBaru = regenCount + 1
@@ -402,20 +414,48 @@ export default function VideoExtractorView({
 
   return (
     <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6 w-full max-w-full overflow-hidden">
-      <div className="border-b border-slate-100 pb-4">
-        <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-          Ekstrak Teks Asli Video & Buat Rekomendasi Copywriting Per Kerangka
-        </h2>
-        <p className="text-xs font-normal text-slate-600 mt-1">
-          Unggah file video dari perangkatmu. Sistem akan menampilkan teks asli
-          yang ada di dalam video tersebut, lalu menyusun rekomendasi
-          copywriting baru per kerangka.
-        </p>
+      <div className="border-b border-slate-100 pb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2.5 py-0.5 rounded">
+            AI VIDEO EXTRACTOR & COMPETITOR BREAKDOWN{" "}
+            {!isPremiumUser && "👑 KHUSUS PAKET Rp25.000+"}
+          </span>
+          <h2 className="text-lg sm:text-xl font-bold text-[#14141f] mt-1">
+            Ekstrak Teks Video, Bedah Rumus Kompetitor & Buat Skrip Baru
+          </h2>
+          <p className="text-xs font-normal text-slate-600 mt-0.5">
+            Unggah video referensi/kompetitor. Sistem akan menyalin teks
+            aslinya, membedah alasan video tersebut menarik, lalu menduplikasi
+            polanya ke gaya bicaramu.
+          </p>
+        </div>
+
+        {!isPremiumUser && (
+          <button
+            type="button"
+            onClick={onTriggerUpgradeVIP}
+            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-xl"
+          >
+            👑 Upgrade Paket Rp25.000+ untuk Membuka
+          </button>
+        )}
       </div>
 
-      <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-2 transition">
-        <div className="w-11 h-11 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center">
-          <FlatIcon name="upload" className="w-5 h-5" />
+      <label
+        onClick={(e) => {
+          if (!isPremiumUser) {
+            e.preventDefault()
+            onTriggerUpgradeVIP()
+          }
+        }}
+        className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-2 transition"
+      >
+        <div className="w-11 h-11 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-base font-bold">
+          {isPremiumUser ? (
+            <FlatIcon name="upload" className="w-5 h-5" />
+          ) : (
+            "👑"
+          )}
         </div>
         <div className="text-xs sm:text-sm font-bold text-[#14141f] break-all px-2">
           {sumberVideo.sedangEkstrakFile
@@ -425,34 +465,53 @@ export default function VideoExtractorView({
               : "Klik di Sini untuk Upload File Video / Audio (.mp4, .mov, .mp3)"}
         </div>
         <span className="text-xs font-normal text-slate-500">
-          Otomatis membaca ucapan suara & teks di dalam layar video
+          {isPremiumUser
+            ? "Otomatis membaca ucapan suara & teks di dalam layar video"
+            : "👑 Fitur Ekstrak Video khusus pengguna Paket Kreator (Rp25.000) ke atas"}
         </span>
-        <input
-          type="file"
-          accept="video/*,audio/*"
-          onChange={handleFileVideoUpload}
-          className="hidden"
-        />
+        {isPremiumUser && (
+          <input
+            type="file"
+            accept="video/*,audio/*"
+            onChange={handleFileVideoUpload}
+            className="hidden"
+          />
+        )}
       </label>
 
       <div>
         <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-          Arah Penulisan Ulang yang Kamu Inginkan (Opsional):
+          Topikmu Sendiri / Arah Adaptasi yang Kamu Inginkan (Opsional):
         </label>
-        <StoryVoiceInput
-          rows={2}
-          value={sumberVideo.instruksiTambahan}
-          onChange={(val) =>
-            setSumberVideo({ ...sumberVideo, instruksiTambahan: val })
-          }
-          placeholder="Contoh: Ubah menjadi cerita santai sesuai pengalamanku..."
-          onNotify={showToast}
-        />
+        {isPremiumUser ? (
+          <StoryVoiceInput
+            rows={2}
+            value={sumberVideo.instruksiTambahan}
+            onChange={(val) =>
+              setSumberVideo({ ...sumberVideo, instruksiTambahan: val })
+            }
+            placeholder="Contoh: Duplikasi pola hook video ini untuk membahas produk/topik saya..."
+            onNotify={showToast}
+          />
+        ) : (
+          <textarea
+            rows={2}
+            value={sumberVideo.instruksiTambahan}
+            onChange={(e) =>
+              setSumberVideo({
+                ...sumberVideo,
+                instruksiTambahan: e.target.value,
+              })
+            }
+            placeholder="Contoh: Duplikasi pola hook video ini untuk membahas produk/topik saya..."
+            className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3.5 text-xs outline-none"
+          />
+        )}
       </div>
 
       {isGenerating ? (
         <AILoadingBox
-          label="Sedang membaca suara/teks asli video & menyusun kerangka copywriting..."
+          label="Sedang menyalin teks asli video, membedah rumus kompetitor & menyusun kerangka..."
           onRefresh={handleEkstrakVideoSekarang}
         />
       ) : (
@@ -462,7 +521,11 @@ export default function VideoExtractorView({
           onClick={handleEkstrakVideoSekarang}
           className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          <span>Ekstrak Teks Asli Video & Buat Copywriting</span>
+          <span>
+            {isPremiumUser
+              ? "Ekstrak Teks Video, Bedah Kompetitor & Buat Skrip"
+              : "👑 Buka Fitur Ekstrak Video (Khusus Paket Rp25.000+)"}
+          </span>
         </button>
       )}
 
@@ -474,6 +537,41 @@ export default function VideoExtractorView({
 
       {!isGenerating && hasilRewriteVideo && (
         <div className="space-y-6 pt-4 border-t border-slate-100">
+          {/* BEDAH RUMUS VIRAL KOMPETITOR */}
+          {hasilRewriteVideo.bedahKompetitor && (
+            <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-5 rounded-3xl space-y-2.5">
+              <span className="text-[10px] font-bold uppercase bg-[#14141f] text-[#d4f34a] px-2.5 py-0.5 rounded">
+                BEDAH RUMUS COPYWRITING VIDEO INI
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                  <strong className="block text-[#5b4bc4]">
+                    Jenis Hook yang Dipakai:
+                  </strong>
+                  <span className="text-[#14141f] font-bold">
+                    {hasilRewriteVideo.bedahKompetitor.jenisHookAsli}
+                  </span>
+                </div>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                  <strong className="block text-[#5b4bc4]">
+                    Pemicu Psikologi Penonton:
+                  </strong>
+                  <span className="text-slate-700">
+                    {hasilRewriteVideo.bedahKompetitor.pemicuEmosi}
+                  </span>
+                </div>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                  <strong className="block text-[#5b4bc4]">
+                    Rahasia Penahan Retensi:
+                  </strong>
+                  <span className="text-slate-700">
+                    {hasilRewriteVideo.bedahKompetitor.rahasiaRetensi}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#14141f]">
@@ -504,7 +602,7 @@ export default function VideoExtractorView({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-[#14141f]">
-                  2. Rekomendasi Copywriting Baru (Dipecah Per Kerangka)
+                  2. Rekomendasi Copywriting Baru Sesuai Positioning Kamu
                 </h3>
                 <p className="text-xs font-normal text-slate-600">
                   Klik ikon putar pada salah satu kerangka di bawah untuk
