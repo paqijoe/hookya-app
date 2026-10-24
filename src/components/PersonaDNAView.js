@@ -1,14 +1,14 @@
-"use client"
-import { useState, useEffect } from "react"
+"use client";
+import { useState, useEffect } from "react";
 import {
   FlatIcon,
   StoryVoiceInput,
   SelectWithCustom,
   AILoadingBox,
-} from "./SharedUI"
+} from "./SharedUI";
 
 const KALIMAT_DUMMY_LAMA =
-  "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan."
+  "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan.";
 
 export default function PersonaDNAView({
   userId,
@@ -35,25 +35,25 @@ export default function PersonaDNAView({
   showToast,
   customPrompts,
 }) {
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [activeHelperKey, setActiveHelperKey] = useState(null)
-  const [loadingHelperKey, setLoadingHelperKey] = useState(null)
-  const [helperResults, setHelperResults] = useState({})
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [activeHelperKey, setActiveHelperKey] = useState(null);
+  const [loadingHelperKey, setLoadingHelperKey] = useState(null);
+  const [helperResults, setHelperResults] = useState({});
 
   useEffect(() => {
     if (rawWritingSamples === KALIMAT_DUMMY_LAMA) {
-      setRawWritingSamples("")
+      setRawWritingSamples("");
     }
-  }, [rawWritingSamples, setRawWritingSamples])
+  }, [rawWritingSamples, setRawWritingSamples]);
 
   const handleMintaReferensiKolom = async (fieldKey, fieldLabel) => {
     if (activeHelperKey === fieldKey && helperResults[fieldKey]) {
-      setActiveHelperKey(null)
-      return
+      setActiveHelperKey(null);
+      return;
     }
 
-    setActiveHelperKey(fieldKey)
-    setLoadingHelperKey(fieldKey)
+    setActiveHelperKey(fieldKey);
+    setLoadingHelperKey(fieldKey);
 
     try {
       const res = await fetch("/api/ai", {
@@ -83,13 +83,13 @@ export default function PersonaDNAView({
             keraguan_penonton: profil.targetKeraguanInput,
           },
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          data.error || "Error sistem, silakan refresh atau hubungi admin.",
-        )
+          data.error || "Error sistem, silakan refresh atau hubungi admin."
+        );
       }
 
       setHelperResults((prev) => ({
@@ -101,18 +101,18 @@ export default function PersonaDNAView({
             ? data.pilihan_referensi
             : [],
         },
-      }))
+      }));
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast("Error sistem, silakan refresh atau hubungi admin.");
     } finally {
-      setLoadingHelperKey(null)
+      setLoadingHelperKey(null);
     }
-  }
+  };
 
   const renderLabelDenganInfo = (labelTeks, fieldKey, onPilihOpsi) => {
-    const sedangLoading = loadingHelperKey === fieldKey
-    const sedangBuka = activeHelperKey === fieldKey
-    const dataRef = helperResults[fieldKey]
+    const sedangLoading = loadingHelperKey === fieldKey;
+    const sedangBuka = activeHelperKey === fieldKey;
+    const dataRef = helperResults[fieldKey];
 
     return (
       <div className="space-y-1.5 mb-1.5">
@@ -166,8 +166,8 @@ export default function PersonaDNAView({
                       key={idx}
                       type="button"
                       onClick={() => {
-                        onPilihOpsi(itemOpsi)
-                        showToast("Referensi diterapkan ke kolom.")
+                        onPilihOpsi(itemOpsi);
+                        showToast("Referensi diterapkan ke kolom.");
                       }}
                       className="cursor-pointer snap-start shrink-0 max-w-xs bg-white hover:bg-[#d4f34a] text-[#14141f] border border-slate-200 text-left px-3 py-2 rounded-lg text-[11px] font-medium transition leading-snug"
                     >
@@ -180,12 +180,12 @@ export default function PersonaDNAView({
           </div>
         )}
       </div>
-    )
-  }
+    );
+  };
 
   const handleAnalisisGayaBicara = async () => {
-    setIsGenerating(true)
-    showToast("Memperbarui matriks positioning dan gaya bicara...")
+    setIsGenerating(true);
+    showToast("Memperbarui Voice DNA dan Konteks Niche profilmu...");
 
     try {
       const res = await fetch("/api/ai", {
@@ -234,44 +234,49 @@ export default function PersonaDNAView({
             "Santai, akrab, jujur, dan langsung ke inti pembahasan.",
           customPrompts,
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          data.error || "Error sistem, silakan refresh atau hubungi admin.",
-        )
+          data.error || "Error sistem, silakan refresh atau hubungi admin."
+        );
       }
 
-      setPersonaProfile(data)
-      await simpanPersonaKeSupabase(data)
-      showToast("Profil dan gaya bicara berhasil diperbarui.")
+      setPersonaProfile(data);
+      await simpanPersonaKeSupabase(data);
+      showToast("Voice DNA dan Konteks Niche berhasil diperbarui.");
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast("Error sistem, silakan refresh atau hubungi admin.");
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
+
+  const partikelLisanAktif =
+    personaProfile?.voice_dna?.spoken_particles ||
+    personaProfile?.linguistic_matrix?.signature_vocabulary || [
+      "sih",
+      "tuh",
+      "kan",
+      "deh",
+    ];
 
   return (
     <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-8">
-      {/* HEADER HALAMAN TANPA EYEBROW BADGE */}
       <div className="border-b border-slate-200 pb-5">
         <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-          Profil, Positioning, dan Target Penonton
+          Profil, Voice DNA, dan Konteks Target Penonton
         </h2>
         <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-          Data di halaman ini menjadi acuan agar setiap skrip sesuai dengan
-          peran, pengalaman, dan cara bicaramu sehari-hari. Klik tombol{" "}
-          <strong>i Referensi</strong> di samping label kolom untuk melihat
-          rekomendasi berdasarkan jawabanmu.
+          Data di halaman ini dibagi menjadi dua lapis otomatis: <strong>Lapis 1 (Voice DNA)</strong> yang selalu dikunci di semua skrip, serta <strong>Lapis 2 (Konteks Niche)</strong> yang fleksibel dan tidak akan bocor saat kamu membahas produk lintas kategori. Klik tombol <strong>i Referensi</strong> di samping label kolom untuk melihat rekomendasi instan.
         </p>
       </div>
 
-      {/* SEKSI 1: IDENTITAS & SAPAAN */}
+      {/* SEKSI 1: IDENTITAS & SAPAAN (VOICE DNA INTI) */}
       <section className="space-y-4">
         <h3 className="text-sm font-bold text-[#14141f]">
-          1. Identitas & Kata Sapaan
+          1. Identitas & Kata Sapaan (Lapis 1: Voice DNA)
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
@@ -326,7 +331,7 @@ export default function PersonaDNAView({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SelectWithCustom
-            label="Sebutan Diri Saat Bicara di Konten"
+            label="Sebutan Diri Saat Bicara di Kamera"
             value={profil.selfPronounInput}
             options={["Gue", "Aku", "Saya", "Kita", "Bunda / Ayah"]}
             onChange={(val) => setProfil({ ...profil, selfPronounInput: val })}
@@ -355,11 +360,10 @@ export default function PersonaDNAView({
       <section className="space-y-4 pt-6 border-t border-slate-200">
         <div>
           <h3 className="text-sm font-bold text-[#14141f]">
-            2. Positioning & Pengalaman Unik (USP)
+            2. Sikap Bicara & Pengalaman Unik (USP)
           </h3>
           <p className="text-xs text-slate-600 mt-0.5">
-            Tentukan posisi bicaramu dan pengalaman lapangan yang membedakanmu
-            dari kreator lain.
+            Tentukan sikap bicaramu di depan kamera dan pengalaman lapangan yang kamu miliki.
           </p>
         </div>
 
@@ -368,7 +372,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Posisi / Peran Otoritas di Mata Penonton",
               "peranSaatIni",
-              (val) => setProfil({ ...profil, peranSaatIni: val }),
+              (val) => setProfil({ ...profil, peranSaatIni: val })
             )}
             <SelectWithCustom
               label=""
@@ -388,9 +392,9 @@ export default function PersonaDNAView({
 
           <div>
             {renderLabelDenganInfo(
-              "Karakter & Gaya Pembawaan",
+              "Karakter & Ritme Pembawaan Lisan",
               "kepribadianSosial",
-              (val) => setProfil({ ...profil, kepribadianSosial: val }),
+              (val) => setProfil({ ...profil, kepribadianSosial: val })
             )}
             <SelectWithCustom
               label=""
@@ -413,9 +417,9 @@ export default function PersonaDNAView({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             {renderLabelDenganInfo(
-              "Topik / Bidang Utama yang Sering Dibahas",
+              "Topik / Niche Utama Profil (Lapis 2)",
               "minatUtama",
-              (val) => setProfil({ ...profil, minatUtama: val }),
+              (val) => setProfil({ ...profil, minatUtama: val })
             )}
             <input
               type="text"
@@ -432,7 +436,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Keunikan Latar Belakangmu (USP)",
               "uspDiriInput",
-              (val) => setProfil({ ...profil, uspDiriInput: val }),
+              (val) => setProfil({ ...profil, uspDiriInput: val })
             )}
             <input
               type="text"
@@ -451,7 +455,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Kebiasaan / Hal Umum yang Paling Kamu Kritisi",
               "opiniKontraInput",
-              (val) => setProfil({ ...profil, opiniKontraInput: val }),
+              (val) => setProfil({ ...profil, opiniKontraInput: val })
             )}
             <input
               type="text"
@@ -466,9 +470,9 @@ export default function PersonaDNAView({
 
           <div>
             {renderLabelDenganInfo(
-              "Perumpamaan / Analogi yang Sering Kamu Pakai",
+              "Perumpamaan Sehari-hari yang Sering Kamu Pakai",
               "analogiKhasInput",
-              (val) => setProfil({ ...profil, analogiKhasInput: val }),
+              (val) => setProfil({ ...profil, analogiKhasInput: val })
             )}
             <input
               type="text"
@@ -483,15 +487,14 @@ export default function PersonaDNAView({
         </div>
       </section>
 
-      {/* SEKSI 3: TARGET PENONTON */}
+      {/* SEKSI 3: TARGET PENONTON (LAPIS 2 - KONTEKSTUAL) */}
       <section className="space-y-4 pt-6 border-t border-slate-200">
         <div>
           <h3 className="text-sm font-bold text-[#14141f]">
-            3. Karakteristik Target Penonton
+            3. Karakteristik Target Penonton (Lapis 2: Konteks Niche)
           </h3>
           <p className="text-xs text-slate-600 mt-0.5">
-            Petakan masalah dan kebutuhan penonton agar kalimat pembuka langsung
-            relevan dengan situasi mereka.
+            Digunakan saat kamu membuat konten yang sejalur dengan niche profilmu. Jika kamu memilih saklar <strong>Lintas Produk / Bebas</strong> saat membuat skrip, bagian ini otomatis menyesuaikan produk baru tanpa membocorkan niche lama.
           </p>
         </div>
 
@@ -500,7 +503,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Siapa Target Penonton Utamamu?",
               "targetSegmenInput",
-              (val) => setProfil({ ...profil, targetSegmenInput: val }),
+              (val) => setProfil({ ...profil, targetSegmenInput: val })
             )}
             <input
               type="text"
@@ -517,7 +520,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Masalah / Kekhawatiran Terbesar Mereka",
               "targetKetakutanInput",
-              (val) => setProfil({ ...profil, targetKetakutanInput: val }),
+              (val) => setProfil({ ...profil, targetKetakutanInput: val })
             )}
             <input
               type="text"
@@ -534,7 +537,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Hasil Nyata yang Mereka Cari",
               "targetImpianInput",
-              (val) => setProfil({ ...profil, targetImpianInput: val }),
+              (val) => setProfil({ ...profil, targetImpianInput: val })
             )}
             <input
               type="text"
@@ -551,7 +554,7 @@ export default function PersonaDNAView({
             {renderLabelDenganInfo(
               "Alasan Mereka Biasanya Ragu Memulai / Membeli",
               "targetKeraguanInput",
-              (val) => setProfil({ ...profil, targetKeraguanInput: val }),
+              (val) => setProfil({ ...profil, targetKeraguanInput: val })
             )}
             <input
               type="text"
@@ -566,16 +569,15 @@ export default function PersonaDNAView({
         </div>
       </section>
 
-      {/* SEKSI 4: CONTOH KALIMAT ASLI & ANALISIS */}
+      {/* SEKSI 4: CONTOH KALIMAT ASLI & ANALISIS VOICE DNA */}
       <section className="space-y-4 pt-6 border-t border-slate-200">
         {renderLabelDenganInfo(
-          "4. Contoh Kalimat Gaya Bicaramu Sehari-hari",
+          "4. Sampel Kalimat Lisanmu Sehari-hari (Sumber Utama Voice DNA)",
           "rawWritingSamples",
-          (val) => setRawWritingSamples(val),
+          (val) => setRawWritingSamples(val)
         )}
         <p className="text-xs text-slate-600">
-          Tuliskan 2 sampai 3 kalimat sesuai cara ngobrol aslimu. Sistem akan
-          mempertahankan pilihan kata dan panjang kalimatmu.
+          Tuliskan 2 sampai 3 kalimat sesuai cara ngobrol aslimu di depan kamera. Sistem akan mengunci partikel lisan (seperti <em>sih, tuh, kan, deh, lho</em>) dan jeda napas kalimatmu.
         </p>
 
         {isPremiumUser ? (
@@ -585,7 +587,7 @@ export default function PersonaDNAView({
               rawWritingSamples === KALIMAT_DUMMY_LAMA ? "" : rawWritingSamples
             }
             onChange={setRawWritingSamples}
-            placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan..."
+            placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel, benerin dulu fondasinya baru jalan..."
             onNotify={showToast}
           />
         ) : (
@@ -598,7 +600,7 @@ export default function PersonaDNAView({
                   : rawWritingSamples
               }
               onChange={(e) => setRawWritingSamples(e.target.value)}
-              placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan..."
+              placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel, benerin dulu fondasinya baru jalan..."
               className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-24 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none"
             />
             <button
@@ -615,7 +617,7 @@ export default function PersonaDNAView({
 
         {isGenerating ? (
           <AILoadingBox
-            label="Menyusun matriks positioning dan gaya bicara..."
+            label="Menyusun pemisahan Lapis 1 (Voice DNA) dan Lapis 2 (Konteks Niche)..."
             onRefresh={handleAnalisisGayaBicara}
           />
         ) : (
@@ -624,75 +626,80 @@ export default function PersonaDNAView({
             onClick={handleAnalisisGayaBicara}
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-3.5 rounded-lg hover:opacity-95 transition"
           >
-            Perbarui Matriks Gaya Bicara
+            Perbarui Voice DNA & Konteks Niche
           </button>
         )}
 
-        {/* RINGKASAN MATRIKS SAAT INI */}
+        {/* RINGKASAN MATRIKS 2 LAPIS (VOICE DNA VS KONTEKS NICHE) */}
         <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
           <div className="text-xs font-bold text-[#4d6b14]">
-            Ringkasan Positioning & Gaya Bicara Aktif
+            Matriks Identitas Aktif (Sistem 2 Lapis Anti-Bocor Topik)
           </div>
           <p className="text-xs sm:text-sm font-bold text-[#14141f] leading-relaxed">
             {personaProfile?.persona_summary}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#14141f]">Positioning & USP</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1.5">
+              <div className="font-bold text-[#4d6b14]">
+                Lapis 1: Voice DNA (Dikunci 100% di Semua Skrip)
+              </div>
               <div className="text-slate-600">
-                Peran:{" "}
+                Sapaan Kamera:{" "}
                 <strong className="text-[#14141f]">
-                  {personaProfile?.positioning_and_usp?.authority_role ||
-                    profil.peranSaatIni}
+                  {personaProfile?.voice_dna?.self_pronoun ||
+                    personaProfile?.linguistic_matrix?.self_pronoun ||
+                    profil.selfPronounInput}{" "}
+                  ke{" "}
+                  {personaProfile?.voice_dna?.audience_pronoun ||
+                    personaProfile?.linguistic_matrix?.audience_pronoun ||
+                    profil.audiencePronounInput}
                 </strong>
               </div>
               <div className="text-slate-600">
-                USP:{" "}
+                Partikel & Kata Lisan:{" "}
+                <strong className="text-[#14141f]">
+                  {Array.isArray(partikelLisanAktif)
+                    ? partikelLisanAktif.join(", ")
+                    : partikelLisanAktif}
+                </strong>
+              </div>
+              <div className="text-slate-600">
+                Sikap Bicara:{" "}
                 <span>
-                  {personaProfile?.positioning_and_usp?.unique_selling_point ||
-                    profil.uspDiriInput ||
-                    "Praktik nyata"}
+                  {personaProfile?.voice_dna?.delivery_style ||
+                    profil.kepribadianSosial}
                 </span>
               </div>
             </div>
 
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#5b4bc4]">Target Penonton</div>
+            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1.5">
+              <div className="font-bold text-[#5b4bc4]">
+                Lapis 2: Konteks Niche (Fleksibel Mengikuti Saklar Topik)
+              </div>
               <div className="text-slate-600">
-                Masalah:{" "}
+                Niche Utama:{" "}
                 <strong className="text-[#14141f]">
-                  {personaProfile?.target_audience?.deepest_pain_points ||
+                  {personaProfile?.niche_context?.primary_niche ||
+                    profil.minatUtama}
+                </strong>
+              </div>
+              <div className="text-slate-600">
+                Masalah Penonton Niche:{" "}
+                <strong className="text-[#14141f]">
+                  {personaProfile?.niche_context?.deepest_pain_points ||
+                    personaProfile?.target_audience?.deepest_pain_points ||
                     profil.targetKetakutanInput ||
                     "Belum diisi"}
                 </strong>
               </div>
               <div className="text-slate-600">
-                Kebutuhan:{" "}
+                Keunikan (USP):{" "}
                 <span>
-                  {personaProfile?.target_audience?.secret_desires ||
-                    profil.targetImpianInput ||
-                    "Belum diisi"}
+                  {personaProfile?.niche_context?.unique_selling_point ||
+                    personaProfile?.positioning_and_usp?.unique_selling_point ||
+                    profil.uspDiriInput ||
+                    "Praktik nyata"}
                 </span>
-              </div>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#4d6b14]">Gaya Bahasa</div>
-              <div className="text-slate-600">
-                Sapaan:{" "}
-                <strong className="text-[#14141f]">
-                  {personaProfile?.linguistic_matrix?.self_pronoun} /{" "}
-                  {personaProfile?.linguistic_matrix?.audience_pronoun}
-                </strong>
-              </div>
-              <div className="text-slate-600">
-                Kosakata Khas:{" "}
-                <strong className="text-[#14141f]">
-                  {(
-                    personaProfile?.linguistic_matrix?.signature_vocabulary ||
-                    []
-                  ).join(", ")}
-                </strong>
               </div>
             </div>
           </div>
@@ -706,14 +713,14 @@ export default function PersonaDNAView({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {SEPULUH_BENTUK_KONTEN.map((item) => {
-            const terpilih = bentukKonten === item.nama
+            const terpilih = bentukKonten === item.nama;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setBentukKonten(item.nama)
-                  setModeTampilanSkrip(item.modeDefault)
+                  setBentukKonten(item.nama);
+                  setModeTampilanSkrip(item.modeDefault);
                 }}
                 className={`cursor-pointer p-3.5 rounded-xl text-left border transition flex items-center justify-between gap-3 ${
                   terpilih
@@ -744,7 +751,7 @@ export default function PersonaDNAView({
                   />
                 )}
               </button>
-            )
+            );
           })}
         </div>
 
@@ -772,7 +779,7 @@ export default function PersonaDNAView({
                 { key: "sore", label: "Sore" },
                 { key: "malam", label: "Malam" },
               ].map((w) => {
-                const slot = jadwalCeklis[w.key]
+                const slot = jadwalCeklis[w.key];
                 return (
                   <div
                     key={w.key}
@@ -833,7 +840,7 @@ export default function PersonaDNAView({
                       />
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -843,14 +850,14 @@ export default function PersonaDNAView({
       <button
         type="button"
         onClick={async () => {
-          await simpanPersonaKeSupabase(personaProfile)
-          setActiveMenu("produksi")
-          showToast("Profil disimpan. Silakan mulai membuat skrip.")
+          await simpanPersonaKeSupabase(personaProfile);
+          setActiveMenu("produksi");
+          showToast("Profil disimpan. Silakan mulai membuat skrip.");
         }}
         className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-sm py-3.5 rounded-lg hover:opacity-95 transition"
       >
         Simpan Profil & Buat Skrip
       </button>
     </div>
-  )
+  );
 }

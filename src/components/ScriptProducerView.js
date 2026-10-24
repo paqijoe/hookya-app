@@ -3,11 +3,10 @@ import { useState, useEffect, useRef } from "react"
 import { FlatIcon, StoryVoiceInput, AILoadingBox } from "./SharedUI"
 
 const PILIHAN_DURASI_KONTEN = [
-  "15 Detik (Padat & Langsung)",
-  "30 Detik (Ringkas)",
-  "60 Detik / 1 Menit (Standar)",
-  "2 Menit (Pembahasan Mendalam)",
-  "3 Menit (Penjelasan Lengkap)",
+  "15 - 30 Detik (3 - 4 Bagian Cepat)",
+  "45 - 60 Detik (4 - 5 Bagian Standar)",
+  "90 Detik - 2 Menit (6 - 7 Bagian Mendalam)",
+  "2.5 - 3 Menit (7 - 8 Bagian Lengkap)",
 ]
 
 function kompresGambarScreenshot(file) {
@@ -52,6 +51,56 @@ function kompresGambarScreenshot(file) {
   })
 }
 
+// Fungsi pembantu agar komponen selalu kompatibel dengan format baru (`sections`) maupun skrip arsip lama (`segmen`)
+function ambilDaftarBagianSkrip(skripObj) {
+  if (!skripObj) return []
+  if (Array.isArray(skripObj.sections) && skripObj.sections.length > 0) {
+    return skripObj.sections.map((sec, idx) => ({
+      partNumber: sec.partNumber || idx + 1,
+      partTitle: sec.partTitle || `Bagian ${idx + 1}`,
+      estimatedSeconds: sec.estimatedSeconds || "",
+      labelMini:
+        sec.labelMini ||
+        `Bagian ${sec.partNumber || idx + 1} • ${sec.partTitle || `Babak ${idx + 1}`}`,
+      spokenText: sec.spokenText || sec.voiceover || "",
+      voiceover: sec.spokenText || sec.voiceover || "",
+      onScreenText:
+        sec.onScreenText ||
+        sec.teksLayar ||
+        sec.spokenText ||
+        sec.voiceover ||
+        "",
+      teksLayar:
+        sec.onScreenText ||
+        sec.teksLayar ||
+        sec.spokenText ||
+        sec.voiceover ||
+        "",
+      visualCue: sec.visualCue || sec.visual || "",
+      visual: sec.visualCue || sec.visual || "",
+    }))
+  }
+  if (Array.isArray(skripObj.segmen) && skripObj.segmen.length > 0) {
+    return skripObj.segmen.map((seg, idx) => ({
+      partNumber: seg.partNumber || idx + 1,
+      partTitle:
+        seg.partTitle ||
+        (seg.labelMini
+          ? seg.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
+          : `Bagian ${idx + 1}`),
+      estimatedSeconds: seg.estimatedSeconds || "",
+      labelMini: seg.labelMini || `Bagian ${idx + 1}`,
+      spokenText: seg.spokenText || seg.voiceover || "",
+      voiceover: seg.voiceover || seg.spokenText || "",
+      onScreenText: seg.onScreenText || seg.teksLayar || seg.voiceover || "",
+      teksLayar: seg.teksLayar || seg.onScreenText || seg.voiceover || "",
+      visualCue: seg.visualCue || seg.visual || "",
+      visual: seg.visual || seg.visualCue || "",
+    }))
+  }
+  return []
+}
+
 export default function ScriptProducerView({
   userId,
   namaUser,
@@ -88,9 +137,12 @@ export default function ScriptProducerView({
   const [kategoriKonten, setKategoriKonten] = useState("personal")
   const [jenisPromosi, setJenisPromosi] = useState("produk")
 
+  // PILAR 2: Saklar Konteks 1-Klik ('sesuai_niche' vs 'lintas_produk')
+  const [contextMode, setContextMode] = useState("sesuai_niche")
+
   const [rawTopicInput, setRawTopicInput] = useState("")
   const [targetPlatformInput, setTargetPlatformInput] = useState(
-    PILIHAN_DURASI_KONTEN[2],
+    PILIHAN_DURASI_KONTEN[1],
   )
 
   const [posisiBicara, setPosisiBicara] = useState(
@@ -119,7 +171,6 @@ export default function ScriptProducerView({
     tujuanUtama: "",
   })
 
-  // Mengosongkan nama dummy ("Rina", "Dinda") sesuai aturan R-23 & R-38
   const [ugcConfig, setUgcConfig] = useState({
     aktif: false,
     jumlahOrang: 2,
@@ -153,12 +204,17 @@ export default function ScriptProducerView({
 
   const [contentBrief, setContentBrief] = useState({
     session_id: "ses_4410",
+    context_mode: "sesuai_niche",
     selected_framework: "PAS_RELATABLE_BRIDGE",
-    target_platform: PILIHAN_DURASI_KONTEN[2],
+    target_platform: PILIHAN_DURASI_KONTEN[1],
     core_idea: "",
     chosen_angle: "",
     personal_context_or_story: "",
-    injected_reference: { type: "Mekanisme", title: "", summary: "" },
+    injected_reference: {
+      type: "Sebab -> Akibat Fisik Nyata",
+      title: "",
+      summary: "",
+    },
     actionable_solution: [],
     locked_hook: "",
     call_to_action: "",
@@ -173,7 +229,7 @@ export default function ScriptProducerView({
     SEPULUH_BENTUK_KONTEN[9]?.nama || "Slide Foto / Carousel",
   )
   const [targetDurasiUbah, setTargetDurasiUbah] = useState(
-    PILIHAN_DURASI_KONTEN[2],
+    PILIHAN_DURASI_KONTEN[1],
   )
 
   const [koleksiVariasiGanda, setKoleksiVariasiGanda] = useState([])
@@ -227,6 +283,7 @@ export default function ScriptProducerView({
         const parsed = JSON.parse(savedRaw)
         if (parsed.kategoriKonten) setKategoriKonten(parsed.kategoriKonten)
         if (parsed.jenisPromosi) setJenisPromosi(parsed.jenisPromosi)
+        if (parsed.contextMode) setContextMode(parsed.contextMode)
         if (parsed.rawTopicInput) setRawTopicInput(parsed.rawTopicInput)
         if (parsed.posisiBicara) setPosisiBicara(parsed.posisiBicara)
         if (parsed.sumberBeritaMentah)
@@ -266,6 +323,7 @@ export default function ScriptProducerView({
       const payloadSimpan = {
         kategoriKonten,
         jenisPromosi,
+        contextMode,
         rawTopicInput,
         posisiBicara,
         sumberBeritaMentah,
@@ -289,6 +347,7 @@ export default function ScriptProducerView({
     storageKey,
     kategoriKonten,
     jenisPromosi,
+    contextMode,
     rawTopicInput,
     posisiBicara,
     sumberBeritaMentah,
@@ -331,15 +390,18 @@ export default function ScriptProducerView({
       return
     }
 
-    const barisHTML = (hasilSkrip.segmen || [])
+    const daftarBagian = ambilDaftarBagianSkrip(hasilSkrip)
+    const barisHTML = daftarBagian
       .map(
         (s) => `
         <div style="border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:12px;">
-          <div style="font-weight:bold; font-size:12px; color:#475569; margin-bottom:6px;">${s.labelMini}</div>
-          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;"><strong>Naskah / Dialog:</strong><br/>${
-            modeTampilanSkrip === "teks" ? s.teksLayar : s.voiceover
+          <div style="font-weight:bold; font-size:12px; color:#475569; margin-bottom:6px;">
+            Bagian ${s.partNumber} • ${s.partTitle} ${s.estimatedSeconds ? `(${s.estimatedSeconds})` : ""}
+          </div>
+          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;"><strong>Naskah Lisan / Dialog:</strong><br/>${
+            modeTampilanSkrip === "teks" ? s.onScreenText : s.spokenText
           }</div>
-          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;"><strong>Arahan Visual:</strong> ${s.visual}</div>
+          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;"><strong>Arahan Adegan Visual:</strong> ${s.visualCue}</div>
         </div>`,
       )
       .join("")
@@ -355,7 +417,9 @@ export default function ScriptProducerView({
         </head>
         <body style="font-family:sans-serif; padding:24px; color:#14141f;">
           <h2 style="margin-bottom:4px;">${hasilSkrip.judul}</h2>
-          <p style="font-size:12px; color:#64748b; margin-top:0; margin-bottom:20px;">Hookya.site • ${hasilSkrip.waktuDibuat}</p>
+          <p style="font-size:12px; color:#64748b; margin-top:0; margin-bottom:20px;">
+            Hookya.site • ${hasilSkrip.waktuDibuat} • ${daftarBagian.length} Bagian Dinamis
+          </p>
           ${barisHTML}
           ${watermarkFooter}
           <script>
@@ -437,7 +501,9 @@ export default function ScriptProducerView({
         masalahDipecahkan: data.masalahDipecahkan || prev.masalahDipecahkan,
       }))
 
-      showToast("Informasi produk berhasil disalin dari screenshot.")
+      showToast(
+        "Data produk & pengalaman pemakaian berhasil diekstrak dari screenshot.",
+      )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -512,7 +578,7 @@ export default function ScriptProducerView({
       }
       const instruksiJembatan =
         posisiBicara !== "Sesuai Positioning Utama Saya"
-          ? ` [ POSISI BICARA: Gunakan mode "${posisiBicara}". Jelaskan istilah teknis menggunakan perbandingan sehari-hari yang dekat dengan pengalaman pengguna. ]`
+          ? ` [ POSISI BICARA: Gunakan mode "${posisiBicara}". Jelaskan istilah teknis menggunakan perumpamaan sehari-hari yang dekat dengan pengalaman pengguna. ]`
           : ""
       const lampiranBerita = sumberBeritaMentah.trim()
         ? ` [ FAKTA / BERITA SUMBER: "${sumberBeritaMentah.trim()}" ]`
@@ -561,12 +627,14 @@ export default function ScriptProducerView({
           action: "assessment_copilot",
           userId,
           namaUser,
+          contextMode,
           stageNumber: 1,
           batchKe: isRegenerateBatch ? stage1Batches.length + 1 : 1,
           opsiSebelumnya: opsiAngleSebelumnya,
           personaProfile,
           stageInput: {
             rawTopic: topikUtama,
+            contextMode,
             targetPlatform: targetPlatformInput,
             kategori:
               kategoriKonten === "personal"
@@ -595,6 +663,7 @@ export default function ScriptProducerView({
       setContentBrief((prev) => ({
         ...prev,
         session_id: `ses_${Date.now().toString().slice(-4)}`,
+        context_mode: contextMode,
         target_platform: targetPlatformInput,
         core_idea: data.refined_core_idea || rawTopicInput.trim() || topikUtama,
         chosen_angle: data.angle_options?.[0]?.angle_text || prev.chosen_angle,
@@ -621,6 +690,7 @@ export default function ScriptProducerView({
 
     setContentBrief((prev) => ({
       ...prev,
+      context_mode: contextMode,
       chosen_angle: finalAngle,
       personal_context_or_story: finalStory,
     }))
@@ -648,11 +718,13 @@ export default function ScriptProducerView({
           action: "assessment_copilot",
           userId,
           namaUser,
+          contextMode,
           stageNumber: 2,
           batchKe: isRegenerateBatch ? stage2Batches.length + 1 : 1,
           opsiSebelumnya: opsiRefSebelumnya,
           personaProfile,
           stageInput: {
+            contextMode,
             coreIdea: contentBrief.core_idea,
             chosenAngle: finalAngle,
             userStory: finalStory,
@@ -711,6 +783,7 @@ export default function ScriptProducerView({
 
     setContentBrief((prev) => ({
       ...prev,
+      context_mode: contextMode,
       personal_context_or_story:
         tempStoryInput || prev.personal_context_or_story,
       actionable_solution: solusiFinal,
@@ -740,11 +813,13 @@ export default function ScriptProducerView({
           action: "assessment_copilot",
           userId,
           namaUser,
+          contextMode,
           stageNumber: 3,
           batchKe: isRegenerateBatch ? stage3Batches.length + 1 : 1,
           opsiSebelumnya: opsiHookSebelumnya,
           personaProfile,
           stageInput: {
+            contextMode,
             coreIdea: contentBrief.core_idea,
             chosenAngle: contentBrief.chosen_angle,
             personalStory:
@@ -867,12 +942,14 @@ export default function ScriptProducerView({
   const lanjutKeTahap4FinalBrief = () => {
     setContentBrief((prev) => ({
       ...prev,
+      context_mode: contextMode,
       locked_hook: tempCustomHook.trim() || prev.locked_hook,
       call_to_action: tempCustomCTA.trim() || prev.call_to_action,
     }))
     setStage(4)
   }
 
+  // TAHAP 4 -> 5: MENYUSUN DYNAMIC STORY BEATS (3 S/D 8 BAGIAN DINAMIS)
   const handleBuatSkripSekarang = async () => {
     if (coins < 1) {
       alert("Saldo Koin belum mencukupi. Silakan isi ulang koin.")
@@ -896,8 +973,9 @@ export default function ScriptProducerView({
           action: "assemble_humanized_script",
           userId,
           namaUser,
+          contextMode,
           personaProfile,
-          contentBrief,
+          contentBrief: { ...contentBrief, context_mode: contextMode },
           bentukKonten: bentukKontenFinal,
           ugcConfig: { ...ugcConfig, namaPemeran: pemeranBersih },
           customPrompts,
@@ -920,13 +998,47 @@ export default function ScriptProducerView({
         minute: "2-digit",
       })
 
-      const segmenHasil = Array.isArray(data.segmen) ? data.segmen : []
+      const sectionsHasil = Array.isArray(data.sections)
+        ? data.sections
+        : ambilDaftarBagianSkrip(data)
+      const segmenHasil = Array.isArray(data.segmen)
+        ? data.segmen
+        : sectionsHasil.map((sec, idx) => ({
+            idSegmen: `BEAT_${sec.partNumber || idx + 1}`,
+            partNumber: sec.partNumber || idx + 1,
+            partTitle: sec.partTitle || `Bagian ${idx + 1}`,
+            estimatedSeconds: sec.estimatedSeconds || "",
+            labelMini: `Bagian ${sec.partNumber || idx + 1} • ${sec.partTitle || `Babak ${idx + 1}`}${sec.estimatedSeconds ? ` (${sec.estimatedSeconds})` : ""}`,
+            voiceover: sec.spokenText || sec.voiceover || "",
+            spokenText: sec.spokenText || sec.voiceover || "",
+            teksLayar:
+              sec.onScreenText || sec.teksLayar || sec.spokenText || "",
+            onScreenText:
+              sec.onScreenText || sec.teksLayar || sec.spokenText || "",
+            visual: sec.visualCue || sec.visual || "",
+            visualCue: sec.visualCue || sec.visual || "",
+          }))
+
       setAiOriginalDraft(JSON.parse(JSON.stringify(segmenHasil)))
       setTargetDurasiUbah(
-        contentBrief.target_platform || PILIHAN_DURASI_KONTEN[2],
+        contentBrief.target_platform || PILIHAN_DURASI_KONTEN[1],
       )
       setKoleksiVariasiGanda([])
       setIndexVariasiAktif(0)
+
+      const uploadPkg = data.uploadPackage || data.upload_pack || null
+      const uploadPackTerformat = uploadPkg
+        ? {
+            coverTitle: uploadPkg.coverTitle || uploadPkg.cover_title || "",
+            caption: uploadPkg.caption || uploadPkg.caption_seo || "",
+            pinnedComment:
+              uploadPkg.pinnedComment || uploadPkg.pinned_comment || "",
+            cover_title: uploadPkg.coverTitle || uploadPkg.cover_title || "",
+            caption_seo: uploadPkg.caption || uploadPkg.caption_seo || "",
+            pinned_comment:
+              uploadPkg.pinnedComment || uploadPkg.pinned_comment || "",
+          }
+        : null
 
       const skripBaru = {
         id: Date.now(),
@@ -942,15 +1054,23 @@ export default function ScriptProducerView({
           ? `Dialog UGC (${ugcConfig.jumlahOrang} Orang: ${pemeranBersih.join(", ")})`
           : bentukKontenFinal,
         waktuDibuat: waktuSekarang,
+        targetDuration:
+          data.targetDuration || contentBrief.target_platform || "60 Detik",
+        flowStyle: data.flowStyle || "Obrolan Mengalir",
+        totalSections: segmenHasil.length,
         metadata: data.metadata || {
-          estimated_duration: contentBrief.target_platform,
+          estimated_duration:
+            data.targetDuration || contentBrief.target_platform,
+          flow_style: data.flowStyle || "Obrolan Mengalir",
           framework_used: contentBrief.selected_framework,
         },
         scriptScore: data.script_score || null,
-        uploadPack: data.upload_pack || null,
+        uploadPackage: uploadPackTerformat,
+        uploadPack: uploadPackTerformat,
         contentBrief,
         sudahUpload: false,
         tanggalUpload: "",
+        sections: sectionsHasil,
         segmen: segmenHasil,
       }
 
@@ -958,7 +1078,9 @@ export default function ScriptProducerView({
       setHasilSkrip(tersimpan)
       setKoleksiSkripTersimpan((prev) => [tersimpan, ...prev])
       setStage(5)
-      showToast("Skrip selesai disusun dan disimpan ke arsip.")
+      showToast(
+        `Skrip selesai disusun dalam ${segmenHasil.length} bagian dinamis dan disimpan ke arsip.`,
+      )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -966,11 +1088,12 @@ export default function ScriptProducerView({
     }
   }
 
+  // PENGUBAH DURASI (MENAMBAH / MENGURANGI JUMLAH BAGIAN 3 S/D 8 BABAK OBROLAN)
   const handleUbahDurasiSkrip = async (durasiPilihan) => {
     if (!hasilSkrip || isChangingDuration) return
     setTargetDurasiUbah(durasiPilihan)
     setIsChangingDuration(true)
-    showToast(`Menyesuaikan panjang naskah ke durasi ${durasiPilihan}...`)
+    showToast(`Menyesuaikan jumlah babak obrolan ke durasi ${durasiPilihan}...`)
 
     try {
       const res = await fetch("/api/ai", {
@@ -980,9 +1103,10 @@ export default function ScriptProducerView({
           action: "ubah_durasi_skrip",
           userId,
           namaUser,
+          contextMode,
           personaProfile,
           subyek: hasilSkrip.judul,
-          skripSebelumnya: hasilSkrip.segmen,
+          skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
           durasiTargetBaru: durasiPilihan,
         }),
       })
@@ -991,17 +1115,30 @@ export default function ScriptProducerView({
       if (!res.ok)
         throw new Error("Error sistem, silakan refresh atau hubungi admin.")
 
+      const sectionsBaru = Array.isArray(data.sections)
+        ? data.sections
+        : ambilDaftarBagianSkrip(data)
+      const segmenBaru = Array.isArray(data.segmen) ? data.segmen : sectionsBaru
+
       const skripDiperbarui = {
         ...hasilSkrip,
+        targetDuration: data.targetDuration || durasiPilihan,
+        flowStyle: data.flowStyle || hasilSkrip.flowStyle || "Obrolan Mengalir",
+        totalSections: segmenBaru.length,
         metadata: {
           ...(hasilSkrip.metadata || {}),
-          estimated_duration: data.estimated_duration || durasiPilihan,
+          estimated_duration:
+            data.targetDuration || data.estimated_duration || durasiPilihan,
+          flow_style: data.flowStyle || hasilSkrip.metadata?.flow_style,
         },
-        segmen: data.segmen || hasilSkrip.segmen,
+        sections: sectionsBaru,
+        segmen: segmenBaru,
       }
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
-      showToast(`Panjang skrip disesuaikan ke ${durasiPilihan}.`)
+      showToast(
+        `Durasi diubah ke ${durasiPilihan} (${segmenBaru.length} Bagian Dinamis).`,
+      )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -1031,9 +1168,10 @@ export default function ScriptProducerView({
           action: "multiply_script_variations",
           userId,
           namaUser,
+          contextMode,
           personaProfile,
           subyek: hasilSkrip.judul,
-          skripSebelumnya: hasilSkrip.segmen,
+          skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
           jumlahMultiplier: jumlahX,
           koinDipakai: biayaKoin,
         }),
@@ -1065,6 +1203,7 @@ export default function ScriptProducerView({
       const arsipBaruList = []
       for (let i = 0; i < listVariasi.length; i++) {
         const v = listVariasi[i]
+        const bagVariasi = ambilDaftarBagianSkrip(v)
         const objekSkripVariasi = {
           id: Date.now() + i + 1,
           dbId: null,
@@ -1072,10 +1211,14 @@ export default function ScriptProducerView({
           kategori: hasilSkrip.kategori || "Stok Konten",
           bentuk: hasilSkrip.bentuk,
           waktuDibuat: waktuSekarang,
+          targetDuration: hasilSkrip.targetDuration,
+          flowStyle: hasilSkrip.flowStyle,
+          totalSections: bagVariasi.length,
           metadata: hasilSkrip.metadata,
           sudahUpload: false,
           tanggalUpload: "",
-          segmen: v.segmen || hasilSkrip.segmen,
+          sections: bagVariasi,
+          segmen: bagVariasi,
         }
         const tersimpanDB =
           await simpanAtauUpdateSkripDatabase(objekSkripVariasi)
@@ -1101,7 +1244,7 @@ export default function ScriptProducerView({
     if (hitunganBaru % 3 === 0) {
       if (coins < 1) {
         alert(
-          "Saldo koin tidak mencukupi untuk pembaruan kerangka ke-3. Silakan isi ulang koin.",
+          "Saldo koin tidak mencukupi untuk pembaruan bagian ke-3. Silakan isi ulang koin.",
         )
         setActiveMenu("topup")
         return
@@ -1110,9 +1253,14 @@ export default function ScriptProducerView({
     }
     setRegenCount(hitunganBaru)
 
-    const segmenLama = hasilSkrip.segmen[indexBaris]
+    const daftarBagianSaatIni = ambilDaftarBagianSkrip(hasilSkrip)
+    const bagianLama = daftarBagianSaatIni[indexBaris]
+    if (!bagianLama) return
+
     setRegeneratingIndex(indexBaris)
-    showToast(`Memperbarui ${segmenLama.labelMini}...`)
+    showToast(
+      `Memperbarui Bagian ${bagianLama.partNumber} (${bagianLama.partTitle})...`,
+    )
 
     try {
       const res = await fetch("/api/ai", {
@@ -1122,9 +1270,10 @@ export default function ScriptProducerView({
           action: "regenerate_satu_kerangka",
           userId,
           namaUser,
+          contextMode,
           personaProfile,
           subyek: hasilSkrip.judul,
-          segmenTarget: segmenLama,
+          segmenTarget: bagianLama,
         }),
       })
 
@@ -1132,23 +1281,47 @@ export default function ScriptProducerView({
       if (!res.ok)
         throw new Error("Error sistem, silakan refresh atau hubungi admin.")
 
-      const segmenUpdate = { ...segmenLama }
+      const bagianUpdate = { ...bagianLama }
+      const visualBaru =
+        data.visualCue ||
+        data.visual ||
+        bagianLama.visualCue ||
+        bagianLama.visual
+      const spokenBaru =
+        data.spokenText ||
+        data.voiceover ||
+        bagianLama.spokenText ||
+        bagianLama.voiceover
+      const screenBaru =
+        data.onScreenText ||
+        data.teksLayar ||
+        spokenBaru ||
+        bagianLama.onScreenText
+
       if (fokusTarget === "visual") {
-        segmenUpdate.visual = data.visual || segmenLama.visual
+        bagianUpdate.visualCue = visualBaru
+        bagianUpdate.visual = visualBaru
       } else {
-        segmenUpdate.voiceover = data.voiceover || segmenLama.voiceover
-        segmenUpdate.teksLayar = data.teksLayar || segmenLama.teksLayar
-        segmenUpdate.visual = data.visual || segmenLama.visual
+        bagianUpdate.spokenText = spokenBaru
+        bagianUpdate.voiceover = spokenBaru
+        bagianUpdate.onScreenText = screenBaru
+        bagianUpdate.teksLayar = screenBaru
+        bagianUpdate.visualCue = visualBaru
+        bagianUpdate.visual = visualBaru
       }
 
-      const daftarSegmenBaru = hasilSkrip.segmen.map((s, idx) =>
-        idx === indexBaris ? segmenUpdate : s,
+      const daftarBagianBaru = daftarBagianSaatIni.map((s, idx) =>
+        idx === indexBaris ? bagianUpdate : s,
       )
 
-      const skripDiperbarui = { ...hasilSkrip, segmen: daftarSegmenBaru }
+      const skripDiperbarui = {
+        ...hasilSkrip,
+        sections: daftarBagianBaru,
+        segmen: daftarBagianBaru,
+      }
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
-      showToast(`${segmenLama.labelMini} diperbarui.`)
+      showToast(`Bagian ${bagianLama.partNumber} selesai diperbarui.`)
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -1169,9 +1342,10 @@ export default function ScriptProducerView({
           action: "ubah_bentuk_konten",
           userId,
           namaUser,
+          contextMode,
           personaProfile,
           subyek: hasilSkrip.judul,
-          skripSebelumnya: hasilSkrip.segmen,
+          skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
           bentukKontenBaru: targetKonversiBentuk,
         }),
       })
@@ -1180,10 +1354,16 @@ export default function ScriptProducerView({
       if (!res.ok)
         throw new Error("Error sistem, silakan refresh atau hubungi admin.")
 
+      const bagianKonversi = Array.isArray(data.sections)
+        ? data.sections
+        : ambilDaftarBagianSkrip(data)
+
       const skripDiperbarui = {
         ...hasilSkrip,
         bentuk: targetKonversiBentuk,
-        segmen: data.segmen || hasilSkrip.segmen,
+        sections:
+          bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.sections,
+        segmen: bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.segmen,
       }
       setBentukKonten(targetKonversiBentuk)
       setHasilSkrip(skripDiperbarui)
@@ -1208,7 +1388,7 @@ export default function ScriptProducerView({
           userId,
           namaUser,
           aiDraft: aiOriginalDraft,
-          userEditedScript: hasilSkrip.segmen,
+          userEditedScript: ambilDaftarBagianSkrip(hasilSkrip),
           personaProfile,
         }),
       })
@@ -1219,7 +1399,7 @@ export default function ScriptProducerView({
       }
       await otomatisSimpanKeArsipUser(
         hasilSkrip,
-        "Revisi skrip disimpan ke arsip dan kamus gaya bicaramu diperbarui.",
+        "Revisi skrip disimpan ke arsip dan Voice DNA diperbarui.",
       )
     } finally {
       setIsLearningDiff(false)
@@ -1245,6 +1425,10 @@ export default function ScriptProducerView({
     </div>
   )
 
+  const daftarBagianAktif = ambilDaftarBagianSkrip(hasilSkrip)
+  const paketUploadAktif =
+    hasilSkrip?.uploadPackage || hasilSkrip?.uploadPack || null
+
   return (
     <div className="bg-white p-4 sm:p-8 rounded-2xl border border-slate-200 space-y-6 w-full max-w-full overflow-hidden">
       {/* HEADER TAHAP */}
@@ -1253,14 +1437,32 @@ export default function ScriptProducerView({
           <h2 className="text-base sm:text-xl font-bold text-[#14141f] break-words">
             {stage === 0 && "Buat Skrip Konten"}
             {stage === 1 && "Tahap 1: Pilih Sudut Pandang Bahasan"}
-            {stage === 2 && "Tahap 2: Situasi, Penjelasan & Solusi"}
-            {stage === 3 && "Tahap 3: Struktur, Kalimat Pembuka (Hook) & CTA"}
+            {stage === 2 &&
+              "Tahap 2: Perumpamaan Harian, Sebab-Akibat & Solusi"}
+            {stage === 3 && "Tahap 3: Alur Pembawaan, 6 Hook Lisan & CTA"}
             {stage === 4 && "Tahap 4: Periksa Rancangan Konten"}
             {stage === 5 && hasilSkrip?.judul}
           </h2>
           {stage > 0 && stage < 5 && (
             <p className="text-xs text-slate-500 mt-0.5">
-              Langkah {stage} dari 4 sebelum penyusunan naskah utuh
+              Langkah {stage} dari 4 • Mode Konteks:{" "}
+              <strong>
+                {contextMode === "lintas_produk"
+                  ? "🎯 Lintas Produk / Bebas (Hanya Voice DNA)"
+                  : "🎯 Sesuai Niche Profil"}
+              </strong>
+            </p>
+          )}
+          {stage === 5 && hasilSkrip && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              {daftarBagianAktif.length} Bagian Dinamis •{" "}
+              {hasilSkrip.targetDuration ||
+                hasilSkrip.metadata?.estimated_duration ||
+                "60 Detik"}{" "}
+              •{" "}
+              {hasilSkrip.flowStyle ||
+                hasilSkrip.metadata?.flow_style ||
+                "Obrolan Mengalir"}
             </p>
           )}
         </div>
@@ -1336,10 +1538,76 @@ export default function ScriptProducerView({
             </button>
           </div>
 
+          {/* PILAR 2: SAKLAR KONTEKS 1-KLIK (SESUAI NICHE PROFIL VS LINTAS PRODUK / BEBAS) */}
+          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
+                  Saklar Konteks Niche & Target Penonton
+                </h3>
+                <p className="text-xs text-slate-600">
+                  Pilih <strong>Lintas Produk / Bebas</strong> jika kamu ingin
+                  membahas produk/topik di luar niche profilmu (misal profil
+                  Hijab tapi hari ini membahas Makanan/Elektronik) agar bahasan
+                  lama tidak bocor.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setContextMode("sesuai_niche")}
+                className={`cursor-pointer p-3.5 rounded-lg border text-left transition ${
+                  contextMode === "sesuai_niche"
+                    ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-[#14141f]"
+                }`}
+              >
+                <div className="text-xs sm:text-sm font-bold">
+                  🎯 Sesuai Niche Profil (Default)
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 ${
+                    contextMode === "sesuai_niche"
+                      ? "text-slate-300"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Pakai Gaya Bicara (Voice DNA) + Target Pasar & Masalah
+                  Penonton dari Profilmu.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setContextMode("lintas_produk")}
+                className={`cursor-pointer p-3.5 rounded-lg border text-left transition ${
+                  contextMode === "lintas_produk"
+                    ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-[#14141f]"
+                }`}
+              >
+                <div className="text-xs sm:text-sm font-bold">
+                  🎯 Lintas Produk / Bebas (Anti-Bocor Niche)
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 ${
+                    contextMode === "lintas_produk"
+                      ? "text-slate-300"
+                      : "text-slate-500"
+                  }`}
+                >
+                  Hanya pakai Gaya Bicara & Sapaanmu, sedangkan target penonton
+                  fokus 100% ke produk/topik hari ini.
+                </p>
+              </button>
+            </div>
+          </div>
+
           {/* FORM PERSONAL */}
           {kategoriKonten === "personal" && (
             <div className="space-y-6">
-              {/* INPUT UTAMA TOPIK & DURASI DITARUH DI ATAS AGAR LANGSUNG FOKUS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-[#14141f] mb-1.5">
@@ -1355,7 +1623,7 @@ export default function ScriptProducerView({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                    Target Durasi Video
+                    Target Durasi & Jumlah Bagian
                   </label>
                   <select
                     value={targetPlatformInput}
@@ -1458,7 +1726,7 @@ export default function ScriptProducerView({
                 </div>
               </div>
 
-              {/* JEMBATAN LINTAS TOPIK TANPA EYEBROW BADGE */}
+              {/* JEMBATAN LINTAS TOPIK */}
               <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-xl space-y-3">
                 <button
                   type="button"
@@ -1469,11 +1737,12 @@ export default function ScriptProducerView({
                 >
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                      Pengaturan Topik Lintas Bidang (Opsional)
+                      Pengaturan Sudut Bicara Lintas Bidang & Kutipan Berita
+                      (Opsional)
                     </h4>
                     <p className="text-xs text-slate-600 mt-0.5">
                       Gunakan jika kamu ingin membahas isu di luar keahlian
-                      utamamu (misalnya kehutanan, sains, atau berita harian).
+                      utamamu atau menempelkan teks berita sumber.
                     </p>
                   </div>
                   <FlatIcon
@@ -1581,7 +1850,7 @@ export default function ScriptProducerView({
 
                 <div>
                   <label className="block text-xs font-bold text-[#14141f] mb-1">
-                    Target Durasi Video
+                    Target Durasi & Jumlah Bagian
                   </label>
                   <select
                     value={targetPlatformInput}
@@ -1607,8 +1876,8 @@ export default function ScriptProducerView({
                         </h4>
                         <p className="text-xs text-slate-500">
                           Unggah tangkapan layar produk Shopee, TikTok Shop,
-                          atau Tokopedia untuk menyalin nama, merek, dan
-                          spesifikasinya.
+                          atau Tokopedia. Spesifikasi kaku di gambar otomatis
+                          diterjemahkan menjadi pengalaman pemakaian nyata.
                         </p>
                       </div>
                       {!isPremiumUser && (
@@ -1681,7 +1950,7 @@ export default function ScriptProducerView({
                               : "2. Pilih Screenshot Spesifikasi (Opsional)"}
                           </div>
                           <span className="text-[11px] text-slate-500 block">
-                            Detail bahan, ukuran & fitur
+                            Detail bahan, ukuran & pengalaman pakai
                           </span>
                         </div>
                         {isPremiumUser && (
@@ -1698,7 +1967,7 @@ export default function ScriptProducerView({
                     {(ssProduk || ssSpesifikasi) &&
                       (isScanningSS ? (
                         <AILoadingBox
-                          label="Membaca data produk dari gambar screenshot..."
+                          label="Membaca data produk & menerjemahkan spesifikasi ke pengalaman pemakaian nyata..."
                           onRefresh={handleScanMarketplaceAI}
                         />
                       ) : (
@@ -1769,7 +2038,7 @@ export default function ScriptProducerView({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Fungsi / Masalah yang Diselesaikan (Opsional)
+                        Kerepotan Harian yang Beres dengan Produk Ini (Opsional)
                       </label>
                       {renderAdaptiveVoiceInput({
                         rows: 2,
@@ -1780,12 +2049,12 @@ export default function ScriptProducerView({
                             masalahDipecahkan: val,
                           }),
                         placeholder:
-                          "Jelaskan manfaat utama produk bagi pembeli...",
+                          "Jelaskan manfaat nyata produk bagi pembeli...",
                       })}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#14141f] mb-1">
-                        Spesifikasi & Keunggulan Fisik (Opsional)
+                        Spesifikasi & Pengalaman Pemakaian Nyata (Opsional)
                       </label>
                       {renderAdaptiveVoiceInput({
                         rows: 2,
@@ -1796,7 +2065,7 @@ export default function ScriptProducerView({
                             keunggulanSpesifikasi: val,
                           }),
                         placeholder:
-                          "Tuliskan bahan, ukuran, atau spesifikasi teknis...",
+                          "Tuliskan bahan, ukuran, atau rasanya saat dipakai langsung...",
                       })}
                     </div>
                   </div>
@@ -1933,7 +2202,7 @@ export default function ScriptProducerView({
 
       {stage >= 1 && stage <= 3 && isLoadingOpsi && (
         <AILoadingBox
-          label="Menyusun pilihan sudut pandang dan kerangka bahasan..."
+          label="Menyusun pilihan sudut pandang dan kerangka bahasan lisan..."
           onRefresh={() => {
             if (stage === 1) panggilTahap1Angle(false)
             if (stage === 2)
@@ -2033,14 +2302,14 @@ export default function ScriptProducerView({
             <label className="block text-xs font-bold text-[#14141f]">
               2.{" "}
               {coPilotStage1Data.story_prompt_question ||
-                "Pengalaman atau detail spesifik yang ingin disertakan (Opsional)"}
+                "Pengalaman atau kejadian nyata yang ingin disertakan (Opsional)"}
             </label>
             {renderAdaptiveVoiceInput({
               rows: 2,
               value: tempStoryInput,
               onChange: setTempStoryInput,
               placeholder:
-                "Tuliskan pengalaman singkatmu, atau biarkan kosong untuk memakai contoh situasi di tahap berikutnya...",
+                "Tuliskan pengalaman singkatmu, atau biarkan kosong untuk memakai contoh perumpamaan harian di tahap berikutnya...",
             })}
           </div>
 
@@ -2055,7 +2324,7 @@ export default function ScriptProducerView({
             }
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg"
           >
-            Lanjutkan ke Penjelasan & Solusi
+            Lanjutkan ke Perumpamaan & Solusi
           </button>
         </div>
       )}
@@ -2075,13 +2344,13 @@ export default function ScriptProducerView({
                 tempStoryInput,
                 true,
               ),
-            "Penjelasan & Solusi",
+            "Perumpamaan & Solusi",
           )}
 
           <div className="space-y-2">
             <label className="block text-xs font-bold text-[#14141f]">
-              1. Pilih atau Sesuaikan Situasi / Perbandingan (Set{" "}
-              {activeBatch2 + 1})
+              1. Pilih atau Sesuaikan Perumpamaan Harian (Set {activeBatch2 + 1}
+              )
             </label>
             {Array.isArray(coPilotStage2Data.relatable_analogies) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2">
@@ -2105,13 +2374,13 @@ export default function ScriptProducerView({
               rows: 2,
               value: tempStoryInput,
               onChange: setTempStoryInput,
-              placeholder: "Situasi atau perbandingan yang akan dipakai...",
+              placeholder: "Perumpamaan atau kejadian yang akan dipakai...",
             })}
           </div>
 
           <div className="space-y-2.5">
             <label className="block text-xs font-bold text-[#14141f]">
-              2. Pilih 1 Penjelasan Pendukung
+              2. Pilih 1 Penjelasan Sebab-Akibat Fisik / Pengalaman Pakai
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(coPilotStage2Data.reference_cards || []).map((refCard, idx) => {
@@ -2162,7 +2431,7 @@ export default function ScriptProducerView({
 
           <div className="space-y-2">
             <label className="block text-xs font-bold text-[#14141f]">
-              3. Pilih Poin Solusi / Keunggulan
+              3. Pilih Langkah Solusi Praktis / Manfaat Nyata
             </label>
             <div className="space-y-2">
               {(coPilotStage2Data.suggested_solutions || []).map((sol, idx) => {
@@ -2233,24 +2502,25 @@ export default function ScriptProducerView({
 
           <div className="space-y-2">
             <label className="block text-xs font-bold text-[#14141f]">
-              1. Pilih Struktur Alur Copywriting
+              1. Pilih Alur Pembawaan Obrolan
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[
                 {
                   id: "PAS_RELATABLE_BRIDGE",
-                  judul: "Masalah, Situasi Relate, Fakta & Solusi (PAS)",
+                  judul:
+                    "Masalah, Perumpamaan Harian, Cara Kerja & Solusi (PAS)",
                   ket: "Menyebutkan masalah penonton lalu memberikan langkah penyelesaian.",
                 },
                 {
                   id: "HSO_STORY",
-                  judul: "Cerita Pengalaman (Hook, Story, Offer)",
-                  ket: "Mengalir dari kejadian nyata menuju kesimpulan atau rekomendasi.",
+                  judul: "Cerita Kejadian Nyata (Hook, Story, Offer)",
+                  ket: "Mengalir dari pengalaman nyata menuju kesimpulan atau rekomendasi.",
                 },
                 {
                   id: "CONTRARIAN_MYTH_BUSTER",
-                  judul: "Koreksi Kebiasaan Keliru vs Fakta",
-                  ket: "Meluruskan anggapan umum yang sering merugikan penonton.",
+                  judul: "Bantah Kebiasaan Keliru vs Fakta Lapangan",
+                  ket: "Meluruskan anggapan umum yang sering bikin penonton rugi.",
                 },
                 {
                   id: "BAB_TRANSFORMATION",
@@ -2290,8 +2560,8 @@ export default function ScriptProducerView({
 
           <div className="space-y-2.5">
             <label className="block text-xs font-bold text-[#14141f]">
-              2. Pilih Kalimat Pembuka / 6 Kategori Hook (Set {activeBatch3 + 1}
-              )
+              2. Pilih Kalimat Pembuka / 6 Kategori Hook Lisan (Set{" "}
+              {activeBatch3 + 1})
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {(coPilotStage3Data.hook_options || []).map((hkItem, idx) => {
@@ -2304,7 +2574,7 @@ export default function ScriptProducerView({
                 const alasanHook =
                   typeof hkItem === "object" && hkItem?.why_it_works
                     ? hkItem.why_it_works
-                    : "Menarik perhatian di 3 detik pertama"
+                    : "Mengunci perhatian di 3 detik pertama"
                 const dipilih =
                   contentBrief.locked_hook === teksHook && !tempCustomHook
 
@@ -2433,15 +2703,23 @@ export default function ScriptProducerView({
         <div className="space-y-5">
           <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3 text-xs">
             <div>
+              <span className="text-slate-500">Mode Konteks:</span>{" "}
+              <strong>
+                {contextMode === "lintas_produk"
+                  ? "🎯 Lintas Produk / Bebas (Hanya Voice DNA)"
+                  : "🎯 Sesuai Niche Profil"}
+              </strong>
+            </div>
+            <div>
               <span className="text-slate-500">Sudut Pandang:</span>{" "}
               <strong>{contentBrief.chosen_angle}</strong>
             </div>
             <div>
-              <span className="text-slate-500">Target Durasi:</span>{" "}
+              <span className="text-slate-500">Target Durasi & Babak:</span>{" "}
               <strong>{contentBrief.target_platform}</strong>
             </div>
             <div>
-              <span className="text-slate-500">Struktur Copywriting:</span>{" "}
+              <span className="text-slate-500">Alur Pembawaan:</span>{" "}
               <strong>{contentBrief.selected_framework}</strong>
             </div>
             <div>
@@ -2462,7 +2740,7 @@ export default function ScriptProducerView({
 
           {isGenerating ? (
             <AILoadingBox
-              label="Menyusun naskah skrip sesuai durasi dan gaya bicara..."
+              label="Menyusun bagian-bagian obrolan dinamis (Dynamic Story Beats) sesuai durasi..."
               onRefresh={handleBuatSkripSekarang}
             />
           ) : (
@@ -2477,7 +2755,7 @@ export default function ScriptProducerView({
         </div>
       )}
 
-      {/* STAGE 5: HASIL SKRIP */}
+      {/* STAGE 5: HASIL SKRIP DYNAMIC STORY BEATS (3 S/D 8 BAGIAN DINAMIS) */}
       {stage === 5 && hasilSkrip && (
         <div className="space-y-6 w-full max-w-full overflow-hidden">
           {/* BAR AKSI UTAMA */}
@@ -2501,13 +2779,13 @@ export default function ScriptProducerView({
               <button
                 type="button"
                 onClick={async () => {
-                  const teksInti = (hasilSkrip.segmen || [])
+                  const teksInti = daftarBagianAktif
                     .map(
                       (s) =>
-                        `[${s.labelMini}]\n${
+                        `[Bagian ${s.partNumber} • ${s.partTitle}${s.estimatedSeconds ? ` (${s.estimatedSeconds})` : ""}]\n${
                           modeTampilanSkrip === "teks"
-                            ? s.teksLayar
-                            : s.voiceover
+                            ? s.onScreenText
+                            : s.spokenText
                         }`,
                     )
                     .join("\n\n")
@@ -2593,7 +2871,7 @@ export default function ScriptProducerView({
             </div>
           )}
 
-          {/* BAR KONTROL TAMPILAN, DURASI & FORMAT VISUAL */}
+          {/* BAR KONTROL TAMPILAN, SCALING DURASI (3-8 BAGIAN DINAMIS) & FORMAT VISUAL */}
           <div className="bg-[#f4f5f7] p-3.5 rounded-xl border border-slate-200 space-y-3 w-full">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="grid grid-cols-2 sm:inline-flex bg-white p-1 rounded-lg border border-slate-200 w-full sm:w-auto">
@@ -2606,7 +2884,7 @@ export default function ScriptProducerView({
                       : "text-slate-600"
                   }`}
                 >
-                  Naskah Dialog / Voiceover
+                  Naskah Lisan / Voiceover
                 </button>
                 <button
                   type="button"
@@ -2626,11 +2904,11 @@ export default function ScriptProducerView({
                   value={targetDurasiUbah}
                   disabled={isChangingDuration}
                   onChange={(e) => handleUbahDurasiSkrip(e.target.value)}
-                  className="flex-1 sm:w-56 bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+                  className="flex-1 sm:w-64 bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
                 >
                   {PILIHAN_DURASI_KONTEN.map((d) => (
                     <option key={d} value={d}>
-                      Durasi: {d}
+                      Ubah Durasi: {d}
                     </option>
                   ))}
                 </select>
@@ -2670,11 +2948,11 @@ export default function ScriptProducerView({
             </div>
           </div>
 
-          {/* 4 KERANGKA SKRIP UTAMA (TANPA LATAR HIJAU LIME BERLEBIHAN AGAR NYAMAN DIBACA) */}
+          {/* DAFTAR KARTU DYNAMIC STORY BEATS (3 S/D 8 BAGIAN DINAMIS) */}
           <div className="space-y-3.5">
-            {hasilSkrip.segmen.map((seg, idx) => {
+            {daftarBagianAktif.map((sec, idx) => {
               const teksAktif =
-                modeTampilanSkrip === "teks" ? seg.teksLayar : seg.voiceover
+                modeTampilanSkrip === "teks" ? sec.onScreenText : sec.spokenText
               const sedangRegenBarisIni = regeneratingIndex === idx
 
               return (
@@ -2682,10 +2960,17 @@ export default function ScriptProducerView({
                   key={idx}
                   className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-white space-y-3"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="text-xs font-bold text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200">
-                      {seg.labelMini}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200">
+                        Bagian {sec.partNumber || idx + 1} • {sec.partTitle}
+                      </span>
+                      {sec.estimatedSeconds && (
+                        <span className="text-[11px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded-md border border-[#4d6b14]/20">
+                          {sec.estimatedSeconds}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[11px] text-slate-500">
                       Klik ikon putar untuk mengganti variasi bagian ini
                     </span>
@@ -2696,19 +2981,28 @@ export default function ScriptProducerView({
                       <div className="flex-1 min-w-0">
                         <textarea
                           ref={idx === 0 ? firstTextareaRef : null}
-                          rows={4}
+                          rows={3}
                           value={teksAktif}
                           onChange={(e) => {
                             const valBaru = e.target.value
-                            const listUpdate = hasilSkrip.segmen.map((s, i) =>
-                              i === idx
-                                ? modeTampilanSkrip === "teks"
-                                  ? { ...s, teksLayar: valBaru }
-                                  : { ...s, voiceover: valBaru }
-                                : s,
-                            )
+                            const listUpdate = daftarBagianAktif.map((s, i) => {
+                              if (i !== idx) return s
+                              if (modeTampilanSkrip === "teks") {
+                                return {
+                                  ...s,
+                                  onScreenText: valBaru,
+                                  teksLayar: valBaru,
+                                }
+                              }
+                              return {
+                                ...s,
+                                spokenText: valBaru,
+                                voiceover: valBaru,
+                              }
+                            })
                             setHasilSkrip({
                               ...hasilSkrip,
+                              sections: listUpdate,
                               segmen: listUpdate,
                             })
                           }}
@@ -2725,7 +3019,7 @@ export default function ScriptProducerView({
                         onClick={() =>
                           handleRegenerateSatuKerangka(idx, "skrip")
                         }
-                        title="Buat variasi baru khusus kerangka ini"
+                        title="Buat variasi kalimat baru untuk bagian ini"
                         className="cursor-pointer w-8 h-8 rounded-lg bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
                       >
                         <FlatIcon
@@ -2740,10 +3034,10 @@ export default function ScriptProducerView({
                     <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
                       <div className="space-y-1 min-w-0 flex-1">
                         <span className="text-xs font-bold text-[#14141f] block">
-                          Arahan Adegan Visual
+                          Arahan Adegan & Intonasi Kamera
                         </span>
                         <p className="text-xs font-normal text-slate-600 leading-relaxed break-words">
-                          {seg.visual}
+                          {sec.visualCue}
                         </p>
                       </div>
 
@@ -2752,7 +3046,7 @@ export default function ScriptProducerView({
                         onClick={() =>
                           handleRegenerateSatuKerangka(idx, "visual")
                         }
-                        title="Buat variasi visual khusus kerangka ini"
+                        title="Buat variasi arahan visual untuk bagian ini"
                         className="cursor-pointer w-8 h-8 rounded-lg bg-[#f4f5f7] hover:bg-[#14141f] text-slate-700 hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
                       >
                         <FlatIcon
@@ -2769,7 +3063,7 @@ export default function ScriptProducerView({
             })}
           </div>
 
-          {/* EVALUASI STRUKTUR SKRIP TANPA EYEBROW BADGE */}
+          {/* EVALUASI STRUKTUR SKRIP */}
           {hasilSkrip.scriptScore && (
             <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
@@ -2778,7 +3072,7 @@ export default function ScriptProducerView({
                   {hasilSkrip.scriptScore.hook_strength}
                 </h3>
                 <p className="text-xs text-slate-700">
-                  <strong>Alur Tengah:</strong>{" "}
+                  <strong>Alur Obrolan:</strong>{" "}
                   {hasilSkrip.scriptScore.retention_bridge}
                 </p>
                 <p className="text-xs text-[#4d6b14] font-bold">
@@ -2787,7 +3081,7 @@ export default function ScriptProducerView({
               </div>
               <div className="bg-[#14141f] text-[#d4f34a] px-4 py-2.5 rounded-lg text-center shrink-0">
                 <div className="text-xl font-bold leading-none">
-                  {hasilSkrip.scriptScore.total_score || 92}/100
+                  {hasilSkrip.scriptScore.total_score || 94}/100
                 </div>
                 <span className="text-[10px] text-white">Skor Struktur</span>
               </div>
@@ -2795,7 +3089,7 @@ export default function ScriptProducerView({
           )}
 
           {/* PAKET PELENGKAP UPLOAD */}
-          {hasilSkrip.uploadPack && (
+          {paketUploadAktif && (
             <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
               <h3 className="text-sm font-bold text-[#14141f]">
                 Kelengkapan Upload (Judul Cover, Caption & Komentar Pertama)
@@ -2808,14 +3102,17 @@ export default function ScriptProducerView({
                       1. Teks Judul Cover / Thumbnail
                     </span>
                     <p className="font-bold text-sm text-[#14141f] mt-1">
-                      {hasilSkrip.uploadPack.cover_title}
+                      {paketUploadAktif.coverTitle ||
+                        paketUploadAktif.cover_title}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        hasilSkrip.uploadPack.cover_title,
+                        paketUploadAktif.coverTitle ||
+                          paketUploadAktif.cover_title ||
+                          "",
                       )
                       showToast("Judul cover disalin.")
                     }}
@@ -2831,14 +3128,16 @@ export default function ScriptProducerView({
                       2. Caption & Hashtag
                     </span>
                     <p className="text-slate-700 mt-1 leading-relaxed">
-                      {hasilSkrip.uploadPack.caption_seo}
+                      {paketUploadAktif.caption || paketUploadAktif.caption_seo}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        hasilSkrip.uploadPack.caption_seo,
+                        paketUploadAktif.caption ||
+                          paketUploadAktif.caption_seo ||
+                          "",
                       )
                       showToast("Caption disalin.")
                     }}
@@ -2854,14 +3153,17 @@ export default function ScriptProducerView({
                       3. Komentar Pancingan Pertama
                     </span>
                     <p className="text-slate-700 mt-1">
-                      {hasilSkrip.uploadPack.pinned_comment}
+                      {paketUploadAktif.pinnedComment ||
+                        paketUploadAktif.pinned_comment}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        hasilSkrip.uploadPack.pinned_comment,
+                        paketUploadAktif.pinnedComment ||
+                          paketUploadAktif.pinned_comment ||
+                          "",
                       )
                       showToast("Komentar pancingan disalin.")
                     }}
