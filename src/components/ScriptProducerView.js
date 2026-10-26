@@ -3,109 +3,138 @@ import { useState, useEffect, useRef } from "react"
 import { FlatIcon, StoryVoiceInput, AILoadingBox } from "./SharedUI"
 
 const PILIHAN_DURASI_KONTEN = [
-  "15 Detik (3 Bagian, 40 - 50 Kata)",
-  "30 Detik (4 Bagian, 80 - 95 Kata)",
-  "60 Detik / 1 Menit (5 Bagian, 150 - 180 Kata)",
-  "2 Menit (6 Bagian, 280 - 330 Kata)",
-  "3 Menit (8 Bagian, 430 - 500 Kata)",
+  "15 Detik (3 Bagian, 40-50 Kata)",
+  "30 Detik (4 Bagian, 70-90 Kata)",
+  "60 Detik (5 Bagian, 140-160 Kata)",
+  "90 Detik (6 Bagian, 210-240 Kata)",
+  "2 Menit (7 Bagian, 280-320 Kata)",
+  "3 Menit (8 Bagian, 430-500 Kata)",
 ]
 
 const SEMBILAN_FORMAT_KONTEN = [
   {
     id: "ugc",
     judul: "User-Generated Content (UGC)",
-    ket: "Gaya berbagi pengalaman sebagai pengguna langsung yang jujur dan natural.",
+    ket: "Gaya kasual POV pengguna asli",
   },
   {
     id: "edukasi",
     judul: "Educational Content",
-    ket: "Membongkar wawasan, cara kerja, atau ilmu baru secara runtut dan mudah dipahami.",
+    ket: "Pemberian ilmu & kerangka pikir",
   },
   {
     id: "entertaining",
     judul: "Entertaining Content",
-    ket: "Mengutamakan cerita yang seru, menghibur, dan menjaga rasa penasaran penonton.",
+    ket: "Lucu, santai, dan menghibur",
   },
   {
     id: "inspirational",
     judul: "Inspirational & Motivating",
-    ket: "Menggerakkan hati, mengubah pola pikir, dan membangkitkan semangat penonton.",
+    ket: "Bangkitkan semangat pantang menyerah",
   },
   {
     id: "interactive",
     judul: "Interactive Content",
-    ket: "Melibatkan penonton lewat pertanyaan, tebak pilihan, dan diskusi di komentar.",
+    ket: "Kuis, polling, & pemicu debat komentar",
   },
   {
     id: "testimonial_review",
-    judul: "Testimonial and Reviews",
-    ket: "Mengulas pengalaman pakai nyata, bedah kelebihan-kekurangan, dan bukti hasil.",
+    judul: "Testimonial & Reviews",
+    ket: "Bedah hasil riil kepuasan pemakaian",
   },
   {
     id: "seasonal",
     judul: "Seasonal Content",
-    ket: "Konten yang dikaitkan dengan momen khusus, musim, gajian, atau hari besar.",
+    ket: "Momen tren, hari raya, atau akhir tahun",
   },
   {
     id: "tips_trick",
     judul: "Tips & Trick Praktis",
-    ket: "Langkah taktis dan solusi praktis yang bisa langsung dicoba penonton hari ini.",
+    ket: "Langkah instan siap contek langsung",
   },
   {
     id: "speech_kultum_pidato",
     judul: "Materi Speech, Kultum, & Pidato",
-    ket: "Naskah berbicara di depan umum, ceramah/kultum, sambutan, atau orasi panggung.",
+    ket: "Retorika panggung & nasihat mendalam",
   },
 ]
 
 const LIMA_FAKTOR_VIRAL = [
   {
     id: "fakta_realitas",
-    judul: "1. Mengandung Fakta & Realitas",
-    ket: "Mengangkat kenyataan lapangan atau kebenaran nyata yang sering diabaikan orang.",
+    badge: "Faktor 1",
+    judul: "Mengandung Fakta & Realitas",
+    ket: "Data riil, realita lapangan, atau fakta mencengangkan.",
   },
   {
     id: "pro_kontra",
-    judul: "2. Memancing Pro & Kontra",
-    ket: "Mengangkat dua sudut pandang berbeda yang memicu debat sehat di kolom komentar.",
+    badge: "Faktor 2",
+    judul: "Memancing Pro & Kontra",
+    ket: "Opini tajam atau membongkar mitos populer pasar.",
   },
   {
     id: "tokoh_brand_terkenal",
-    judul: "3. Membahas Tokoh / Artis / Brand Terkenal",
-    ket: "Mengambil pelajaran atau membedah fenomena dari sosok maupun merek populer.",
+    badge: "Faktor 3",
+    judul: "Membahas Tokoh / Brand Terkenal",
+    ket: "Bedah strategi brand besar, figur publik, atau fenomena populer.",
   },
   {
     id: "komedi",
-    judul: "4. Mengandung Komedi & Sentilan",
-    ket: "Menyampaikan pesan lewat observasi kocak, sentilan santai, atau humor segar.",
+    badge: "Faktor 4",
+    judul: "Mengandung Komedi & Sentilan",
+    ket: "Ironi sehari-hari, sarkasme halus, atau sentilan santai.",
   },
   {
     id: "emosional",
-    judul: "5. Memancing Emosional",
-    ket: "Menyentuh perasaan manusiawi penonton (haru, kesal karena terwakili, bangga, kagum).",
+    badge: "Faktor 5",
+    judul: "Memancing Emosional",
+    ket: "Rasa haru, simpati, empati, atau takut tertinggal tren.",
   },
 ]
 
 const EMPAT_PENDEKATAN_TRUST = [
   {
-    id: "bukti_jam_terbang",
-    judul: "Jam Terbang & Pengalaman Lapangan",
-    ket: "Ceritakan berapa lama kamu bergelut di bidang ini dan pelajaran yang sudah dilalui.",
+    id: "studi_kasus_nyata",
+    judul: "1. Studi Kasus / Data Hasil Nyata",
   },
   {
     id: "proses_balik_layar",
-    judul: "Proses Jujur di Balik Layar",
-    ket: "Tunjukkan proses kerja asli, ketelitian, atau perjuangan yang jarang dilihat orang.",
+    judul: "2. Dokumentasi Proses / Balik Layar",
   },
   {
-    id: "studi_kasus_nyata",
-    judul: "Bedah Kasus & Hasil Praktik",
-    ket: "Ceritakan masalah nyata yang pernah kamu tangani beserta langkah penyelesaiannya.",
+    id: "review_kesalahan",
+    judul: "3. Review Kesalahan Diri Sendiri",
   },
   {
-    id: "prinsip_dan_nilai",
-    judul: "Prinsip Jujur & Standar Kualitas",
-    ket: "Tegaskan prinsip kejujuran dan standar yang selalu kamu jaga untuk penonton.",
+    id: "bedah_solusi_teknis",
+    judul: "4. Bedah Solusi Teknis Mendalam",
+  },
+]
+
+const EMPAT_FRAMEWORK_ALUR = [
+  {
+    id: "PAS_RELATABLE_BRIDGE",
+    kode: "PAPC",
+    judul: "Problem - Agitate - Proof - CTA",
+    ket: "Klasik efektif memecah skeptisisme",
+  },
+  {
+    id: "HSO_STORY",
+    kode: "HSO",
+    judul: "Hook - Story - Offer",
+    ket: "Penceritaan personal penuh empati",
+  },
+  {
+    id: "CONTRARIAN_MYTH_BUSTER",
+    kode: "Contrarian",
+    judul: "Mitos Umum vs Realita Sebenarnya",
+    ket: "Membongkar asumsi salah audiens",
+  },
+  {
+    id: "BAB_TRANSFORMATION",
+    kode: "BAB",
+    judul: "Before - After - Bridge",
+    ket: "Transformasi kondisi dari titik nol",
   },
 ]
 
@@ -137,7 +166,6 @@ function kompresGambarScreenshot(file) {
           resolve({
             base64: dataUrl.split(",")[1] || "",
             mimeType: "image/jpeg",
-            previewUrl: dataUrl,
           })
         }
         img.onerror = () => resolve(null)
@@ -153,51 +181,47 @@ function kompresGambarScreenshot(file) {
 
 function ambilDaftarBagianSkrip(skripObj) {
   if (!skripObj) return []
-  if (Array.isArray(skripObj.sections) && skripObj.sections.length > 0) {
-    return skripObj.sections.map((sec, idx) => ({
-      partNumber: sec.partNumber || idx + 1,
-      partTitle: sec.partTitle || `Bagian ${idx + 1}`,
-      estimatedSeconds: sec.estimatedSeconds || "",
-      labelMini:
-        sec.labelMini ||
-        `Bagian ${sec.partNumber || idx + 1} • ${sec.partTitle || `Babak ${idx + 1}`}`,
-      spokenText: sec.spokenText || sec.voiceover || "",
-      voiceover: sec.spokenText || sec.voiceover || "",
-      onScreenText:
-        sec.onScreenText ||
-        sec.teksLayar ||
-        sec.spokenText ||
-        sec.voiceover ||
-        "",
-      teksLayar:
-        sec.onScreenText ||
-        sec.teksLayar ||
-        sec.spokenText ||
-        sec.voiceover ||
-        "",
-      visualCue: sec.visualCue || sec.visual || "",
-      visual: sec.visualCue || sec.visual || "",
-    }))
-  }
-  if (Array.isArray(skripObj.segmen) && skripObj.segmen.length > 0) {
-    return skripObj.segmen.map((seg, idx) => ({
-      partNumber: seg.partNumber || idx + 1,
-      partTitle:
-        seg.partTitle ||
-        (seg.labelMini
-          ? seg.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
-          : `Bagian ${idx + 1}`),
-      estimatedSeconds: seg.estimatedSeconds || "",
-      labelMini: seg.labelMini || `Bagian ${idx + 1}`,
-      spokenText: seg.spokenText || seg.voiceover || "",
-      voiceover: seg.voiceover || seg.spokenText || "",
-      onScreenText: seg.onScreenText || seg.teksLayar || seg.voiceover || "",
-      teksLayar: seg.teksLayar || seg.onScreenText || seg.voiceover || "",
-      visualCue: seg.visualCue || seg.visual || "",
-      visual: seg.visual || seg.visualCue || "",
-    }))
-  }
-  return []
+  const rawList =
+    Array.isArray(skripObj.sections) && skripObj.sections.length > 0
+      ? skripObj.sections
+      : Array.isArray(skripObj.segmen)
+        ? skripObj.segmen
+        : []
+
+  return rawList.map((sec, idx) => ({
+    partNumber: sec.partNumber || idx + 1,
+    partTitle:
+      sec.partTitle ||
+      (sec.labelMini
+        ? sec.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
+        : `Bagian ${idx + 1}`),
+    estimatedSeconds:
+      sec.estimatedSeconds || `${idx * 15}s - ${(idx + 1) * 18}s`,
+    labelMini:
+      sec.labelMini ||
+      `Bagian ${sec.partNumber || idx + 1} • ${sec.partTitle || `Babak ${idx + 1}`}`,
+    spokenText: sec.spokenText || sec.voiceover || "",
+    voiceover: sec.spokenText || sec.voiceover || "",
+    onScreenText:
+      sec.onScreenText ||
+      sec.teksLayar ||
+      sec.spokenText ||
+      sec.voiceover ||
+      "",
+    teksLayar:
+      sec.onScreenText ||
+      sec.teksLayar ||
+      sec.spokenText ||
+      sec.voiceover ||
+      "",
+    cameraCue:
+      sec.cameraCue || "Medium close-up, tatapan mata fokus ke lensa kamera.",
+    intonationCue:
+      sec.intonationCue ||
+      "Tempo bicara terjaga dengan penekanan pada kata kunci utama.",
+    visualCue: sec.visualCue || sec.visual || "",
+    visual: sec.visualCue || sec.visual || "",
+  }))
 }
 
 function hitungJumlahKataSkrip(daftarBagian) {
@@ -236,28 +260,25 @@ export default function ScriptProducerView({
   setActiveMenu,
   showToast,
   customPrompts,
-  SEPULUH_BENTUK_KONTEN,
+  SEPULUH_BENTUK_KONTEN = [],
   setModeTeleprompter,
   modeTampilanSkrip,
 }) {
-  const sliderIdeRef = useRef(null)
   const firstTextareaRef = useRef(null)
-  const storageKey = `hookya_draft_asesmen_${userId || "guest"}`
 
-  const [contentPhase, setContentPhase] = useState("fase_1_viral")
+  const [contentPhase, setContentPhase] = useState("fase_2_trust")
   const [contentFormat, setContentFormat] = useState("edukasi")
   const [viralTrigger, setViralTrigger] = useState("fakta_realitas")
-  const [trustApproach, setTrustApproach] = useState("bukti_jam_terbang")
+  const [trustApproach, setTrustApproach] = useState("studi_kasus_nyata")
   const [sellingStyle, setSellingStyle] = useState("soft_selling")
   const [wordDensity, setWordDensity] = useState("padat_kaya_kosakata")
   const [contextMode, setContextMode] = useState("sesuai_niche")
-
-  const [kategoriKonten, setKategoriKonten] = useState("personal")
-  const [jenisPromosi, setJenisPromosi] = useState("produk")
+  const [targetPlatformInput, setTargetPlatformInput] = useState(
+    PILIHAN_DURASI_KONTEN[5],
+  )
 
   const [daftarAkunTersimpan, setDaftarAkunTersimpan] = useState([])
   const [idAkunTerpilih, setIdAkunTerpilih] = useState("akun_utama")
-  const [sudahAnalisisIdeProfil, setSudahAnalisisIdeProfil] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -275,56 +296,47 @@ export default function ScriptProducerView({
         }
       }
     } catch {
-      // Abaikan
+      // Ignore storage error
     }
   }, [userId])
 
-  const defaultSpekDiri = [
+  const defaultSpekDiri =
     personaProfile?.niche_context?.unique_selling_point ||
-      personaProfile?.positioning_and_usp?.unique_selling_point,
-    personaProfile?.niche_context?.authority_role ||
-      personaProfile?.positioning_and_usp?.authority_role,
-  ]
-    .filter(Boolean)
-    .join(" • ")
+    personaProfile?.positioning_and_usp?.unique_selling_point ||
+    ""
 
-  const [personalSpecsInput, setPersonalSpecsInput] = useState("")
-
+  const [personalSpecsInput, setPersonalSpecsInput] = useState(defaultSpekDiri)
   const [rawTopicInput, setRawTopicInput] = useState("")
-  const [targetPlatformInput, setTargetPlatformInput] = useState(
-    PILIHAN_DURASI_KONTEN[2],
-  )
-
-  const [posisiBicara, setPosisiBicara] = useState(
-    "Sesuai Positioning Utama Saya",
-  )
-  const [sumberBeritaMentah, setSumberBeritaMentah] = useState("")
-  const [tampilkanJembatanTopik, setTampilkanJembatanTopik] = useState(false)
 
   const [formProduk, setFormProduk] = useState({
     namaProduk: "",
     brand: "",
-    kategoriProduk: "Fashion & Aksesoris",
     hargaPromo: "",
     masalahDipecahkan: "",
     keunggulanSpesifikasi: "",
   })
-
   const [ssProduk, setSsProduk] = useState(null)
   const [ssSpesifikasi, setSsSpesifikasi] = useState(null)
   const [isScanningSS, setIsScanningSS] = useState(false)
 
-  const [formCampaign, setFormCampaign] = useState({
-    namaCampaign: "",
-    penyelenggara: "",
-    tujuanUtama: "",
-  })
+  // State Asesmen Terpandu (Bagian B)
+  const [assessmentBatches, setAssessmentBatches] = useState([])
+  const [activeBatchIdx, setActiveBatchIdx] = useState(0)
+  const currentAssessment = assessmentBatches[activeBatchIdx] || null
 
-  const [ugcConfig, setUgcConfig] = useState({
-    aktif: false,
-    jumlahOrang: 2,
-    namaPemeran: ["", ""],
-  })
+  const [chosenAngle, setChosenAngle] = useState("")
+  const [pengalamanInput, setPengalamanInput] = useState("")
+  const [ilustrasiInput, setIlustrasiInput] = useState("")
+  const [showRekomendasiIlustrasi, setShowRekomendasiIlustrasi] =
+    useState(false)
+  const [faktaInput, setFaktaInput] = useState("")
+  const [showRekomendasiFakta, setShowRekomendasiFakta] = useState(false)
+  const [selectedFramework, setSelectedFramework] = useState(
+    "PAS_RELATABLE_BRIDGE",
+  )
+  const [lockedHook, setLockedHook] = useState("")
+  const [callToAction, setCallToAction] = useState("")
+  const [koreksiAkhirInput, setKoreksiAkhirInput] = useState("")
 
   const [isLoadingIdeTopik, setIsLoadingIdeTopik] = useState(false)
   const [isLoadingOpsi, setIsLoadingOpsi] = useState(false)
@@ -335,90 +347,19 @@ export default function ScriptProducerView({
   const [regeneratingIndex, setRegeneratingIndex] = useState(null)
   const [regenCount, setRegenCount] = useState(0)
   const [isEditMode, setIsEditMode] = useState(false)
-  const [isLearningDiff, setIsLearningDiff] = useState(false)
-  const [errorAsesmenAI, setErrorAsesmenAI] = useState("")
 
-  // State Minimize Arahan Adegan Visual per Bagian (Default tertutup/minimized)
-  const [openVisualMap, setOpenVisualMap] = useState({})
+  const [openVisualMap, setOpenVisualMap] = useState({ 0: true })
+  const [targetDurasiUbah, setTargetDurasiUbah] = useState(
+    PILIHAN_DURASI_KONTEN[5],
+  )
+  const [targetKonversiBentuk, setTargetKonversiBentuk] = useState(
+    SEPULUH_BENTUK_KONTEN[0]?.nama ||
+      "Talking Head Video Pendek (Reels/TikTok)",
+  )
   const [pilihanMultiplierDropdown, setPilihanMultiplierDropdown] =
     useState("2")
 
-  // State Tahap 2 & Tahap 4 (Berbasis Textbox Tanpa Dummy)
-  const [showRekomendasiIlustrasi, setShowRekomendasiIlustrasi] =
-    useState(false)
-  const [showRekomendasiFakta, setShowRekomendasiFakta] = useState(false)
-  const [pondasiFaktaInput, setPondasiFaktaInput] = useState("")
-  const [catatanAkhirUser, setCatatanAkhirUser] = useState("")
-
-  const [stage1Batches, setStage1Batches] = useState([])
-  const [activeBatch1, setActiveBatch1] = useState(0)
-
-  const [stage2Batches, setStage2Batches] = useState([])
-  const [activeBatch2, setActiveBatch2] = useState(0)
-
-  const [stage3Batches, setStage3Batches] = useState([])
-  const [activeBatch3, setActiveBatch3] = useState(0)
-
-  const coPilotStage1Data = stage1Batches[activeBatch1] || null
-  const coPilotStage2Data = stage2Batches[activeBatch2] || null
-  const coPilotStage3Data = stage3Batches[activeBatch3] || null
-
-  const [contentBrief, setContentBrief] = useState({
-    session_id: "ses_4410",
-    content_phase: "fase_1_viral",
-    content_format: "edukasi",
-    viral_trigger: "fakta_realitas",
-    trust_approach: "bukti_jam_terbang",
-    selling_style: "soft_selling",
-    word_density: "padat_kaya_kosakata",
-    personal_specs: "",
-    context_mode: "sesuai_niche",
-    selected_framework: "PAS_RELATABLE_BRIDGE",
-    target_platform: PILIHAN_DURASI_KONTEN[2],
-    core_idea: "",
-    chosen_angle: "",
-    personal_context_or_story: "",
-    injected_reference: {
-      type: "Fakta & Alasan Logis",
-      title: "",
-      summary: "",
-    },
-    actionable_solution: [],
-    locked_hook: "",
-    call_to_action: "",
-    user_final_notes: "",
-  })
-
-  const [tempStoryInput, setTempStoryInput] = useState("")
-  const [tempCustomSolution, setTempCustomSolution] = useState("")
-  const [tempCustomHook, setTempCustomHook] = useState("")
-  const [tempCustomCTA, setTempCustomCTA] = useState("")
-  const [aiOriginalDraft, setAiOriginalDraft] = useState([])
-  const [targetKonversiBentuk, setTargetKonversiBentuk] = useState(
-    SEPULUH_BENTUK_KONTEN[9]?.nama || "Slide Foto / Carousel",
-  )
-  const [targetDurasiUbah, setTargetDurasiUbah] = useState(
-    PILIHAN_DURASI_KONTEN[2],
-  )
-
-  const [koleksiVariasiGanda, setKoleksiVariasiGanda] = useState([])
-  const [indexVariasiAktif, setIndexVariasiAktif] = useState(0)
-  const [draftLoaded, setDraftLoaded] = useState(false)
-
-  const handlePilihFaseKonten = (faseBaru) => {
-    setContentPhase(faseBaru)
-    if (faseBaru === "fase_3_konversi") {
-      setKategoriKonten("affiliate")
-    } else {
-      setKategoriKonten("personal")
-    }
-    if (faseBaru === "fase_2_trust" && !personalSpecsInput && defaultSpekDiri) {
-      setPersonalSpecsInput(defaultSpekDiri)
-    }
-  }
-
-  // Ganti Profil Akun & Otomatis Analisis Ide Materi Sesuai Profil Akun yang Dipilih
-  const handleGantiAkunCepat = async (akunObj, idxUrutan = 0) => {
+  const handleGantiAkunCepat = (akunObj, idxUrutan = 0) => {
     if (!akunObj) return
     if (idxUrutan >= kuotaAkunMaksimal) {
       showToast(
@@ -428,21 +369,15 @@ export default function ScriptProducerView({
       return
     }
     setIdAkunTerpilih(akunObj.id)
-    const personaAkun = akunObj.personaProfile || personaProfile
     if (akunObj.personaProfile) {
       setPersonaProfile(akunObj.personaProfile)
     }
     if (akunObj.uspDiriInput) {
       setPersonalSpecsInput(akunObj.uspDiriInput)
     }
-    showToast(`Profil akun aktif: ${akunObj.labelAkun}`)
-
-    if (contextMode === "sesuai_niche") {
-      handleGenerate10IdeTopikAI(personaAkun)
-    }
+    showToast(`Profil penulisan aktif: ${akunObj.labelAkun}`)
   }
 
-  // Jika user memilih Lintas Topik / Bebas, kosongkan rekomendasi ide topik dummy
   const handleUbahContextMode = (modeBaru) => {
     setContextMode(modeBaru)
     if (modeBaru === "lintas_produk") {
@@ -450,366 +385,14 @@ export default function ScriptProducerView({
     }
   }
 
-  const renderAdaptiveVoiceInput = ({
-    rows = 2,
-    value,
-    onChange,
-    placeholder,
-  }) => {
-    if (isPremiumUser) {
-      return (
-        <StoryVoiceInput
-          rows={rows}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          onNotify={showToast}
-        />
-      )
-    }
-    return (
-      <div className="relative w-full">
-        <textarea
-          rows={rows}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-28 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
-        />
-        <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
-          {value && value.trim().length > 0 && (
-            <button
-              type="button"
-              onClick={() => onChange("")}
-              title="Hapus seluruh teks"
-              className="cursor-pointer px-2 py-1.5 rounded-md bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-[11px] font-bold transition"
-            >
-              Hapus
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onTriggerUpgradeVIP}
-            title="Fitur Mikrofon Suara khusus Paket VIP (Rp20.000+)"
-            className="cursor-pointer px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
-          >
-            <FlatIcon name="lock" className="w-3.5 h-3.5" />
-            <span>Mic VIP</span>
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Input Baris Tunggal dengan Tombol Hapus
-  const renderInputWithClear = ({ value, onChange, placeholder }) => (
-    <div className="relative w-full">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 pr-16 text-base sm:text-xs text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
-      />
-      {value && value.trim().length > 0 && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:text-rose-700"
-        >
-          Hapus
-        </button>
-      )}
-    </div>
-  )
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    try {
-      const savedRaw = localStorage.getItem(storageKey)
-      if (savedRaw) {
-        const parsed = JSON.parse(savedRaw)
-        if (parsed.contentPhase) setContentPhase(parsed.contentPhase)
-        if (parsed.contentFormat) setContentFormat(parsed.contentFormat)
-        if (parsed.viralTrigger) setViralTrigger(parsed.viralTrigger)
-        if (parsed.trustApproach) setTrustApproach(parsed.trustApproach)
-        if (parsed.sellingStyle) setSellingStyle(parsed.sellingStyle)
-        if (parsed.wordDensity) setWordDensity(parsed.wordDensity)
-        if (parsed.personalSpecsInput)
-          setPersonalSpecsInput(parsed.personalSpecsInput)
-        if (parsed.kategoriKonten) setKategoriKonten(parsed.kategoriKonten)
-        if (parsed.jenisPromosi) setJenisPromosi(parsed.jenisPromosi)
-        if (parsed.contextMode) setContextMode(parsed.contextMode)
-        if (parsed.rawTopicInput) setRawTopicInput(parsed.rawTopicInput)
-        if (parsed.posisiBicara) setPosisiBicara(parsed.posisiBicara)
-        if (parsed.sumberBeritaMentah)
-          setSumberBeritaMentah(parsed.sumberBeritaMentah)
-        if (parsed.targetPlatformInput)
-          setTargetPlatformInput(parsed.targetPlatformInput)
-        if (parsed.formProduk) setFormProduk(parsed.formProduk)
-        if (parsed.formCampaign) setFormCampaign(parsed.formCampaign)
-        if (parsed.ugcConfig) setUgcConfig(parsed.ugcConfig)
-        if (parsed.contentBrief) setContentBrief(parsed.contentBrief)
-        if (Array.isArray(parsed.stage1Batches))
-          setStage1Batches(parsed.stage1Batches)
-        if (Array.isArray(parsed.stage2Batches))
-          setStage2Batches(parsed.stage2Batches)
-        if (Array.isArray(parsed.stage3Batches))
-          setStage3Batches(parsed.stage3Batches)
-        if (
-          typeof parsed.savedStage === "number" &&
-          parsed.savedStage >= 0 &&
-          parsed.savedStage <= 4 &&
-          !hasilSkrip
-        ) {
-          setStage(parsed.savedStage)
-        }
-      }
-    } catch {
-      // Abaikan
-    } finally {
-      setDraftLoaded(true)
-    }
-  }, [storageKey])
-
-  useEffect(() => {
-    if (!draftLoaded || typeof window === "undefined") return
-    try {
-      const payloadSimpan = {
-        contentPhase,
-        contentFormat,
-        viralTrigger,
-        trustApproach,
-        sellingStyle,
-        wordDensity,
-        personalSpecsInput,
-        kategoriKonten,
-        jenisPromosi,
-        contextMode,
-        rawTopicInput,
-        posisiBicara,
-        sumberBeritaMentah,
-        targetPlatformInput,
-        formProduk,
-        formCampaign,
-        ugcConfig,
-        contentBrief,
-        stage1Batches,
-        stage2Batches,
-        stage3Batches,
-        savedStage: stage <= 4 ? stage : 0,
-      }
-      localStorage.setItem(storageKey, JSON.stringify(payloadSimpan))
-    } catch {
-      // Abaikan
-    }
-  }, [
-    draftLoaded,
-    storageKey,
-    contentPhase,
-    contentFormat,
-    viralTrigger,
-    trustApproach,
-    sellingStyle,
-    wordDensity,
-    personalSpecsInput,
-    kategoriKonten,
-    jenisPromosi,
-    contextMode,
-    rawTopicInput,
-    posisiBicara,
-    sumberBeritaMentah,
-    targetPlatformInput,
-    formProduk,
-    formCampaign,
-    ugcConfig,
-    contentBrief,
-    stage1Batches,
-    stage2Batches,
-    stage3Batches,
-    stage,
-  ])
-
-  const otomatisSimpanKeArsipUser = async (skripTarget, pesanNotif) => {
-    if (!skripTarget) return
-    const tersimpan = await simpanAtauUpdateSkripDatabase(skripTarget)
-    setHasilSkrip(tersimpan)
-    setKoleksiSkripTersimpan((prev) => {
-      const sudahAda = prev.some((item) => item.id === tersimpan.id)
-      if (sudahAda) {
-        return prev.map((item) => (item.id === tersimpan.id ? tersimpan : item))
-      }
-      return [tersimpan, ...prev]
-    })
-    if (pesanNotif) showToast(pesanNotif)
-  }
-
-  const handleCetakPDF = async () => {
-    if (!hasilSkrip) return
-    await otomatisSimpanKeArsipUser(
-      hasilSkrip,
-      "Skrip disimpan ke arsip dan menyiapkan dokumen cetak.",
-    )
-
-    const win = window.open("", "_blank", "width=800,height=900")
-    if (!win) {
-      alert("Izinkan pop-up di browser untuk mencetak PDF.")
-      return
-    }
-
-    const daftarBagian = ambilDaftarBagianSkrip(hasilSkrip)
-    const barisHTML = daftarBagian
-      .map(
-        (s) => `
-        <div style="border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:12px;">
-          <div style="font-weight:bold; font-size:12px; color:#475569; margin-bottom:6px;">
-            Bagian ${s.partNumber} • ${s.partTitle} ${s.estimatedSeconds ? `(${s.estimatedSeconds})` : ""}
-          </div>
-          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;"><strong>Naskah:</strong><br/>${
-            modeTampilanSkrip === "teks" ? s.onScreenText : s.spokenText
-          }</div>
-          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;"><strong>Arahan Adegan & Intonasi:</strong> ${s.visualCue}</div>
-        </div>`,
-      )
-      .join("")
-
-    const watermarkFooter = !isPremiumUser
-      ? `<p style="margin-top:24px; padding-top:12px; border-top:1px dashed #cbd5e1; font-size:12px; color:#475569; font-weight:bold;">Disusun menggunakan Hookya.site</p>`
-      : ""
-
-    win.document.write(`
-      <html>
-        <head>
-          <title>Skrip Hookya - ${hasilSkrip.judul}</title>
-        </head>
-        <body style="font-family:sans-serif; padding:24px; color:#14141f;">
-          <h2 style="margin-bottom:4px;">${hasilSkrip.judul}</h2>
-          <p style="font-size:12px; color:#64748b; margin-top:0; margin-bottom:20px;">
-            Hookya.site • ${hasilSkrip.waktuDibuat} • ${daftarBagian.length} Bagian
-          </p>
-          ${barisHTML}
-          ${watermarkFooter}
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
-        </body>
-      </html>
-    `)
-    win.document.close()
-  }
-
-  const handleUploadSSProduk = async (e) => {
-    if (!isPremiumUser) {
-      onTriggerUpgradeVIP()
-      return
-    }
-    const file = e.target.files?.[0]
-    if (!file) return
-    const hasil = await kompresGambarScreenshot(file)
-    if (hasil) {
-      setSsProduk({ ...hasil, namaFile: file.name })
-      showToast("Screenshot produk siap diekstrak.")
-    }
-  }
-
-  const handleUploadSSSpesifikasi = async (e) => {
-    if (!isPremiumUser) {
-      onTriggerUpgradeVIP()
-      return
-    }
-    const file = e.target.files?.[0]
-    if (!file) return
-    const hasil = await kompresGambarScreenshot(file)
-    if (hasil) {
-      setSsSpesifikasi({ ...hasil, namaFile: file.name })
-      showToast("Screenshot spesifikasi siap diekstrak.")
-    }
-  }
-
-  const handleScanMarketplaceAI = async () => {
-    if (!isPremiumUser) {
-      onTriggerUpgradeVIP()
-      return
-    }
-    if (!ssProduk && !ssSpesifikasi) {
-      alert(
-        "Pilih minimal 1 gambar screenshot produk dari marketplace terlebih dahulu.",
-      )
-      return
-    }
-
-    setIsScanningSS(true)
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "analyze_marketplace_screenshots",
-          userId,
-          namaUser,
-          productImageBase64: ssProduk?.base64 || "",
-          productImageMime: ssProduk?.mimeType || "image/jpeg",
-          specImageBase64: ssSpesifikasi?.base64 || "",
-          specImageMime: ssSpesifikasi?.mimeType || "image/jpeg",
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-
-      setFormProduk((prev) => ({
-        ...prev,
-        namaProduk: data.namaProduk || prev.namaProduk,
-        brand: data.brand || prev.brand,
-        hargaPromo: data.hargaPromo || prev.hargaPromo,
-        keunggulanSpesifikasi:
-          data.keunggulanSpesifikasi || prev.keunggulanSpesifikasi,
-        masalahDipecahkan: data.masalahDipecahkan || prev.masalahDipecahkan,
-      }))
-
-      showToast(
-        "Data produk dan manfaat pemakaian berhasil disalin dari screenshot.",
-      )
-    } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
-    } finally {
-      setIsScanningSS(false)
-    }
-  }
-
-  const handleUbahJumlahPemeranUGC = (jmlBaru) => {
-    const angka = Math.max(2, Math.min(6, parseInt(jmlBaru) || 2))
-    const namaLama = [...ugcConfig.namaPemeran]
-    const namaBaru = []
-    for (let i = 0; i < angka; i++) {
-      namaBaru.push(namaLama[i] || "")
-    }
-    setUgcConfig({ ...ugcConfig, jumlahOrang: angka, namaPemeran: namaBaru })
-  }
-
-  const geserSliderIde = (arah) => {
-    if (!sliderIdeRef.current) return
-    sliderIdeRef.current.scrollBy({
-      left: arah === "kiri" ? -320 : 320,
-      behavior: "smooth",
-    })
-  }
-
-  const handleGenerate10IdeTopikAI = async (
-    personaOverride = personaProfile,
-  ) => {
+  const handleGenerate10IdeTopikAI = async () => {
     if (contextMode === "lintas_produk") {
       setDaftar10IdeTopik([])
-      showToast(
-        "Mode Lintas Topik aktif. Silakan ketik topik bebas pada kolom di atas.",
-      )
+      showToast("Mode Lintas Topik aktif. Silakan ketik topik bebas di atas.")
       return
     }
     setIsLoadingIdeTopik(true)
-    showToast(
-      "Menganalisis profil akun terpilih untuk menyusun 10 ide materi...",
-    )
+    showToast("Menganalisis profil akun untuk mencari 10 ide materi...")
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -825,15 +408,13 @@ export default function ScriptProducerView({
           sellingStyle,
           personalSpecs: personalSpecsInput,
           contextMode: "sesuai_niche",
-          personaProfile: personaOverride,
-          kategoriKonten,
+          personaProfile,
         }),
       })
       const data = await res.json()
       if (res.ok && Array.isArray(data.ideTopik) && data.ideTopik.length > 0) {
         setDaftar10IdeTopik(data.ideTopik.slice(0, 10))
-        setSudahAnalisisIdeProfil(true)
-        showToast("10 rekomendasi ide dari analisis profil akun dimuat.")
+        showToast("10 rekomendasi ide dari profil akun berhasil dimuat.")
       } else {
         showToast("Error sistem, silakan refresh atau hubungi admin.")
       }
@@ -844,72 +425,86 @@ export default function ScriptProducerView({
     }
   }
 
-  const panggilTahap1Angle = async (isRegenerateBatch = false) => {
-    if (isRegenerateBatch && stage1Batches.length >= 3) {
-      showToast(
-        "Batas maksimal 3x pencarian opsi sudut pandang telah tercapai.",
+  const handleScanMarketplaceAI = async () => {
+    if (!isPremiumUser) {
+      onTriggerUpgradeVIP()
+      return
+    }
+    if (!ssProduk && !ssSpesifikasi) {
+      alert("Pilih minimal 1 gambar screenshot produk terlebih dahulu.")
+      return
+    }
+    setIsScanningSS(true)
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_marketplace_screenshots",
+          userId,
+          namaUser,
+          productImageBase64: ssProduk?.base64 || "",
+          productImageMime: ssProduk?.mimeType || "image/jpeg",
+          specImageBase64: ssSpesifikasi?.base64 || "",
+          specImageMime: ssSpesifikasi?.mimeType || "image/jpeg",
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const namaP = data.namaProduk || formProduk.namaProduk
+        setFormProduk((prev) => ({
+          ...prev,
+          namaProduk: namaP,
+          brand: data.brand || prev.brand,
+          hargaPromo: data.hargaPromo || prev.hargaPromo,
+          keunggulanSpesifikasi:
+            data.keunggulanSpesifikasi || prev.keunggulanSpesifikasi,
+          masalahDipecahkan: data.masalahDipecahkan || prev.masalahDipecahkan,
+        }))
+        if (namaP && !rawTopicInput.trim()) {
+          setRawTopicInput(`Promosi ${namaP} (${data.masalahDipecahkan || ""})`)
+        }
+        showToast("Data produk berhasil diekstrak dari screenshot.")
+      }
+    } catch {
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
+    } finally {
+      setIsScanningSS(false)
+    }
+  }
+
+  const handleMuatOpsiAsesmen = async (isNewSet = false) => {
+    if (isNewSet && assessmentBatches.length >= 3) {
+      showToast("Maksimal 3 Set arahan telah tercapai.")
+      return
+    }
+
+    const topikAktif =
+      rawTopicInput.trim() ||
+      (contentPhase === "fase_3_konversi" && formProduk.namaProduk
+        ? `Promosi ${formProduk.namaProduk}`
+        : "")
+
+    if (!topikAktif) {
+      alert(
+        "Tuliskan topik bahasan di kolom Input Topik Mandiri atau pilih salah satu kartu Rekomendasi Ide terlebih dahulu.",
       )
       return
     }
 
-    let topikUtama = ""
-    let detailPromosiPayload = null
-
-    if (contentPhase !== "fase_3_konversi") {
-      if (!rawTopicInput.trim()) {
-        alert(
-          "Ketik topik pembahasan terlebih dahulu atau pilih dari rekomendasi ide materi.",
-        )
-        return
-      }
-      const instruksiJembatan =
-        posisiBicara !== "Sesuai Positioning Utama Saya"
-          ? ` [ POSISI BICARA: Gunakan mode "${posisiBicara}". ]`
-          : ""
-      const lampiranBerita = sumberBeritaMentah.trim()
-        ? ` [ FAKTA / BERITA SUMBER: "${sumberBeritaMentah.trim()}" ]`
-        : ""
-
-      topikUtama = `${rawTopicInput.trim()}${instruksiJembatan}${lampiranBerita}`
-    } else {
-      if (jenisPromosi === "produk") {
-        if (!formProduk.namaProduk.trim()) {
-          alert(
-            "Isi Nama Produk terlebih dahulu atau gunakan fitur ekstrak screenshot produk.",
-          )
-          return
-        }
-        topikUtama = `Promosi Produk ${formProduk.namaProduk} (${formProduk.brand || "-"})`
-        detailPromosiPayload = formProduk
-      } else {
-        if (!formCampaign.namaCampaign.trim()) {
-          alert("Isi Nama Gerakan / Campaign terlebih dahulu.")
-          return
-        }
-        topikUtama = `Campaign: ${formCampaign.namaCampaign}`
-        detailPromosiPayload = formCampaign
-      }
-    }
-
-    setStage(1)
-    setErrorAsesmenAI("")
-    if (!isRegenerateBatch) {
-      setStage1Batches([])
-      setActiveBatch1(0)
-      // Kosongkan seluruh textbox dari teks dummy saat masuk ke Tahap 1
-      setTempStoryInput("")
-      setPondasiFaktaInput("")
-      setTempCustomSolution("")
-      setTempCustomHook("")
-      setTempCustomCTA("")
-      setCatatanAkhirUser("")
+    setIsLoadingOpsi(true)
+    if (!isNewSet) {
+      setStage(1)
+      setPengalamanInput("")
+      setIlustrasiInput("")
+      setFaktaInput("")
+      setKoreksiAkhirInput("")
       setShowRekomendasiIlustrasi(false)
       setShowRekomendasiFakta(false)
     }
-    setIsLoadingOpsi(true)
 
-    const opsiAngleSebelumnya = isRegenerateBatch
-      ? stage1Batches.flatMap((b) =>
+    const opsiSebelumnya = isNewSet
+      ? assessmentBatches.flatMap((b) =>
           (b.angle_options || []).map((a) => a.angle_text),
         )
       : []
@@ -931,11 +526,11 @@ export default function ScriptProducerView({
           personalSpecs: personalSpecsInput,
           contextMode,
           stageNumber: 1,
-          batchKe: isRegenerateBatch ? stage1Batches.length + 1 : 1,
-          opsiSebelumnya: opsiAngleSebelumnya,
+          batchKe: isNewSet ? assessmentBatches.length + 1 : 1,
+          opsiSebelumnya,
           personaProfile,
           stageInput: {
-            rawTopic: topikUtama,
+            rawTopic: topikAktif,
             contentPhase,
             contentFormat,
             viralTrigger,
@@ -945,351 +540,45 @@ export default function ScriptProducerView({
             personalSpecs: personalSpecsInput,
             contextMode,
             targetPlatform: targetPlatformInput,
-            kategori:
-              contentPhase === "fase_1_viral"
-                ? "Fase 1: Cari Viral Dulu"
-                : contentPhase === "fase_2_trust"
-                  ? "Fase 2: Menciptakan Trust"
-                  : "Fase 3: Konten Konversi & Jualan",
-            jenisPromosi:
-              contentPhase === "fase_3_konversi" ? jenisPromosi : "personal",
-            detailPromosi: detailPromosiPayload,
-          },
-          customPrompts,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-
-      setStage1Batches((prev) => {
-        const listBaru = isRegenerateBatch ? [...prev, data] : [data]
-        setActiveBatch1(listBaru.length - 1)
-        return listBaru
-      })
-
-      setContentBrief((prev) => ({
-        ...prev,
-        session_id: `ses_${Date.now().toString().slice(-4)}`,
-        content_phase: contentPhase,
-        content_format: contentFormat,
-        viral_trigger: viralTrigger,
-        trust_approach: trustApproach,
-        selling_style: sellingStyle,
-        word_density: wordDensity,
-        personal_specs: personalSpecsInput,
-        context_mode: contextMode,
-        target_platform: targetPlatformInput,
-        core_idea: data.refined_core_idea || rawTopicInput.trim() || topikUtama,
-        chosen_angle: data.angle_options?.[0]?.angle_text || prev.chosen_angle,
-      }))
-    } catch {
-      setErrorAsesmenAI("Error sistem, silakan refresh atau hubungi admin.")
-    } finally {
-      setIsLoadingOpsi(false)
-    }
-  }
-
-  const panggilTahap2Referensi = async (
-    angleTerpilih,
-    ceritaUser,
-    isRegenerateBatch = false,
-  ) => {
-    if (isRegenerateBatch && stage2Batches.length >= 3) {
-      showToast("Batas maksimal 3x pencarian opsi penjelasan telah tercapai.")
-      return
-    }
-
-    const finalAngle = angleTerpilih || contentBrief.chosen_angle
-    const finalStory = ceritaUser ?? tempStoryInput
-
-    setContentBrief((prev) => ({
-      ...prev,
-      chosen_angle: finalAngle,
-      personal_context_or_story: finalStory,
-    }))
-
-    setStage(2)
-    setErrorAsesmenAI("")
-    if (!isRegenerateBatch) {
-      setStage2Batches([])
-      setActiveBatch2(0)
-    }
-    setIsLoadingOpsi(true)
-
-    const opsiRefSebelumnya = isRegenerateBatch
-      ? stage2Batches.flatMap((b) => [
-          ...(b.relatable_analogies || []),
-          ...(b.suggested_solutions || []),
-        ])
-      : []
-
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "assessment_copilot",
-          userId,
-          namaUser,
-          contentPhase,
-          contentFormat,
-          viralTrigger,
-          trustApproach,
-          sellingStyle,
-          wordDensity,
-          personalSpecs: personalSpecsInput,
-          contextMode,
-          stageNumber: 2,
-          batchKe: isRegenerateBatch ? stage2Batches.length + 1 : 1,
-          opsiSebelumnya: opsiRefSebelumnya,
-          personaProfile,
-          stageInput: {
-            contentPhase,
-            contentFormat,
-            viralTrigger,
-            trustApproach,
-            sellingStyle,
-            wordDensity,
-            personalSpecs: personalSpecsInput,
-            contextMode,
-            coreIdea: contentBrief.core_idea,
-            chosenAngle: finalAngle,
-            userStory: finalStory,
             detailPromosi:
-              contentPhase === "fase_3_konversi"
-                ? jenisPromosi === "produk"
-                  ? formProduk
-                  : formCampaign
-                : null,
+              contentPhase === "fase_3_konversi" ? formProduk : null,
           },
           customPrompts,
         }),
       })
 
       const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
+      if (!res.ok) throw new Error("Gagal memuat asesmen")
 
-      setStage2Batches((prev) => {
-        const listBaru = isRegenerateBatch ? [...prev, data] : [data]
-        setActiveBatch2(listBaru.length - 1)
+      setAssessmentBatches((prev) => {
+        const listBaru = isNewSet ? [...prev, data] : [data]
+        setActiveBatchIdx(listBaru.length - 1)
         return listBaru
       })
 
-      // Jangan timpa tempStoryInput dengan teks dummy otomatis (biarkan kosong jika user tidak mengisi)
-      setContentBrief((prev) => ({
-        ...prev,
-        actionable_solution: data.suggested_solutions
-          ? data.suggested_solutions.slice(0, 2)
-          : prev.actionable_solution,
-      }))
-    } catch {
-      setErrorAsesmenAI("Error sistem, silakan refresh atau hubungi admin.")
-    } finally {
-      setIsLoadingOpsi(false)
-    }
-  }
-
-  const panggilTahap3Hook = async (isRegenerateBatch = false) => {
-    if (isRegenerateBatch && stage3Batches.length >= 3) {
-      showToast("Batas maksimal 3x pencarian opsi Hook telah tercapai.")
-      return
-    }
-
-    const solusiFinal = tempCustomSolution.trim()
-      ? [...contentBrief.actionable_solution, tempCustomSolution.trim()]
-      : contentBrief.actionable_solution
-
-    const faktaTerpilihObj = {
-      type: "Fakta & Alasan Logis",
-      title: pondasiFaktaInput.trim()
-        ? "Pondasi Fakta Pengguna"
-        : "Fakta Lapangan",
-      summary:
-        pondasiFaktaInput.trim() ||
-        coPilotStage2Data?.reference_cards?.[0]?.summary ||
-        "",
-    }
-
-    setContentBrief((prev) => ({
-      ...prev,
-      personal_context_or_story: tempStoryInput.trim(),
-      injected_reference: faktaTerpilihObj,
-      actionable_solution: solusiFinal,
-    }))
-
-    setStage(3)
-    setErrorAsesmenAI("")
-    if (!isRegenerateBatch) {
-      setStage3Batches([])
-      setActiveBatch3(0)
-    }
-    setIsLoadingOpsi(true)
-
-    const opsiHookSebelumnya = isRegenerateBatch
-      ? stage3Batches.flatMap((b) =>
-          (b.hook_options || []).map((h) =>
-            typeof h === "string" ? h : h?.text,
-          ),
+      if (data.angle_options?.[0]?.angle_text) {
+        setChosenAngle(data.angle_options[0].angle_text)
+      }
+      if (data.recommended_framework) {
+        setSelectedFramework(data.recommended_framework)
+      }
+      const firstHook = data.hook_options?.[0]
+      if (firstHook) {
+        setLockedHook(
+          typeof firstHook === "string" ? firstHook : firstHook.text || "",
         )
-      : []
-
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "assessment_copilot",
-          userId,
-          namaUser,
-          contentPhase,
-          contentFormat,
-          viralTrigger,
-          trustApproach,
-          sellingStyle,
-          wordDensity,
-          personalSpecs: personalSpecsInput,
-          contextMode,
-          stageNumber: 3,
-          batchKe: isRegenerateBatch ? stage3Batches.length + 1 : 1,
-          opsiSebelumnya: opsiHookSebelumnya,
-          personaProfile,
-          stageInput: {
-            contentPhase,
-            contentFormat,
-            viralTrigger,
-            trustApproach,
-            sellingStyle,
-            wordDensity,
-            personalSpecs: personalSpecsInput,
-            contextMode,
-            coreIdea: contentBrief.core_idea,
-            chosenAngle: contentBrief.chosen_angle,
-            personalStory: tempStoryInput.trim(),
-            injectedReference: faktaTerpilihObj,
-            actionableSolutions: solusiFinal,
-          },
-          customPrompts,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-
-      setStage3Batches((prev) => {
-        const listBaru = isRegenerateBatch ? [...prev, data] : [data]
-        setActiveBatch3(listBaru.length - 1)
-        return listBaru
-      })
-
-      const firstHookObj = data.hook_options?.[0]
-      const firstHookText =
-        typeof firstHookObj === "string"
-          ? firstHookObj
-          : firstHookObj?.text || ""
-
-      const firstCtaObj = data.cta_options?.[0]
-      const firstCtaText =
-        typeof firstCtaObj === "string" ? firstCtaObj : firstCtaObj?.text || ""
-
-      setContentBrief((prev) => ({
-        ...prev,
-        selected_framework:
-          data.recommended_framework || "PAS_RELATABLE_BRIDGE",
-        locked_hook: firstHookText || prev.locked_hook,
-        call_to_action: firstCtaText || prev.call_to_action,
-      }))
+      }
+      const firstCta = data.cta_options?.[0]
+      if (firstCta) {
+        setCallToAction(
+          typeof firstCta === "string" ? firstCta : firstCta.text || "",
+        )
+      }
     } catch {
-      setErrorAsesmenAI("Error sistem, silakan refresh atau hubungi admin.")
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
       setIsLoadingOpsi(false)
     }
-  }
-
-  const renderBatchSlideBar = (
-    batchesArray,
-    activeIndex,
-    setActiveIndex,
-    onRegenerateNewBatch,
-    labelOpsi,
-  ) => {
-    const sisaGenerate = Math.max(0, 3 - batchesArray.length)
-    return (
-      <div className="bg-[#f4f5f7] p-2.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-600 px-1.5">
-            Pilihan {labelOpsi}:
-          </span>
-          {batchesArray.map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => setActiveIndex(idx)}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                activeIndex === idx
-                  ? "bg-[#14141f] text-[#d4f34a]"
-                  : "bg-white text-slate-600 border border-slate-200 hover:border-[#14141f]"
-              }`}
-            >
-              Set {idx + 1}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {batchesArray.length > 1 && (
-            <>
-              <button
-                type="button"
-                disabled={activeIndex === 0}
-                onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
-                className="cursor-pointer w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center disabled:opacity-40"
-              >
-                <FlatIcon name="chevronLeft" className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                disabled={activeIndex === batchesArray.length - 1}
-                onClick={() =>
-                  setActiveIndex((i) =>
-                    Math.min(batchesArray.length - 1, i + 1),
-                  )
-                }
-                className="cursor-pointer w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center disabled:opacity-40"
-              >
-                <FlatIcon name="chevronRight" className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-
-          <button
-            type="button"
-            disabled={sisaGenerate === 0 || isLoadingOpsi}
-            onClick={onRegenerateNewBatch}
-            className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition disabled:opacity-45"
-          >
-            <FlatIcon name="refresh" className="w-3.5 h-3.5" />
-            <span>
-              {sisaGenerate > 0
-                ? `Cari Opsi Lain (Sisa ${sisaGenerate}x)`
-                : "Maksimal 3 Set"}
-            </span>
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const lanjutKeTahap4FinalBrief = () => {
-    setContentBrief((prev) => ({
-      ...prev,
-      locked_hook: tempCustomHook.trim() || prev.locked_hook,
-      call_to_action: tempCustomCTA.trim() || prev.call_to_action,
-    }))
-    setStage(4)
   }
 
   const handleBuatSkripSekarang = async () => {
@@ -1299,13 +588,39 @@ export default function ScriptProducerView({
       return
     }
 
-    const pemeranBersih = ugcConfig.namaPemeran.map(
-      (n, idx) => n.trim() || `Pemeran ${idx + 1}`,
-    )
+    const topikInti =
+      rawTopicInput.trim() ||
+      currentAssessment?.refined_core_idea ||
+      "Topik Konten Hookya"
+
+    const briefFinal = {
+      content_phase: contentPhase,
+      content_format: contentFormat,
+      viral_trigger: viralTrigger,
+      trust_approach: trustApproach,
+      selling_style: sellingStyle,
+      word_density: wordDensity,
+      personal_specs: personalSpecsInput,
+      context_mode: contextMode,
+      selected_framework: selectedFramework,
+      target_platform: targetPlatformInput,
+      core_idea: topikInti,
+      chosen_angle: chosenAngle || "Sudut pandang utama kreator",
+      personal_context_or_story: [pengalamanInput.trim(), ilustrasiInput.trim()]
+        .filter(Boolean)
+        .join(" | "),
+      injected_reference: {
+        type: "Fakta & Alasan Masuk Akal",
+        title: "Pondasi Argumen",
+        summary: faktaInput.trim(),
+      },
+      locked_hook: lockedHook,
+      call_to_action: callToAction,
+      user_final_notes: koreksiAkhirInput.trim(),
+    }
 
     setIsGenerating(true)
-    const koinSetelahPotong = coins - 1
-    await updateKoinDatabase(koinSetelahPotong)
+    await updateKoinDatabase(coins - 1)
 
     try {
       const res = await fetch("/api/ai", {
@@ -1323,14 +638,10 @@ export default function ScriptProducerView({
           wordDensity,
           personalSpecs: personalSpecsInput,
           contextMode,
-          catatanAkhirUser,
+          catatanAkhirUser: koreksiAkhirInput.trim(),
           personaProfile,
-          contentBrief: {
-            ...contentBrief,
-            user_final_notes: catatanAkhirUser,
-          },
+          contentBrief: briefFinal,
           bentukKonten: bentukKontenFinal,
-          ugcConfig: { ...ugcConfig, namaPemeran: pemeranBersih },
           customPrompts,
         }),
       })
@@ -1340,45 +651,18 @@ export default function ScriptProducerView({
         if (data.silentCoinUpdated != null) {
           updateKoinDatabase(data.silentCoinUpdated)
         }
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
+        throw new Error("Error sistem")
       }
 
-      const waktuSekarang = new Date().toLocaleString("id-ID", {
-        day: "numeric",
+      const waktuSekarang = new Date().toLocaleDateString("id-ID", {
+        day: "2-digit",
         month: "short",
         year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
       })
 
-      const sectionsHasil = Array.isArray(data.sections)
-        ? data.sections
-        : ambilDaftarBagianSkrip(data)
-      const segmenHasil = Array.isArray(data.segmen)
-        ? data.segmen
-        : sectionsHasil.map((sec, idx) => ({
-            idSegmen: `BEAT_${sec.partNumber || idx + 1}`,
-            partNumber: sec.partNumber || idx + 1,
-            partTitle: sec.partTitle || `Bagian ${idx + 1}`,
-            estimatedSeconds: sec.estimatedSeconds || "",
-            labelMini: `Bagian ${sec.partNumber || idx + 1} • ${sec.partTitle || `Babak ${idx + 1}`}${sec.estimatedSeconds ? ` (${sec.estimatedSeconds})` : ""}`,
-            voiceover: sec.spokenText || sec.voiceover || "",
-            spokenText: sec.spokenText || sec.voiceover || "",
-            teksLayar:
-              sec.onScreenText || sec.teksLayar || sec.spokenText || "",
-            onScreenText:
-              sec.onScreenText || sec.teksLayar || sec.spokenText || "",
-            visual: sec.visualCue || sec.visual || "",
-            visualCue: sec.visualCue || sec.visual || "",
-          }))
-
-      setAiOriginalDraft(JSON.parse(JSON.stringify(segmenHasil)))
-      setTargetDurasiUbah(
-        contentBrief.target_platform || PILIHAN_DURASI_KONTEN[2],
-      )
-      setKoleksiVariasiGanda([])
-      setIndexVariasiAktif(0)
-      setOpenVisualMap({})
+      const sectionsHasil = ambilDaftarBagianSkrip(data)
+      setTargetDurasiUbah(targetPlatformInput)
+      setOpenVisualMap({ 0: true })
 
       const uploadPkg = data.uploadPackage || data.upload_pack || null
       const uploadPackTerformat = uploadPkg
@@ -1397,49 +681,35 @@ export default function ScriptProducerView({
       const skripBaru = {
         id: Date.now(),
         dbId: null,
-        judul: contentBrief.core_idea,
+        judul: topikInti,
         kategori:
           contentPhase === "fase_1_viral"
             ? "Fase 1: Cari Viral"
             : contentPhase === "fase_2_trust"
               ? "Fase 2: Menciptakan Trust"
               : "Fase 3: Konten Konversi",
-        bentuk: ugcConfig.aktif
-          ? `Dialog UGC (${ugcConfig.jumlahOrang} Orang: ${pemeranBersih.join(", ")})`
-          : bentukKontenFinal,
+        bentuk: bentukKontenFinal,
         waktuDibuat: waktuSekarang,
-        targetDuration:
-          data.targetDuration || contentBrief.target_platform || "60 Detik",
+        targetDuration: data.targetDuration || targetPlatformInput,
         flowStyle: data.flowStyle || "Padat & Mengalir",
-        totalSections: segmenHasil.length,
-        kritikSaran:
-          data.kritikSaran ||
-          data.script_score?.producer_tip ||
-          "Pastikan kalimat pembuka diucapkan tanpa jeda ragu dan jaga kontak mata dengan lensa kamera.",
-        metadata: data.metadata || {
-          estimated_duration:
-            data.targetDuration || contentBrief.target_platform,
-          flow_style: data.flowStyle || "Padat & Mengalir",
-          framework_used: contentBrief.selected_framework,
-        },
-        scriptScore: data.script_score || null,
+        totalSections: sectionsHasil.length,
+        kritikDetail: data.kritikDetail || null,
+        kritikSaran: data.kritikSaran || "",
         uploadPackage: uploadPackTerformat,
         uploadPack: uploadPackTerformat,
         variasiFolder: [],
-        contentBrief,
+        contentBrief: briefFinal,
         sudahUpload: false,
         tanggalUpload: "",
         sections: sectionsHasil,
-        segmen: segmenHasil,
+        segmen: sectionsHasil,
       }
 
       const tersimpan = await simpanAtauUpdateSkripDatabase(skripBaru)
       setHasilSkrip(tersimpan)
       setKoleksiSkripTersimpan((prev) => [tersimpan, ...prev])
       setStage(5)
-      showToast(
-        `Skrip selesai disusun (${hitungJumlahKataSkrip(segmenHasil)} kata dalam ${segmenHasil.length} bagian) dan disimpan ke arsip.`,
-      )
+      showToast("Naskah skrip selesai disusun dan disimpan ke Arsip.")
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -1453,7 +723,7 @@ export default function ScriptProducerView({
   ) => {
     if (!hasilSkrip || isChangingDuration) return
     setIsChangingDuration(true)
-    showToast(`Menyesuaikan panjang & kepadatan naskah ke ${durasiPilihan}...`)
+    showToast(`Menyesuaikan durasi naskah ke ${durasiPilihan}...`)
 
     try {
       const res = await fetch("/api/ai", {
@@ -1477,34 +747,23 @@ export default function ScriptProducerView({
           durasiTargetBaru: durasiPilihan,
         }),
       })
-
       const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
+      if (!res.ok) throw new Error("Gagal ubah durasi")
 
-      const sectionsBaru = Array.isArray(data.sections)
-        ? data.sections
-        : ambilDaftarBagianSkrip(data)
-      const segmenBaru = Array.isArray(data.segmen) ? data.segmen : sectionsBaru
-
+      const sectionsBaru = ambilDaftarBagianSkrip(data)
       const skripDiperbarui = {
         ...hasilSkrip,
         targetDuration: data.targetDuration || durasiPilihan,
-        flowStyle: data.flowStyle || hasilSkrip.flowStyle || "Padat & Mengalir",
-        totalSections: segmenBaru.length,
-        metadata: {
-          ...(hasilSkrip.metadata || {}),
-          estimated_duration:
-            data.targetDuration || data.estimated_duration || durasiPilihan,
-          flow_style: data.flowStyle || hasilSkrip.metadata?.flow_style,
-        },
+        totalSections: sectionsBaru.length,
         sections: sectionsBaru,
-        segmen: segmenBaru,
+        segmen: sectionsBaru,
       }
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
       showToast(
-        `Naskah disesuaikan ke ${durasiPilihan} (${hitungJumlahKataSkrip(segmenBaru)} kata dalam ${segmenBaru.length} bagian).`,
+        `Durasi diperbarui (${sectionsBaru.length} Bagian, ${hitungJumlahKataSkrip(
+          sectionsBaru,
+        )} Kata).`,
       )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -1513,23 +772,134 @@ export default function ScriptProducerView({
     }
   }
 
-  // Gandakan Skrip via Dropdown & Simpan ke dalam 1 Folder Induk (`variasiFolder`)
+  const handleKonversiBentukKontenLain = async () => {
+    if (!hasilSkrip || isConvertingBentuk) return
+    setIsConvertingBentuk(true)
+    showToast(`Mengubah bentuk naskah ke ${targetKonversiBentuk}...`)
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ubah_bentuk_konten",
+          userId,
+          namaUser,
+          contextMode,
+          personaProfile,
+          subyek: hasilSkrip.judul,
+          skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
+          bentukKontenBaru: targetKonversiBentuk,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error("Gagal ubah bentuk")
+
+      const bagianKonversi = ambilDaftarBagianSkrip(data)
+      const skripDiperbarui = {
+        ...hasilSkrip,
+        bentuk: targetKonversiBentuk,
+        sections:
+          bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.sections,
+        segmen: bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.segmen,
+      }
+      setBentukKonten(targetKonversiBentuk)
+      setHasilSkrip(skripDiperbarui)
+      await simpanAtauUpdateSkripDatabase(skripDiperbarui)
+      showToast("Bentuk eksekusi visual berhasil diperbarui.")
+    } catch {
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
+    } finally {
+      setIsConvertingBentuk(false)
+    }
+  }
+
+  const handleRegenerateSatuKerangka = async (indexBaris, fokusTarget) => {
+    if (!hasilSkrip) return
+    const hitunganBaru = regenCount + 1
+    if (hitunganBaru % 3 === 0) {
+      if (coins < 1) {
+        alert("Saldo koin tidak mencukupi untuk pembaruan bagian ke-3.")
+        setActiveMenu("topup")
+        return
+      }
+      await updateKoinDatabase(coins - 1)
+    }
+    setRegenCount(hitunganBaru)
+
+    const daftarBagianSaatIni = ambilDaftarBagianSkrip(hasilSkrip)
+    const bagianLama = daftarBagianSaatIni[indexBaris]
+    if (!bagianLama) return
+
+    setRegeneratingIndex(indexBaris)
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "regenerate_satu_kerangka",
+          userId,
+          namaUser,
+          contentPhase,
+          contentFormat,
+          viralTrigger,
+          contextMode,
+          personaProfile,
+          subyek: hasilSkrip.judul,
+          segmenTarget: bagianLama,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error("Gagal regenerasi bagian")
+
+      const bagianUpdate = { ...bagianLama }
+      if (fokusTarget === "visual") {
+        bagianUpdate.cameraCue = data.cameraCue || bagianLama.cameraCue
+        bagianUpdate.intonationCue =
+          data.intonationCue || bagianLama.intonationCue
+        bagianUpdate.visualCue =
+          data.visualCue ||
+          `Arahan Kamera: ${bagianUpdate.cameraCue} | Intonasi Suara: ${bagianUpdate.intonationCue}`
+      } else {
+        const spokenBaru =
+          data.spokenText || data.voiceover || bagianLama.spokenText
+        bagianUpdate.spokenText = spokenBaru
+        bagianUpdate.voiceover = spokenBaru
+        bagianUpdate.onScreenText =
+          data.onScreenText || data.teksLayar || spokenBaru
+      }
+
+      const listBaru = daftarBagianSaatIni.map((s, idx) =>
+        idx === indexBaris ? bagianUpdate : s,
+      )
+      const skripDiperbarui = {
+        ...hasilSkrip,
+        sections: listBaru,
+        segmen: listBaru,
+      }
+      setHasilSkrip(skripDiperbarui)
+      await simpanAtauUpdateSkripDatabase(skripDiperbarui)
+      showToast(`Bagian ${bagianLama.partNumber} berhasil diperbarui.`)
+    } catch {
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
+    } finally {
+      setRegeneratingIndex(null)
+    }
+  }
+
   const handleGandakanViaDropdown = async () => {
     const jumlahX = parseInt(pilihanMultiplierDropdown) || 2
     const biayaKoin = jumlahX === 10 ? 3 : jumlahX === 5 ? 2 : 1
-
     if (!hasilSkrip || isMultiplyingScript) return
     if (coins < biayaKoin) {
-      alert(
-        `Saldo koin belum mencukupi (Perlu ${biayaKoin} Koin untuk membuat ${jumlahX}x variasi skrip). Silakan isi ulang koin.`,
-      )
+      alert(`Saldo koin belum mencukupi (Perlu ${biayaKoin} Koin).`)
       setActiveMenu("topup")
       return
     }
 
     setIsMultiplyingScript(true)
     await updateKoinDatabase(coins - biayaKoin)
-    showToast(`Menyusun ${jumlahX} variasi skrip ke dalam 1 folder...`)
+    showToast(`Menyusun ${jumlahX} variasi skrip ke dalam Folder Arsip...`)
 
     try {
       const res = await fetch("/api/ai", {
@@ -1554,36 +924,25 @@ export default function ScriptProducerView({
           koinDipakai: biayaKoin,
         }),
       })
-
       const data = await res.json()
       if (!res.ok) {
         if (data.silentCoinUpdated != null) {
           updateKoinDatabase(data.silentCoinUpdated)
         }
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
+        throw new Error("Gagal menggandakan skrip")
       }
 
       const listVariasi = Array.isArray(data.daftarVariasi)
         ? data.daftarVariasi
         : []
-      if (listVariasi.length === 0) {
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-      }
-
-      const waktuSekarang = new Date().toLocaleString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-
       const itemFolderBaru = listVariasi.map((v, i) => {
         const bagVariasi = ambilDaftarBagianSkrip(v)
+        const kode = v.kodeHuruf || String.fromCharCode(65 + i)
         return {
           id: Date.now() + i + 1,
-          judul: v.judulVariasi || `Variasi ${i + 1}`,
-          waktuDibuat: waktuSekarang,
+          kodeHuruf: kode,
+          judul: v.judulVariasi || `Variasi ${kode}`,
+          estimasiDetik: v.estimasiDetik || "45 detik",
           sections: bagVariasi,
           segmen: bagVariasi,
         }
@@ -1600,16 +959,13 @@ export default function ScriptProducerView({
         ...hasilSkrip,
         variasiFolder: folderGabungan,
       }
-
       const tersimpanDB = await simpanAtauUpdateSkripDatabase(skripIndukUpdate)
       setHasilSkrip(tersimpanDB)
       setKoleksiSkripTersimpan((prev) =>
         prev.map((item) => (item.id === tersimpanDB.id ? tersimpanDB : item)),
       )
-      setKoleksiVariasiGanda(folderGabungan)
-      setIndexVariasiAktif(0)
       showToast(
-        `${itemFolderBaru.length} variasi skrip disimpan ke dalam Folder "${hasilSkrip.judul}" di Arsip.`,
+        `${itemFolderBaru.length} variasi disimpan ke Folder "${hasilSkrip.judul}" di Arsip.`,
       )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -1618,1932 +974,182 @@ export default function ScriptProducerView({
     }
   }
 
-  const handleRegenerateSatuKerangka = async (indexBaris, fokusTarget) => {
+  const handleCetakPDF = () => {
     if (!hasilSkrip) return
-    const hitunganBaru = regenCount + 1
-
-    if (hitunganBaru % 3 === 0) {
-      if (coins < 1) {
-        alert(
-          "Saldo koin tidak mencukupi untuk pembaruan bagian ke-3. Silakan isi ulang koin.",
-        )
-        setActiveMenu("topup")
-        return
-      }
-      await updateKoinDatabase(coins - 1)
+    const win = window.open("", "_blank", "width=800,height=900")
+    if (!win) {
+      alert("Izinkan pop-up di browser untuk mencetak PDF.")
+      return
     }
-    setRegenCount(hitunganBaru)
-
-    const daftarBagianSaatIni = ambilDaftarBagianSkrip(hasilSkrip)
-    const bagianLama = daftarBagianSaatIni[indexBaris]
-    if (!bagianLama) return
-
-    setRegeneratingIndex(indexBaris)
-    showToast(
-      `Memperbarui Bagian ${bagianLama.partNumber} (${bagianLama.partTitle})...`,
-    )
-
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "regenerate_satu_kerangka",
-          userId,
-          namaUser,
-          contentPhase,
-          contentFormat,
-          viralTrigger,
-          contextMode,
-          personaProfile,
-          subyek: hasilSkrip.judul,
-          segmenTarget: bagianLama,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-
-      const bagianUpdate = { ...bagianLama }
-      const visualBaru =
-        data.visualCue ||
-        data.visual ||
-        bagianLama.visualCue ||
-        bagianLama.visual
-      const spokenBaru =
-        data.spokenText ||
-        data.voiceover ||
-        bagianLama.spokenText ||
-        bagianLama.voiceover
-      const screenBaru =
-        data.onScreenText ||
-        data.teksLayar ||
-        spokenBaru ||
-        bagianLama.onScreenText
-
-      if (fokusTarget === "visual") {
-        bagianUpdate.visualCue = visualBaru
-        bagianUpdate.visual = visualBaru
-      } else {
-        bagianUpdate.spokenText = spokenBaru
-        bagianUpdate.voiceover = spokenBaru
-        bagianUpdate.onScreenText = screenBaru
-        bagianUpdate.teksLayar = screenBaru
-        bagianUpdate.visualCue = visualBaru
-        bagianUpdate.visual = visualBaru
-      }
-
-      const daftarBagianBaru = daftarBagianSaatIni.map((s, idx) =>
-        idx === indexBaris ? bagianUpdate : s,
+    const daftarBagian = ambilDaftarBagianSkrip(hasilSkrip)
+    const barisHTML = daftarBagian
+      .map(
+        (s) => `
+        <div style="border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:12px;">
+          <div style="font-weight:bold; font-size:12px; color:#475569; margin-bottom:6px;">
+            Bagian ${s.partNumber} • ${s.partTitle} (${s.estimatedSeconds})
+          </div>
+          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;">${s.spokenText}</div>
+          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;">
+            <strong>Arahan Kamera:</strong> ${s.cameraCue}<br/>
+            <strong>Intonasi Suara:</strong> ${s.intonationCue}
+          </div>
+        </div>`,
       )
+      .join("")
 
-      const skripDiperbarui = {
-        ...hasilSkrip,
-        sections: daftarBagianBaru,
-        segmen: daftarBagianBaru,
-      }
-      setHasilSkrip(skripDiperbarui)
-      await simpanAtauUpdateSkripDatabase(skripDiperbarui)
-      showToast(`Bagian ${bagianLama.partNumber} selesai diperbarui.`)
-    } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
-    } finally {
-      setRegeneratingIndex(null)
-    }
+    win.document.write(`
+      <html>
+        <head><title>Skrip Hookya - ${hasilSkrip.judul}</title></head>
+        <body style="font-family:sans-serif; padding:24px; color:#14141f;">
+          <h2>${hasilSkrip.judul}</h2>
+          <p style="font-size:12px; color:#64748b;">Hookya • ${hasilSkrip.waktuDibuat} • ${daftarBagian.length} Bagian</p>
+          ${barisHTML}
+          <script>window.onload = function() { window.print(); };</script>
+        </body>
+      </html>
+    `)
+    win.document.close()
   }
-
-  const handleKonversiBentukKontenLain = async () => {
-    if (!hasilSkrip || isConvertingBentuk) return
-    setIsConvertingBentuk(true)
-    showToast(`Mengubah skrip ke format ${targetKonversiBentuk}...`)
-
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "ubah_bentuk_konten",
-          userId,
-          namaUser,
-          contextMode,
-          personaProfile,
-          subyek: hasilSkrip.judul,
-          skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
-          bentukKontenBaru: targetKonversiBentuk,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok)
-        throw new Error("Error sistem, silakan refresh atau hubungi admin.")
-
-      const bagianKonversi = Array.isArray(data.sections)
-        ? data.sections
-        : ambilDaftarBagianSkrip(data)
-
-      const skripDiperbarui = {
-        ...hasilSkrip,
-        bentuk: targetKonversiBentuk,
-        sections:
-          bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.sections,
-        segmen: bagianKonversi.length > 0 ? bagianKonversi : hasilSkrip.segmen,
-      }
-      setBentukKonten(targetKonversiBentuk)
-      setHasilSkrip(skripDiperbarui)
-      await simpanAtauUpdateSkripDatabase(skripDiperbarui)
-      showToast("Format bentuk konten diperbarui.")
-    } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
-    } finally {
-      setIsConvertingBentuk(false)
-    }
-  }
-
-  const handleSimpanEditanUser = async () => {
-    if (!hasilSkrip || isLearningDiff) return
-    setIsLearningDiff(true)
-    try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "analyze_script_diff",
-          userId,
-          namaUser,
-          aiDraft: aiOriginalDraft,
-          userEditedScript: ambilDaftarBagianSkrip(hasilSkrip),
-          personaProfile,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && data.updated_persona_profile) {
-        setPersonaProfile(data.updated_persona_profile)
-        await simpanPersonaKeSupabase(data.updated_persona_profile)
-      }
-      await otomatisSimpanKeArsipUser(
-        hasilSkrip,
-        "Revisi skrip disimpan ke arsip dan kamus gaya bicaramu diperbarui.",
-      )
-    } finally {
-      setIsLearningDiff(false)
-    }
-  }
-
-  const renderProducerChatBubble = (pesanProduser, subPesan) => (
-    <div className="bg-[#14141f] text-white p-4 sm:p-5 rounded-xl flex items-start gap-3.5">
-      <div className="w-9 h-9 rounded-lg bg-[#d4f34a] text-[#14141f] font-bold text-xs flex items-center justify-center shrink-0">
-        H
-      </div>
-      <div className="space-y-1 min-w-0 flex-1">
-        <div className="text-xs font-bold text-[#d4f34a]">
-          Catatan Produser Konten
-        </div>
-        <p className="text-xs sm:text-sm font-normal leading-relaxed text-white">
-          {pesanProduser}
-        </p>
-        {subPesan && (
-          <p className="text-xs text-slate-300 pt-1 font-medium">{subPesan}</p>
-        )}
-      </div>
-    </div>
-  )
 
   const daftarBagianAktif = ambilDaftarBagianSkrip(hasilSkrip)
   const totalKataSkripAktif = hitungJumlahKataSkrip(daftarBagianAktif)
-  const estimasiDetikBacaNormal = Math.round((totalKataSkripAktif / 140) * 60)
+  const estimasiDetikBaca = Math.round((totalKataSkripAktif / 140) * 60)
   const paketUploadAktif =
     hasilSkrip?.uploadPackage || hasilSkrip?.uploadPack || null
-  const teksKritikSaran =
-    hasilSkrip?.kritikSaran ||
-    hasilSkrip?.scriptScore?.producer_tip ||
-    hasilSkrip?.scriptScore?.retention_bridge ||
-    "Pastikan kalimat pembuka diucapkan secara lugas dan jaga intonasi bicara tetap mengalir di setiap pergantian bagian."
-  const infoFormatTerpilih = SEMBILAN_FORMAT_KONTEN.find(
+  const kritikObj = hasilSkrip?.kritikDetail || {
+    kelebihan:
+      "Pacing hook di 3 detik awal sangat agresif dan memotong skeptisisme audiens secara instan.",
+    catatanPembawaan:
+      hasilSkrip?.kritikSaran ||
+      "Hindari intonasi menggurui di bagian tengah. Pertahankan gestur tangan terbuka agar terkesan autentik.",
+    kecepatanBicara:
+      "Jaga tempo bicara rata-rata di ~150-160 WPM untuk mempertahankan retensi short-form video.",
+  }
+
+  const infoFormatAktif = SEMBILAN_FORMAT_KONTEN.find(
     (f) => f.id === contentFormat,
   )
-  const infoFaktorTerpilih = LIMA_FAKTOR_VIRAL.find(
-    (v) => v.id === viralTrigger,
-  )
+  const infoFaktorAktif = LIMA_FAKTOR_VIRAL.find((v) => v.id === viralTrigger)
 
-  return (
-    <div className="bg-white p-4 sm:p-8 rounded-2xl border border-slate-200 space-y-6 w-full max-w-full overflow-hidden">
-      {/* HEADER TAHAP */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
-          <h2 className="text-base sm:text-xl font-bold text-[#14141f] break-words">
-            {stage === 0 && "Buat Skrip Konten"}
-            {stage === 1 && "Tahap 1: Pilih Sudut Pandang Bahasan"}
-            {stage === 2 && "Tahap 2: Ilustrasi, Pondasi Fakta & Solusi"}
-            {stage === 3 && "Tahap 3: Struktur, Kalimat Pembuka (Hook) & CTA"}
-            {stage === 4 && "Tahap 4: Periksa Rancangan Konten"}
-            {stage === 5 && hasilSkrip?.judul}
-          </h2>
-          {stage > 0 && stage < 5 && (
-            <p className="text-xs text-slate-500 mt-0.5">
-              Langkah {stage} dari 4 •{" "}
-              <strong>{infoFormatTerpilih?.judul}</strong> •{" "}
-              <strong>{infoFaktorTerpilih?.judul}</strong>
-            </p>
-          )}
-          {stage === 5 && hasilSkrip && (
-            <p className="text-xs text-slate-500 mt-0.5">
-              {daftarBagianAktif.length} Bagian Dinamis •{" "}
-              <strong>{totalKataSkripAktif} Kata</strong> (Estimasi baca normal:{" "}
-              <strong>{estimasiDetikBacaNormal} detik</strong>)
-            </p>
-          )}
-        </div>
-
-        {stage > 0 && (
-          <div className="flex items-center gap-2">
-            {stage < 5 && (
-              <button
-                type="button"
-                onClick={() => setStage(stage - 1)}
-                className="cursor-pointer text-xs bg-[#f4f5f7] hover:bg-slate-200 px-3.5 py-2 rounded-lg font-bold transition"
-              >
-                Kembali
-              </button>
-            )}
+  // ============================================================================
+  // LAYAR HASIL AKHIR NASKAH SKRIP (STAGE 5 - SESUAI GAMBAR 5.JPG)
+  // ============================================================================
+  if (stage === 5 && hasilSkrip) {
+    return (
+      <div className="w-full max-w-4xl mx-auto space-y-5 pb-10">
+        {/* 1. Header & Real Word Count Indicator */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] text-[#4E6100] bg-[#D4F34A]/35 px-2.5 py-0.5 rounded-md font-bold tracking-wider uppercase">
+              DRAFT NASKAH FINAL • SIAP PRODUKSI
+            </span>
             <button
               type="button"
               onClick={() => {
                 setStage(0)
                 setHasilSkrip(null)
               }}
-              className="cursor-pointer text-xs bg-[#14141f] text-[#d4f34a] px-3.5 py-2 rounded-lg font-bold"
+              className="cursor-pointer text-xs font-bold bg-[#F4F5F7] hover:bg-slate-200 text-[#14141F] px-3 py-1.5 rounded-lg"
             >
-              Topik Baru
+              + Buat Topik Baru
             </button>
           </div>
-        )}
-      </div>
-
-      {/* STAGE 0 */}
-      {stage === 0 && (
-        <div className="space-y-6">
-          {/* PEMILIH PROFIL AKUN (DENGAN INDIKATOR KUNCI JIKA MELEBIHI KUOTA PAKET) */}
-          {daftarAkunTersimpan.length > 0 && (
-            <div className="bg-[#f4f5f7] p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold text-[#14141f]">
-                Pilih Profil Akun Sosial Media:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {daftarAkunTersimpan.map((ak, idx) => {
-                  const terkunci = idx >= kuotaAkunMaksimal
-                  return (
-                    <button
-                      key={ak.id}
-                      type="button"
-                      onClick={() => handleGantiAkunCepat(ak, idx)}
-                      className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 ${
-                        terkunci
-                          ? "bg-slate-200 text-slate-500 border-slate-300 opacity-75"
-                          : idAkunTerpilih === ak.id
-                            ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                            : "bg-white text-slate-700 border-slate-200 hover:border-[#14141f]"
-                      }`}
-                    >
-                      {terkunci && (
-                        <FlatIcon name="lock" className="w-3 h-3 shrink-0" />
-                      )}
-                      <span>{ak.labelAkun}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* SEKSI 1: PILIH FASE KONTEN */}
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-sm font-bold text-[#14141f]">
-                1. Pilih Fase Tujuan Konten
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Pilih tujuan kontenmu hari ini: mencari jangkauan viral baru,
-                membangun kepercayaan (trust), atau konversi penjualan.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                {
-                  id: "fase_1_viral",
-                  judul: "Fase 1: Cari Viral Dulu",
-                  ket: "Menjangkau penonton baru seluas mungkin lewat 9 format konten dan 5 faktor pemicu viral.",
-                },
-                {
-                  id: "fase_2_trust",
-                  judul: "Fase 2: Menciptakan Trust",
-                  ket: "Membangun kepercayaan penonton lewat jam terbang, proses kerja jujur, dan studi kasus nyata.",
-                },
-                {
-                  id: "fase_3_konversi",
-                  judul: "Fase 3: Konten Konversi (Jualan)",
-                  ket: "Mengubah penonton menjadi pembeli lewat strategi Soft Selling maupun Hard Selling.",
-                },
-              ].map((f) => {
-                const terpilih = contentPhase === f.id
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => handlePilihFaseKonten(f.id)}
-                    className={`cursor-pointer p-3.5 rounded-xl text-left border transition flex items-start justify-between gap-3 ${
-                      terpilih
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    <div>
-                      <div
-                        className={`text-xs sm:text-sm font-bold ${
-                          terpilih ? "text-[#d4f34a]" : "text-[#14141f]"
-                        }`}
-                      >
-                        {f.judul}
-                      </div>
-                      <p
-                        className={`text-xs mt-1 leading-relaxed ${
-                          terpilih ? "text-slate-300" : "text-slate-600"
-                        }`}
-                      >
-                        {f.ket}
-                      </p>
-                    </div>
-                    {terpilih && (
-                      <FlatIcon
-                        name="check"
-                        className="w-4 h-4 text-[#d4f34a] shrink-0"
-                      />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-
-            {contentPhase === "fase_2_trust" && (
-              <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-xl space-y-3 mt-2">
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                    Pengaturan Fase 2: Pendekatan Kepercayaan & Spesifikasi Diri
-                  </h4>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Pilih sudut pembuktian kepercayaan dan sesuaikan spesifikasi
-                    pengalaman dirimu di bawah ini.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {EMPAT_PENDEKATAN_TRUST.map((tr) => {
-                    const aktif = trustApproach === tr.id
-                    return (
-                      <button
-                        key={tr.id}
-                        type="button"
-                        onClick={() => setTrustApproach(tr.id)}
-                        className={`cursor-pointer p-3 rounded-lg border text-left transition ${
-                          aktif
-                            ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                            : "bg-white text-[#14141f] border-slate-200"
-                        }`}
-                      >
-                        <div className="text-xs font-bold">{tr.judul}</div>
-                        <div
-                          className={`text-[11px] mt-0.5 ${
-                            aktif ? "text-slate-300" : "text-slate-600"
-                          }`}
-                        >
-                          {tr.ket}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#14141f] mb-1">
-                    Spesifikasi Personal Diri / Jam Terbang yang Diselipkan ke
-                    Skrip
-                  </label>
-                  {renderInputWithClear({
-                    value: personalSpecsInput,
-                    onChange: setPersonalSpecsInput,
-                    placeholder:
-                      "Ketik pengalaman atau jam terbangmu di sini...",
-                  })}
-                </div>
-              </div>
-            )}
-
-            {contentPhase === "fase_3_konversi" && (
-              <div className="bg-[#f4f5f7] border border-slate-200 p-4 rounded-xl space-y-3 mt-2">
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                    Pilih Strategi Penjualan (Soft Selling vs Hard Selling)
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSellingStyle("soft_selling")}
-                    className={`cursor-pointer p-3.5 rounded-lg border text-left transition ${
-                      sellingStyle === "soft_selling"
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      Soft Selling (Halus lewat Cerita / Edukasi)
-                    </div>
-                    <p
-                      className={`text-xs mt-1 ${
-                        sellingStyle === "soft_selling"
-                          ? "text-slate-300"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      Buka dengan cerita kejadian atau tips bermanfaat, lalu
-                      masukkan produk secara alami di akhir.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSellingStyle("hard_selling")}
-                    className={`cursor-pointer p-3.5 rounded-lg border text-left transition ${
-                      sellingStyle === "hard_selling"
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      Hard Selling (Langsung, Tegas & Penawaran Kuat)
-                    </div>
-                    <p
-                      className={`text-xs mt-1 ${
-                        sellingStyle === "hard_selling"
-                          ? "text-slate-300"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      Langsung tunjukkan masalah utama, keunggulan fisik produk,
-                      bukti hasil, promo harga, dan ajakan beli tegas.
-                    </p>
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* SEKSI 2: PILIH 1 DARI 9 FORMAT KONTEN */}
-          <section className="space-y-3 pt-6 border-t border-slate-200">
-            <div>
-              <h3 className="text-sm font-bold text-[#14141f]">
-                2. Pilih Format Pembawaan Konten
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Pilih jenis penyampaian konten, mulai dari UGC, Edukasi,
-                Hiburan, Tips & Trick, hingga Materi Speech, Kultum, dan Pidato.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {SEMBILAN_FORMAT_KONTEN.map((fmt) => {
-                const terpilih = contentFormat === fmt.id
-                return (
-                  <button
-                    key={fmt.id}
-                    type="button"
-                    onClick={() => {
-                      setContentFormat(fmt.id)
-                      if (fmt.id === "ugc") {
-                        setUgcConfig((prev) => ({ ...prev, aktif: true }))
-                      }
-                    }}
-                    className={`cursor-pointer p-3.5 rounded-xl text-left border transition flex items-start justify-between gap-2.5 ${
-                      terpilih
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    <div>
-                      <div
-                        className={`text-xs sm:text-sm font-bold ${
-                          terpilih ? "text-[#d4f34a]" : "text-[#14141f]"
-                        }`}
-                      >
-                        {fmt.judul}
-                      </div>
-                      <p
-                        className={`text-xs mt-1 leading-relaxed ${
-                          terpilih ? "text-slate-300" : "text-slate-600"
-                        }`}
-                      >
-                        {fmt.ket}
-                      </p>
-                    </div>
-                    {terpilih && (
-                      <FlatIcon
-                        name="check"
-                        className="w-4 h-4 text-[#d4f34a] shrink-0"
-                      />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          {/* SEKSI 3: PILIH 1 DARI 5 FAKTOR PEMICU VIRAL */}
-          <section className="space-y-3 pt-6 border-t border-slate-200">
-            <div>
-              <h3 className="text-sm font-bold text-[#14141f]">
-                3. Pilih Faktor Pemicu Perhatian & Viral
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {LIMA_FAKTOR_VIRAL.map((fv) => {
-                const terpilih = viralTrigger === fv.id
-                return (
-                  <button
-                    key={fv.id}
-                    type="button"
-                    onClick={() => setViralTrigger(fv.id)}
-                    className={`cursor-pointer p-3.5 rounded-xl text-left border transition flex items-start justify-between gap-3 ${
-                      terpilih
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    <div>
-                      <div
-                        className={`text-xs sm:text-sm font-bold ${
-                          terpilih ? "text-[#d4f34a]" : "text-[#14141f]"
-                        }`}
-                      >
-                        {fv.judul}
-                      </div>
-                      <p
-                        className={`text-xs mt-1 leading-relaxed ${
-                          terpilih ? "text-slate-300" : "text-slate-600"
-                        }`}
-                      >
-                        {fv.ket}
-                      </p>
-                    </div>
-                    {terpilih && (
-                      <FlatIcon
-                        name="check"
-                        className="w-4 h-4 text-[#d4f34a] shrink-0"
-                      />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          {/* SEKSI 4: ATUR DURASI RIIL, KEPADATAN KATA, & KONTEKS BIDANG */}
-          <section className="space-y-4 pt-6 border-t border-slate-200">
-            <div>
-              <h3 className="text-sm font-bold text-[#14141f]">
-                4. Pengaturan Durasi Baca Riil, Kepadatan Kata & Konteks Bidang
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                  Kepadatan Kalimat & Kosakata
-                </label>
-                <div className="bg-[#f4f5f7] p-1.5 rounded-xl grid grid-cols-2 gap-1.5 border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setWordDensity("padat_kaya_kosakata")}
-                    className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
-                      wordDensity === "padat_kaya_kosakata"
-                        ? "bg-[#14141f] text-[#d4f34a]"
-                        : "text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    <div className="text-xs font-bold">
-                      Padat & Kaya Kosakata
-                    </div>
-                    <div className="text-[11px] opacity-80">
-                      Penuh elaborasi & durasi riil utuh
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setWordDensity("irit_ringkas")}
-                    className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
-                      wordDensity === "irit_ringkas"
-                        ? "bg-[#14141f] text-[#d4f34a]"
-                        : "text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    <div className="text-xs font-bold">Ringkas & Irit Kata</div>
-                    <div className="text-[11px] opacity-80">
-                      Cepat & langsung ke inti
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                  Saklar Konteks Bidang
-                </label>
-                <div className="bg-[#f4f5f7] p-1.5 rounded-xl grid grid-cols-2 gap-1.5 border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => handleUbahContextMode("sesuai_niche")}
-                    className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
-                      contextMode === "sesuai_niche"
-                        ? "bg-[#14141f] text-[#d4f34a]"
-                        : "text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    <div className="text-xs font-bold">
-                      Sesuai Bidang Profil
-                    </div>
-                    <div className="text-[11px] opacity-80">
-                      Pakai gaya bicara + niche profil
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleUbahContextMode("lintas_produk")}
-                    className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
-                      contextMode === "lintas_produk"
-                        ? "bg-[#14141f] text-[#d4f34a]"
-                        : "text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    <div className="text-xs font-bold">
-                      Lintas Topik / Bebas
-                    </div>
-                    <div className="text-[11px] opacity-80">
-                      Hanya pakai gaya bicara
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                Pilih Target Durasi Baca Riil & Jumlah Bagian
-              </label>
-              <select
-                value={targetPlatformInput}
-                onChange={(e) => setTargetPlatformInput(e.target.value)}
-                className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-3 text-base sm:text-xs font-bold text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
-              >
-                {PILIHAN_DURASI_KONTEN.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </section>
-
-          {/* SEKSI 5: KOTAK TOPIK KETIK SENDIRI DI ATAS PILIHAN REKOMENDASI IDE MATERI */}
-          <section className="space-y-5 pt-6 border-t border-slate-200">
-            {contentPhase !== "fase_3_konversi" ? (
-              <div className="space-y-5">
-                {/* 1. KOTAK KOLOM TOPIK KETIK SENDIRI DITARUH DI PALING ATAS */}
-                <div>
-                  <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                    5. Ketik Topik Pembahasan Sendiri
-                  </label>
-                  {renderAdaptiveVoiceInput({
-                    rows: 2,
-                    value: rawTopicInput,
-                    onChange: setRawTopicInput,
-                    placeholder:
-                      "Ketik topik materi, judul kultum/pidato, atau fenomena yang ingin kamu bahas di sini...",
-                  })}
-                </div>
-
-                {/* 2. REKOMENDASI IDE MATERI (HANYA TAMPIL JIKA BUKAN LINTAS TOPIK BEBAS) */}
-                {contextMode === "sesuai_niche" && (
-                  <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                          Rekomendasi Ide Materi dari Analisis Profil Akun
-                        </h3>
-                        <p className="text-xs text-slate-600">
-                          Klik tombol di kanan untuk menganalisis profil akun
-                          terpilih dan memunculkan 10 ide materi yang relevan.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          disabled={isLoadingIdeTopik}
-                          onClick={() => handleGenerate10IdeTopikAI()}
-                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5"
-                        >
-                          {isLoadingIdeTopik && (
-                            <FlatIcon
-                              name="refresh"
-                              className="w-3.5 h-3.5 animate-spin"
-                            />
-                          )}
-                          <span>
-                            {isLoadingIdeTopik
-                              ? "Menganalisis Profil..."
-                              : "Analisis Profil & Cari 10 Ide"}
-                          </span>
-                        </button>
-                        {sudahAnalisisIdeProfil &&
-                          daftar10IdeTopik.length > 0 && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => geserSliderIde("kiri")}
-                                className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
-                              >
-                                <FlatIcon
-                                  name="chevronLeft"
-                                  className="w-4 h-4"
-                                />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => geserSliderIde("kanan")}
-                                className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
-                              >
-                                <FlatIcon
-                                  name="chevronRight"
-                                  className="w-4 h-4"
-                                />
-                              </button>
-                            </>
-                          )}
-                      </div>
-                    </div>
-
-                    {sudahAnalisisIdeProfil && daftar10IdeTopik.length > 0 && (
-                      <div
-                        ref={sliderIdeRef}
-                        className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 snap-x snap-mandatory"
-                      >
-                        {daftar10IdeTopik.map((ide, idx) => {
-                          const terpilih = rawTopicInput === ide.judul
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                setRawTopicInput(ide.judul)
-                                showToast(`Topik dipilih: ${ide.judul}`)
-                              }}
-                              className={`cursor-pointer snap-start shrink-0 w-64 sm:w-72 p-3.5 rounded-lg border text-left transition ${
-                                terpilih
-                                  ? "bg-[#14141f] text-white border-[#14141f]"
-                                  : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                              }`}
-                            >
-                              <span
-                                className={`text-[11px] font-bold ${
-                                  terpilih ? "text-[#d4f34a]" : "text-slate-500"
-                                }`}
-                              >
-                                Ide {idx + 1} • {ide.nuansa}
-                              </span>
-                              <div className="text-xs sm:text-sm font-bold mt-1">
-                                {ide.judul}
-                              </div>
-                              <p
-                                className={`text-xs mt-1 leading-snug ${
-                                  terpilih ? "text-slate-300" : "text-slate-600"
-                                }`}
-                              >
-                                {ide.ringkasan}
-                              </p>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-xl space-y-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTampilkanJembatanTopik(!tampilkanJembatanTopik)
-                    }
-                    className="cursor-pointer w-full flex items-center justify-between text-left"
-                  >
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                        Pengaturan Sudut Bicara & Kutipan Sumber (Opsional)
-                      </h4>
-                    </div>
-                    <FlatIcon
-                      name="chevronDown"
-                      className={`w-4 h-4 shrink-0 transition ${
-                        tampilkanJembatanTopik ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {tampilkanJembatanTopik && (
-                    <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-3.5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {[
-                          {
-                            id: "Sesuai Positioning Utama Saya",
-                            ket: "Gunakan peran dan keahlian utamaku seperti biasa.",
-                          },
-                          {
-                            id: "Pengamat Kritis / Warga Biasa",
-                            ket: "Bicara jujur sebagai warga biasa yang menyoroti dampak langsungnya.",
-                          },
-                          {
-                            id: "Jembatan Analogi Keahlianku",
-                            ket: "Hubungkan topik ini dengan analogi bisnis, olahraga, atau keseharianku.",
-                          },
-                          {
-                            id: "Pencerita Fakta & Berita",
-                            ket: "Ceritakan ulang fakta berita secara runtut dengan bahasa sehari-hari.",
-                          },
-                        ].map((pos) => (
-                          <button
-                            key={pos.id}
-                            type="button"
-                            onClick={() => setPosisiBicara(pos.id)}
-                            className={`cursor-pointer p-3 rounded-lg border text-left transition ${
-                              posisiBicara === pos.id
-                                ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                                : "bg-[#f4f5f7] text-[#14141f] border-slate-200"
-                            }`}
-                          >
-                            <div className="text-xs font-bold">{pos.id}</div>
-                            <div className="text-[11px] opacity-80 mt-0.5">
-                              {pos.ket}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Cuplikan Berita / Catatan Fakta Sumber (Opsional)
-                        </label>
-                        {renderAdaptiveVoiceInput({
-                          rows: 2,
-                          value: sumberBeritaMentah,
-                          onChange: setSumberBeritaMentah,
-                          placeholder:
-                            "Tempelkan kutipan berita, dalil, atau data sumber yang ingin kamu bahas...",
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setJenisPromosi("produk")}
-                    className={`cursor-pointer p-3.5 rounded-xl border text-left transition ${
-                      jenisPromosi === "produk"
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-[#f4f5f7] text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      1. Produk / Barang / Jasa
-                    </div>
-                    <p className="text-xs font-normal mt-0.5 opacity-80">
-                      Ekstrak dari screenshot marketplace atau isi manual.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setJenisPromosi("campaign")}
-                    className={`cursor-pointer p-3.5 rounded-xl border text-left transition ${
-                      jenisPromosi === "campaign"
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-[#f4f5f7] text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      2. Campaign / Acara / Komunitas
-                    </div>
-                    <p className="text-xs font-normal mt-0.5 opacity-80">
-                      Ajakan kegiatan sosial, event, atau gerakan komunitas.
-                    </p>
-                  </button>
-                </div>
-
-                {jenisPromosi === "produk" && (
-                  <div className="bg-[#f4f5f7] p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
-                    <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                            Ekstrak Otomatis dari Screenshot Marketplace
-                          </h4>
-                        </div>
-                        {!isPremiumUser && (
-                          <button
-                            type="button"
-                            onClick={onTriggerUpgradeVIP}
-                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-                          >
-                            <FlatIcon name="lock" className="w-3.5 h-3.5" />
-                            <span>Buka Fitur VIP (Rp20.000+)</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label
-                          onClick={(e) => {
-                            if (!isPremiumUser) {
-                              e.preventDefault()
-                              onTriggerUpgradeVIP()
-                            }
-                          }}
-                          className="cursor-pointer border border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-lg p-3 flex items-center gap-3 transition"
-                        >
-                          <div className="w-9 h-9 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
-                            <FlatIcon
-                              name={isPremiumUser ? "upload" : "lock"}
-                              className="w-4 h-4"
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-[#14141f] truncate">
-                              {ssProduk
-                                ? ssProduk.namaFile
-                                : "1. Pilih Screenshot Produk"}
-                            </div>
-                          </div>
-                          {isPremiumUser && (
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleUploadSSProduk}
-                              className="hidden"
-                            />
-                          )}
-                        </label>
-
-                        <label
-                          onClick={(e) => {
-                            if (!isPremiumUser) {
-                              e.preventDefault()
-                              onTriggerUpgradeVIP()
-                            }
-                          }}
-                          className="cursor-pointer border border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-lg p-3 flex items-center gap-3 transition"
-                        >
-                          <div className="w-9 h-9 rounded-lg bg-slate-200 text-[#14141f] flex items-center justify-center shrink-0">
-                            <FlatIcon
-                              name={isPremiumUser ? "upload" : "lock"}
-                              className="w-4 h-4"
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-[#14141f] truncate">
-                              {ssSpesifikasi
-                                ? ssSpesifikasi.namaFile
-                                : "2. Pilih Screenshot Spesifikasi (Opsional)"}
-                            </div>
-                          </div>
-                          {isPremiumUser && (
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleUploadSSSpesifikasi}
-                              className="hidden"
-                            />
-                          )}
-                        </label>
-                      </div>
-
-                      {(ssProduk || ssSpesifikasi) &&
-                        (isScanningSS ? (
-                          <AILoadingBox
-                            label="Membaca data produk dari gambar screenshot..."
-                            onRefresh={handleScanMarketplaceAI}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleScanMarketplaceAI}
-                            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-lg"
-                          >
-                            Salin Data Produk dari Screenshot
-                          </button>
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Nama Produk (Wajib)
-                        </label>
-                        {renderInputWithClear({
-                          value: formProduk.namaProduk,
-                          onChange: (val) =>
-                            setFormProduk({ ...formProduk, namaProduk: val }),
-                          placeholder: "Masukkan nama produk...",
-                        })}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Merek / Nama Toko (Opsional)
-                        </label>
-                        {renderInputWithClear({
-                          value: formProduk.brand,
-                          onChange: (val) =>
-                            setFormProduk({ ...formProduk, brand: val }),
-                          placeholder: "Masukkan nama merek...",
-                        })}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Harga / Promo (Opsional)
-                        </label>
-                        {renderInputWithClear({
-                          value: formProduk.hargaPromo,
-                          onChange: (val) =>
-                            setFormProduk({ ...formProduk, hargaPromo: val }),
-                          placeholder: "Masukkan harga/promo...",
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Fungsi / Masalah yang Diselesaikan (Opsional)
-                        </label>
-                        {renderAdaptiveVoiceInput({
-                          rows: 2,
-                          value: formProduk.masalahDipecahkan,
-                          onChange: (val) =>
-                            setFormProduk({
-                              ...formProduk,
-                              masalahDipecahkan: val,
-                            }),
-                          placeholder:
-                            "Jelaskan manfaat utama produk bagi pembeli...",
-                        })}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#14141f] mb-1">
-                          Spesifikasi & Keunggulan Fisik (Opsional)
-                        </label>
-                        {renderAdaptiveVoiceInput({
-                          rows: 2,
-                          value: formProduk.keunggulanSpesifikasi,
-                          onChange: (val) =>
-                            setFormProduk({
-                              ...formProduk,
-                              keunggulanSpesifikasi: val,
-                            }),
-                          placeholder:
-                            "Tuliskan bahan, ukuran, atau spesifikasi teknis...",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {jenisPromosi === "campaign" && (
-                  <div className="bg-[#f4f5f7] p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {renderInputWithClear({
-                        value: formCampaign.namaCampaign,
-                        onChange: (val) =>
-                          setFormCampaign({
-                            ...formCampaign,
-                            namaCampaign: val,
-                          }),
-                        placeholder: "Nama Gerakan / Acara (Wajib)",
-                      })}
-                      {renderInputWithClear({
-                        value: formCampaign.penyelenggara,
-                        onChange: (val) =>
-                          setFormCampaign({
-                            ...formCampaign,
-                            penyelenggara: val,
-                          }),
-                        placeholder: "Penyelenggara / Komunitas (Opsional)",
-                      })}
-                    </div>
-                    {renderAdaptiveVoiceInput({
-                      rows: 2,
-                      value: formCampaign.tujuanUtama,
-                      onChange: (val) =>
-                        setFormCampaign({ ...formCampaign, tujuanUtama: val }),
-                      placeholder:
-                        "Jelaskan tujuan kegiatan dan informasi waktu/tempat pelaksanaan...",
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <button
-            type="button"
-            onClick={() => panggilTahap1Angle(false)}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg hover:opacity-95 transition"
-          >
-            Lanjutkan ke Pemilihan Sudut Pandang
-          </button>
+          <h1 className="text-lg sm:text-xl font-bold text-[#14141F] leading-snug">
+            {hasilSkrip.judul}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span className="bg-[#F4F5F7] px-2.5 py-1 rounded-md font-semibold text-[#14141F]">
+              {daftarBagianAktif.length} Bagian Dinamis
+            </span>
+            <span className="bg-[#F4F5F7] px-2.5 py-1 rounded-md font-semibold text-[#14141F]">
+              {totalKataSkripAktif} Kata (Estimasi baca: {estimasiDetikBaca}{" "}
+              detik)
+            </span>
+            <span className="bg-[#F4F5F7] px-2.5 py-1 rounded-md">
+              {hasilSkrip.bentuk}
+            </span>
+          </div>
         </div>
-      )}
 
-      {stage >= 1 && stage <= 3 && isLoadingOpsi && (
-        <AILoadingBox
-          label="Menyusun pilihan sudut pandang dan kerangka bahasan..."
-          onRefresh={() => {
-            if (stage === 1) panggilTahap1Angle(false)
-            if (stage === 2)
-              panggilTahap2Referensi(
-                contentBrief.chosen_angle,
-                tempStoryInput,
-                false,
-              )
-            if (stage === 3) panggilTahap3Hook(false)
-          }}
-        />
-      )}
-
-      {stage >= 1 && stage <= 3 && !isLoadingOpsi && errorAsesmenAI && (
-        <div className="p-5 rounded-xl bg-rose-50 border border-rose-200 text-center space-y-3">
-          <p className="text-xs sm:text-sm font-bold text-rose-900">
-            {errorAsesmenAI}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (stage === 1) panggilTahap1Angle(false)
-              if (stage === 2)
-                panggilTahap2Referensi(
-                  contentBrief.chosen_angle,
-                  tempStoryInput,
-                  false,
-                )
-              if (stage === 3) panggilTahap3Hook(false)
-            }}
-            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-5 py-2.5 rounded-lg"
-          >
-            Muat Ulang Proses
-          </button>
-        </div>
-      )}
-
-      {/* TAHAP 1: PILIH SUDUT PANDANG (TANPA TEKS DUMMY & ADA TOMBOL HAPUS) */}
-      {stage === 1 && !isLoadingOpsi && coPilotStage1Data && (
-        <div className="space-y-5">
-          {renderProducerChatBubble(coPilotStage1Data.co_pilot_message)}
-
-          {renderBatchSlideBar(
-            stage1Batches,
-            activeBatch1,
-            setActiveBatch1,
-            () => panggilTahap1Angle(true),
-            "Sudut Pandang",
-          )}
-
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold text-[#14141f]">
-              1. Pilih Sudut Pandang Bahasan (Set {activeBatch1 + 1})
-            </label>
-            {(coPilotStage1Data.angle_options || []).map((item, idx) => {
-              const terpilih = contentBrief.chosen_angle === item.angle_text
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() =>
-                    setContentBrief({
-                      ...contentBrief,
-                      chosen_angle: item.angle_text,
-                    })
-                  }
-                  className={`cursor-pointer w-full text-left p-4 rounded-xl border transition flex items-start justify-between gap-3 ${
-                    terpilih
-                      ? "bg-[#14141f] text-white border-[#14141f]"
-                      : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                  }`}
-                >
-                  <div>
-                    <span
-                      className={`text-[11px] font-bold ${
-                        terpilih ? "text-[#d4f34a]" : "text-slate-500"
-                      }`}
-                    >
-                      Opsi {idx + 1} • {item.type}
-                    </span>
-                    <div className="text-xs sm:text-sm font-bold mt-0.5">
-                      {item.angle_text}
-                    </div>
-                  </div>
-                  {terpilih && (
-                    <FlatIcon
-                      name="check"
-                      className="w-4 h-4 text-[#d4f34a] shrink-0"
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="bg-[#f4f5f7] p-4 rounded-xl space-y-2 border border-slate-200">
-            <label className="block text-xs font-bold text-[#14141f]">
-              2.{" "}
-              {coPilotStage1Data.story_prompt_question ||
-                "Pengalaman pribadi atau kejadian nyata yang ingin kamu selipkan (Opsional)"}
-            </label>
-            {renderAdaptiveVoiceInput({
-              rows: 2,
-              value: tempStoryInput,
-              onChange: setTempStoryInput,
-              placeholder:
-                "Kosongkan jika tidak ada, atau ketik pengalaman singkatmu di sini...",
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              panggilTahap2Referensi(
-                contentBrief.chosen_angle,
-                tempStoryInput,
-                false,
-              )
-            }
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg"
-          >
-            Lanjutkan ke Ilustrasi & Pondasi Fakta
-          </button>
-        </div>
-      )}
-
-      {/* TAHAP 2: ILUSTRASI (TEXTBOX + REQUEST REKOMENDASI OPSIONAL) & PONDASI FAKTA (TEXTBOX PERTANYAAN MUDAH) */}
-      {stage === 2 && !isLoadingOpsi && coPilotStage2Data && (
-        <div className="space-y-5">
-          {renderProducerChatBubble(coPilotStage2Data.co_pilot_message)}
-
-          {renderBatchSlideBar(
-            stage2Batches,
-            activeBatch2,
-            setActiveBatch2,
-            () =>
-              panggilTahap2Referensi(
-                contentBrief.chosen_angle,
-                tempStoryInput,
-                true,
-              ),
-            "Ilustrasi & Solusi",
-          )}
-
-          {/* 1. PILIHAN ILUSTRASI BERUPA TEXTBOX (OPSIONAL) + TOMBOL REQUEST REKOMENDASI */}
-          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="text-xs font-bold text-[#14141f]">
-                1. Ilustrasi / Perumpamaan Sehari-hari (Opsional, Boleh
-                Dikosongkan)
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setShowRekomendasiIlustrasi(!showRekomendasiIlustrasi)
-                }
-                className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-300 px-3 py-1 rounded-md text-[11px] font-bold transition"
-              >
-                {showRekomendasiIlustrasi
-                  ? "Sembunyikan Rekomendasi"
-                  : "Minta Rekomendasi Ilustrasi"}
-              </button>
-            </div>
-
-            {showRekomendasiIlustrasi &&
-              Array.isArray(coPilotStage2Data.relatable_analogies) && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                  {coPilotStage2Data.relatable_analogies.map((ana, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setTempStoryInput(ana)}
-                      className={`cursor-pointer p-3 rounded-lg border text-left text-xs transition ${
-                        tempStoryInput === ana
-                          ? "bg-[#14141f] text-[#d4f34a] border-[#14141f] font-bold"
-                          : "bg-white border-slate-200 text-slate-700 hover:border-[#14141f]"
-                      }`}
-                    >
-                      {ana}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-            {renderAdaptiveVoiceInput({
-              rows: 2,
-              value: tempStoryInput,
-              onChange: setTempStoryInput,
-              placeholder:
-                "Ketik perumpamaan versimu sendiri, klik tombol Minta Rekomendasi di atas, atau biarkan kosong...",
-            })}
-          </div>
-
-          {/* 2. PILIH PONDASI FAKTA BERUPA TEXTBOX DENGAN PERTANYAAN MUDAH DIMENGERTI */}
-          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <label className="block text-xs font-bold text-[#14141f]">
-                  2. Pondasi Fakta: Kenyataan lapangan, alasan masuk akal, atau
-                  bukti nyata apa yang membuat penonton percaya pada bahasanmu
-                  ini?
-                </label>
-                <span className="text-[11px] text-slate-500">
-                  Ketik dengan bahasamu sendiri atau klik tombol Lihat Ide Fakta
-                  di samping jika butuh contoh.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowRekomendasiFakta(!showRekomendasiFakta)}
-                className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-300 px-3 py-1 rounded-md text-[11px] font-bold transition shrink-0"
-              >
-                {showRekomendasiFakta
-                  ? "Sembunyikan Ide Fakta"
-                  : "Lihat Ide Fakta Pendukung"}
-              </button>
-            </div>
-
-            {showRekomendasiFakta &&
-              Array.isArray(coPilotStage2Data.reference_cards) && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                  {coPilotStage2Data.reference_cards.map((refCard, idx) => {
-                    const teksFakta = `${refCard.title}: ${refCard.summary}`
-                    const terpilih = pondasiFaktaInput === teksFakta
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setPondasiFaktaInput(teksFakta)}
-                        className={`cursor-pointer p-3.5 rounded-lg border text-left transition flex flex-col justify-between ${
-                          terpilih
-                            ? "bg-[#14141f] text-white border-[#14141f]"
-                            : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                        }`}
-                      >
-                        <div>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                              terpilih
-                                ? "bg-[#d4f34a] text-[#14141f]"
-                                : "bg-[#f4f5f7] text-slate-600"
-                            }`}
-                          >
-                            {refCard.type}
-                          </span>
-                          <h4 className="text-xs font-bold mt-1.5">
-                            {refCard.title}
-                          </h4>
-                          <p
-                            className={`text-[11px] mt-1 leading-relaxed ${
-                              terpilih ? "text-slate-300" : "text-slate-600"
-                            }`}
-                          >
-                            {refCard.summary}
-                          </p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-            {renderAdaptiveVoiceInput({
-              rows: 2,
-              value: pondasiFaktaInput,
-              onChange: setPondasiFaktaInput,
-              placeholder:
-                "Ketik fakta nyata, kejadian yang sering kamu temui, atau bukti hasil di sini...",
-            })}
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-[#14141f]">
-              3. Pilih Poin Bahasan Inti / Solusi
-            </label>
-            <div className="space-y-2">
-              {(coPilotStage2Data.suggested_solutions || []).map((sol, idx) => {
-                const sudahAda = contentBrief.actionable_solution.includes(sol)
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      const listBaru = sudahAda
-                        ? contentBrief.actionable_solution.filter(
-                            (s) => s !== sol,
-                          )
-                        : [...contentBrief.actionable_solution, sol]
-                      setContentBrief({
-                        ...contentBrief,
-                        actionable_solution: listBaru,
-                      })
-                    }}
-                    className={`cursor-pointer w-full text-left p-3.5 rounded-lg border text-xs flex items-center justify-between gap-3 ${
-                      sudahAda
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f] font-bold"
-                        : "bg-white text-[#14141f] border-slate-200"
-                    }`}
-                  >
-                    <span>{sol}</span>
-                    <span className="shrink-0">
-                      {sudahAda ? "Dipakai" : "Pilih"}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-            {renderInputWithClear({
-              value: tempCustomSolution,
-              onChange: setTempCustomSolution,
-              placeholder:
-                "Tambahkan poin bahasan atau solusi sendiri (opsional)...",
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => panggilTahap3Hook(false)}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg"
-          >
-            Lanjutkan ke Pemilihan Kalimat Pembuka (Hook)
-          </button>
-        </div>
-      )}
-
-      {/* TAHAP 3 */}
-      {stage === 3 && !isLoadingOpsi && coPilotStage3Data && (
-        <div className="space-y-5">
-          {renderProducerChatBubble(
-            coPilotStage3Data.co_pilot_message,
-            coPilotStage3Data.framework_reason,
-          )}
-
-          {renderBatchSlideBar(
-            stage3Batches,
-            activeBatch3,
-            setActiveBatch3,
-            () => panggilTahap3Hook(true),
-            "Hook & CTA",
-          )}
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-[#14141f]">
-              1. Pilih Struktur Alur Penyampaian
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {[
-                {
-                  id: "PAS_RELATABLE_BRIDGE",
-                  judul: "Masalah, Situasi Relate, Fakta & Solusi (PAS)",
-                  ket: "Menyebutkan masalah penonton lalu memberikan langkah penyelesaian.",
-                },
-                {
-                  id: "HSO_STORY",
-                  judul: "Cerita Pengalaman (Hook, Story, Offer)",
-                  ket: "Mengalir dari kejadian nyata menuju kesimpulan atau rekomendasi.",
-                },
-                {
-                  id: "CONTRARIAN_MYTH_BUSTER",
-                  judul: "Koreksi Kebiasaan Keliru vs Fakta",
-                  ket: "Meluruskan anggapan umum yang sering merugikan penonton.",
-                },
-                {
-                  id: "BAB_TRANSFORMATION",
-                  judul: "Perbandingan Sebelum vs Sesudah (Before - After)",
-                  ket: "Menunjukkan kondisi awal sebelum perubahan dan hasil akhirnya.",
-                },
-              ].map((fw) => (
-                <button
-                  key={fw.id}
-                  type="button"
-                  onClick={() =>
-                    setContentBrief({
-                      ...contentBrief,
-                      selected_framework: fw.id,
-                    })
-                  }
-                  className={`cursor-pointer p-3.5 rounded-xl border text-left transition ${
-                    contentBrief.selected_framework === fw.id
-                      ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                      : "bg-white text-[#14141f] border-slate-200"
-                  }`}
-                >
-                  <div className="text-xs font-bold">{fw.judul}</div>
-                  <div
-                    className={`text-[11px] font-normal mt-0.5 ${
-                      contentBrief.selected_framework === fw.id
-                        ? "text-slate-300"
-                        : "text-slate-600"
-                    }`}
-                  >
-                    {fw.ket}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold text-[#14141f]">
-              2. Pilih Kalimat Pembuka / 6 Kategori Hook (Set {activeBatch3 + 1}
-              )
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {(coPilotStage3Data.hook_options || []).map((hkItem, idx) => {
-                const teksHook =
-                  typeof hkItem === "string" ? hkItem : hkItem?.text || ""
-                const kategoriHook =
-                  typeof hkItem === "object" && hkItem?.category
-                    ? hkItem.category
-                    : `Variasi Hook ${idx + 1}`
-                const alasanHook =
-                  typeof hkItem === "object" && hkItem?.why_it_works
-                    ? hkItem.why_it_works
-                    : "Menarik perhatian di kalimat pertama"
-                const dipilih =
-                  contentBrief.locked_hook === teksHook && !tempCustomHook
-
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setContentBrief({
-                        ...contentBrief,
-                        locked_hook: teksHook,
-                      })
-                      setTempCustomHook("")
-                    }}
-                    className={`cursor-pointer p-4 rounded-xl border text-left transition flex flex-col justify-between gap-2 ${
-                      dipilih
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            dipilih
-                              ? "bg-[#d4f34a] text-[#14141f]"
-                              : "bg-[#f4f5f7] text-slate-700"
-                          }`}
-                        >
-                          {kategoriHook}
-                        </span>
-                        {dipilih && (
-                          <span className="text-[11px] font-bold text-[#d4f34a]">
-                            Dipilih
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs sm:text-sm font-bold leading-snug pt-1">
-                        {teksHook}
-                      </div>
-                    </div>
-                    <div
-                      className={`text-[11px] ${
-                        dipilih ? "text-slate-300" : "text-slate-500"
-                      }`}
-                    >
-                      Fungsi: {alasanHook}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            {renderInputWithClear({
-              value: tempCustomHook,
-              onChange: setTempCustomHook,
-              placeholder:
-                "Atau tulis sendiri kalimat pembuka versimu di sini...",
-            })}
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-[#14141f]">
-              3. Pilih Kalimat Penutup & Ajakan (CTA • Set {activeBatch3 + 1})
-            </label>
-            {(coPilotStage3Data.cta_options || []).map((ctaItem, idx) => {
-              const teksCta =
-                typeof ctaItem === "string" ? ctaItem : ctaItem?.text || ""
-              const kategoriCta =
-                typeof ctaItem === "object" && ctaItem?.category
-                  ? ctaItem.category
-                  : `Pilihan CTA ${idx + 1}`
-              const dipilih =
-                contentBrief.call_to_action === teksCta && !tempCustomCTA
-
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setContentBrief({
-                      ...contentBrief,
-                      call_to_action: teksCta,
-                    })
-                    setTempCustomCTA("")
-                  }}
-                  className={`cursor-pointer w-full text-left p-3.5 rounded-lg border text-xs flex items-center justify-between gap-2 ${
-                    dipilih
-                      ? "bg-[#f2fce2] border-[#4d6b14] font-bold text-[#14141f]"
-                      : "bg-white border-slate-200 text-[#14141f]"
-                  }`}
-                >
-                  <div>
-                    <span className="text-[11px] font-bold text-[#4d6b14] block">
-                      {kategoriCta}
-                    </span>
-                    <span className="text-xs sm:text-sm">{teksCta}</span>
-                  </div>
-                  <span className="font-bold shrink-0">
-                    {dipilih ? "Dipilih" : "Pilih"}
-                  </span>
-                </button>
-              )
-            })}
-            {renderInputWithClear({
-              value: tempCustomCTA,
-              onChange: setTempCustomCTA,
-              placeholder:
-                "Atau tulis sendiri kalimat ajakan penutup di sini...",
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={lanjutKeTahap4FinalBrief}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg"
-          >
-            Periksa Ringkasan Rancangan Skrip
-          </button>
-        </div>
-      )}
-
-      {/* TAHAP 4: PERIKSA RANCANGAN KONTEN + TEXTBOX PASTIKAN HASIL ASESMEN SESUAI KEINGINAN USER */}
-      {stage === 4 && (
-        <div className="space-y-5">
-          <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3 text-xs">
-            <div>
-              <span className="text-slate-500">Fase & Format:</span>{" "}
-              <strong>
-                {contentPhase === "fase_1_viral"
-                  ? "Fase 1: Cari Viral"
-                  : contentPhase === "fase_2_trust"
-                    ? "Fase 2: Menciptakan Trust"
-                    : `Fase 3: Konversi (${sellingStyle === "hard_selling" ? "Hard Selling" : "Soft Selling"})`}{" "}
-                • {infoFormatTerpilih?.judul}
-              </strong>
-            </div>
-            <div>
-              <span className="text-slate-500">Faktor Pemicu & Kepadatan:</span>{" "}
-              <strong>
-                {infoFaktorTerpilih?.judul} •{" "}
-                {wordDensity === "padat_kaya_kosakata"
-                  ? "Padat & Kaya Kosakata"
-                  : "Ringkas & Irit Kata"}
-              </strong>
-            </div>
-            <div>
-              <span className="text-slate-500">Sudut Pandang:</span>{" "}
-              <strong>{contentBrief.chosen_angle}</strong>
-            </div>
-            {contentBrief.personal_context_or_story && (
-              <div>
-                <span className="text-slate-500">Ilustrasi:</span>{" "}
-                <strong>{contentBrief.personal_context_or_story}</strong>
-              </div>
-            )}
-            {contentBrief.injected_reference?.summary && (
-              <div>
-                <span className="text-slate-500">Pondasi Fakta:</span>{" "}
-                <strong>{contentBrief.injected_reference.summary}</strong>
-              </div>
-            )}
-            <div>
-              <span className="text-slate-500">Target Durasi:</span>{" "}
-              <strong>{contentBrief.target_platform}</strong>
-            </div>
-            <div>
-              <span className="text-slate-500">Kalimat Pembuka (Hook):</span>{" "}
-              <strong className="text-[#4d6b14]">
-                {contentBrief.locked_hook}
-              </strong>
-            </div>
-          </div>
-
-          {/* KOLOM TEXTBOX UNTUK MEMASTIKAN HASIL ASESMEN SESUAI KEINGINAN USER */}
-          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2">
-            <label className="block text-xs font-bold text-[#14141f]">
-              Catatan Tambahan / Koreksi Akhir Sebelum Naskah Dibuat (Opsional)
-            </label>
-            <p className="text-[11px] text-slate-600">
-              Tuliskan di sini jika ada poin khusus, istilah, atau penyesuaian
-              yang ingin kamu pastikan masuk ke dalam naskah.
-            </p>
-            {renderAdaptiveVoiceInput({
-              rows: 2,
-              value: catatanAkhirUser,
-              onChange: setCatatanAkhirUser,
-              placeholder:
-                "Contoh: Pastikan bahasannya menyertakan contoh kasus nyata dan jangan terlalu formal...",
-            })}
-          </div>
-
-          {isGenerating ? (
-            <AILoadingBox
-              label="Menyusun naskah skrip penuh sesuai target jumlah kata dan catatanmu..."
-              onRefresh={handleBuatSkripSekarang}
-            />
-          ) : (
+        {/* 2. Top Dark Action Bar */}
+        <div className="bg-[#1B1B26] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
-              onClick={handleBuatSkripSekarang}
-              className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-sm py-3.5 rounded-lg hover:opacity-95 transition"
-            >
-              Susun Naskah Skrip Sekarang
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* STAGE 5: HASIL SKRIP */}
-      {stage === 5 && hasilSkrip && (
-        <div className="space-y-6 w-full max-w-full overflow-hidden">
-          {/* BAR AKSI UTAMA */}
-          <div className="bg-[#14141f] text-white p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-2.5">
-            <button
-              type="button"
-              onClick={async () => {
-                await otomatisSimpanKeArsipUser(
-                  hasilSkrip,
-                  "Skrip disimpan ke arsip dan membuka layar baca.",
-                )
-                setModeTeleprompter(true)
-              }}
-              className="cursor-pointer flex items-center gap-2 bg-[#d4f34a] text-[#14141f] text-xs font-bold px-4 py-2.5 rounded-lg"
+              onClick={() => setModeTeleprompter(true)}
+              className="cursor-pointer h-10 px-3.5 bg-[#D4F34A] text-[#14141F] text-xs font-bold rounded-lg flex items-center gap-1.5 active:scale-95 transition"
             >
               <FlatIcon name="tv" className="w-4 h-4" />
               <span>Tampilkan Teks</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  const teksInti = daftarBagianAktif
-                    .map(
-                      (s) =>
-                        `[Bagian ${s.partNumber} • ${s.partTitle}${s.estimatedSeconds ? ` (${s.estimatedSeconds})` : ""}]\n${
-                          modeTampilanSkrip === "teks"
-                            ? s.onScreenText
-                            : s.spokenText
-                        }`,
-                    )
-                    .join("\n\n")
-                  const teksWatermark = !isPremiumUser
-                    ? `\n\nDisusun menggunakan Hookya.site`
-                    : ""
-                  navigator.clipboard.writeText(teksInti + teksWatermark)
-                  await otomatisSimpanKeArsipUser(
-                    hasilSkrip,
-                    "Skrip disalin dan disimpan ke arsip.",
+            <button
+              type="button"
+              onClick={() => {
+                const teksSalin = daftarBagianAktif
+                  .map(
+                    (s) =>
+                      `[Bagian ${s.partNumber} • ${s.partTitle} (${s.estimatedSeconds})]\n${s.spokenText}`,
                   )
-                }}
-                title="Salin Skrip & Simpan ke Arsip"
-                className="cursor-pointer w-9 h-9 rounded-lg bg-white/10 hover:bg-[#d4f34a] text-white hover:text-[#14141f] flex items-center justify-center transition"
-              >
-                <FlatIcon name="copy" className="w-4 h-4" />
-              </button>
+                  .join("\n\n")
+                navigator.clipboard.writeText(teksSalin)
+                showToast("Seluruh naskah skrip berhasil disalin.")
+              }}
+              className="cursor-pointer h-10 px-3 bg-white/15 hover:bg-white/25 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <FlatIcon name="copy" className="w-4 h-4" />
+              <span>Salin</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={handleCetakPDF}
-                className="cursor-pointer flex items-center gap-1.5 bg-white/10 hover:bg-[#d4f34a] text-white hover:text-[#14141f] text-xs font-bold px-3.5 py-2 rounded-lg transition"
-              >
-                <FlatIcon name="printer" className="w-4 h-4" />
-                <span>Cetak PDF</span>
-              </button>
+            <button
+              type="button"
+              onClick={handleCetakPDF}
+              className="cursor-pointer h-10 px-3 bg-white/15 hover:bg-white/25 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <FlatIcon name="printer" className="w-4 h-4" />
+              <span>PDF</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={async () => {
-                  setIsEditMode((prev) => !prev)
-                  await otomatisSimpanKeArsipUser(
-                    hasilSkrip,
-                    "Mode edit aktif dan skrip disimpan ke arsip.",
-                  )
-                  if (firstTextareaRef.current) {
-                    firstTextareaRef.current.focus()
-                  }
-                }}
-                className={`cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg transition ${
-                  isEditMode
-                    ? "bg-[#d4f34a] text-[#14141f]"
-                    : "bg-white/10 hover:bg-[#d4f34a] text-white hover:text-[#14141f]"
-                }`}
-              >
-                <FlatIcon name="edit" className="w-4 h-4" />
-                <span>Edit</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditMode((prev) => !prev)
+                if (firstTextareaRef.current) firstTextareaRef.current.focus()
+              }}
+              className={`cursor-pointer h-10 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                isEditMode
+                  ? "bg-[#D4F34A] text-[#14141F]"
+                  : "bg-white/15 hover:bg-white/25 text-white"
+              }`}
+            >
+              <FlatIcon name="edit" className="w-4 h-4" />
+              <span>Edit</span>
+            </button>
           </div>
+        </div>
 
-          {/* DAFTAR VARIASI DALAM FOLDER INDUK */}
-          {koleksiVariasiGanda.length > 0 && (
-            <div className="bg-[#f0eeff] border border-[#5b4bc4]/25 p-3.5 rounded-xl space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-[#14141f]">
-                  Isi Folder Variasi ({koleksiVariasiGanda.length} Variasi
-                  Tersimpan dalam 1 Folder Arsip)
-                </span>
-                <span className="text-[11px] text-slate-600">
-                  Klik untuk melihat tiap variasi
-                </span>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
-                {koleksiVariasiGanda.map((vItem, idx) => (
-                  <button
-                    key={vItem.id || idx}
-                    type="button"
-                    onClick={() => {
-                      setIndexVariasiAktif(idx)
-                      setHasilSkrip({
-                        ...hasilSkrip,
-                        sections: vItem.sections,
-                        segmen: vItem.segmen,
-                      })
-                    }}
-                    className={`cursor-pointer snap-start shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition ${
-                      indexVariasiAktif === idx
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-white text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    {vItem.judul || `Variasi ${idx + 1}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* BAR KONTROL DURASI (DENGAN TOMBOL UBAH DURASI DI SAMPING DROPDOWN) & BENTUK VISUAL */}
-          <div className="bg-[#f4f5f7] p-3.5 rounded-xl border border-slate-200 space-y-3 w-full">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+        {/* 3. Compact Control Bar */}
+        <div className="bg-[#F3F4F6] rounded-xl p-3 flex flex-col gap-2.5 border border-[#E2E8F0]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex-1 flex items-center bg-white rounded-lg px-3 h-11 border border-[#E2E8F0]">
               <select
                 value={wordDensity}
-                disabled={isChangingDuration}
                 onChange={(e) => setWordDensity(e.target.value)}
-                className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+                className="w-full bg-transparent text-xs font-semibold text-[#14141F] focus:outline-none cursor-pointer"
               >
                 <option value="padat_kaya_kosakata">
                   Gaya: Padat & Kaya Kosakata
                 </option>
                 <option value="irit_ringkas">Gaya: Ringkas & Irit Kata</option>
               </select>
+            </div>
 
+            <div className="flex-1 flex items-center bg-white rounded-lg px-3 h-11 border border-[#E2E8F0]">
               <select
                 value={targetDurasiUbah}
-                disabled={isChangingDuration}
                 onChange={(e) => setTargetDurasiUbah(e.target.value)}
-                className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+                className="w-full bg-transparent text-xs font-semibold text-[#14141F] focus:outline-none cursor-pointer"
               >
                 {PILIHAN_DURASI_KONTEN.map((d) => (
                   <option key={d} value={d}>
@@ -3551,29 +1157,32 @@ export default function ScriptProducerView({
                   </option>
                 ))}
               </select>
-
-              <button
-                type="button"
-                disabled={isChangingDuration}
-                onClick={() =>
-                  handleUbahDurasiSkrip(targetDurasiUbah, wordDensity)
-                }
-                className="cursor-pointer w-full sm:w-auto bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-lg shrink-0 flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isChangingDuration && (
-                  <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-                )}
-                <span>
-                  {isChangingDuration ? "Mengubah Durasi..." : "Ubah Durasi"}
-                </span>
-              </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full pt-2.5 border-t border-slate-200">
+            <button
+              type="button"
+              disabled={isChangingDuration}
+              onClick={() =>
+                handleUbahDurasiSkrip(targetDurasiUbah, wordDensity)
+              }
+              className="cursor-pointer h-11 px-4 bg-[#14141F] text-[#D4F34A] text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              <FlatIcon
+                name="refresh"
+                className={`w-4 h-4 ${
+                  isChangingDuration ? "animate-spin" : ""
+                }`}
+              />
+              <span>{isChangingDuration ? "Memproses..." : "Ubah Durasi"}</span>
+            </button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex-1 flex items-center bg-white rounded-lg px-3 h-11 border border-[#E2E8F0]">
               <select
                 value={targetKonversiBentuk}
                 onChange={(e) => setTargetKonversiBentuk(e.target.value)}
-                className="flex-1 min-w-0 max-w-full truncate bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+                className="w-full bg-transparent text-xs font-semibold text-[#14141F] focus:outline-none cursor-pointer"
               >
                 {SEPULUH_BENTUK_KONTEN.map((b) => (
                   <option key={b.id} value={b.nama}>
@@ -3581,303 +1190,1640 @@ export default function ScriptProducerView({
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                disabled={isConvertingBentuk}
-                onClick={handleKonversiBentukKontenLain}
-                className="cursor-pointer w-full sm:w-auto bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-lg shrink-0 flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isConvertingBentuk && (
-                  <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-                )}
-                <span>
-                  {isConvertingBentuk ? "Mengubah Bentuk..." : "Ubah Bentuk"}
-                </span>
-              </button>
             </div>
+
+            <button
+              type="button"
+              disabled={isConvertingBentuk}
+              onClick={handleKonversiBentukKontenLain}
+              className="cursor-pointer h-11 px-4 bg-[#14141F] text-[#D4F34A] text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              <FlatIcon
+                name="refresh"
+                className={`w-4 h-4 ${
+                  isConvertingBentuk ? "animate-spin" : ""
+                }`}
+              />
+              <span>{isConvertingBentuk ? "Memproses..." : "Ubah Bentuk"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4. Dynamic Story Beats List */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-sm font-bold text-[#14141F]">
+              Struktur Ketukan Cerita (Story Beats)
+            </span>
+            <span className="text-xs text-slate-500">
+              Menampilkan {daftarBagianAktif.length} Bagian
+            </span>
           </div>
 
-          {/* KARTU BAGIAN SKRIP DINAMIS (ARAHAN ADEGAN MINIMIZE SECARA DEFAULT) */}
-          <div className="space-y-3.5">
-            {daftarBagianAktif.map((sec, idx) => {
-              const teksAktif =
-                modeTampilanSkrip === "teks" ? sec.onScreenText : sec.spokenText
-              const sedangRegenBarisIni = regeneratingIndex === idx
-              const isVisualOpen = Boolean(openVisualMap[idx])
+          {daftarBagianAktif.map((sec, idx) => {
+            const isVisualOpen = Boolean(openVisualMap[idx])
+            const sedangRegenIni = regeneratingIndex === idx
 
-              return (
-                <div
-                  key={idx}
-                  className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-white space-y-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200">
-                        Bagian {sec.partNumber || idx + 1} • {sec.partTitle}
+            return (
+              <div
+                key={idx}
+                className="bg-white rounded-xl p-4 border border-[#E2E8F0] space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs bg-[#E7E8EA] text-[#14141F] px-2.5 py-1 rounded-md font-bold">
+                      Bagian {sec.partNumber || idx + 1} • {sec.partTitle}
+                    </span>
+                    {sec.estimatedSeconds && (
+                      <span className="text-xs bg-[#D4F34A] text-[#14141F] px-2 py-0.5 rounded-md font-semibold">
+                        {sec.estimatedSeconds}
                       </span>
-                      {sec.estimatedSeconds && (
-                        <span className="text-[11px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded-md border border-[#4d6b14]/20">
-                          {sec.estimatedSeconds}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenVisualMap((prev) => ({
+                        ...prev,
+                        [idx]: !prev[idx],
+                      }))
+                    }
+                    className="cursor-pointer h-8 px-2.5 text-slate-600 hover:text-[#14141F] text-xs font-semibold flex items-center gap-1 rounded-md bg-[#F4F5F7]"
+                  >
+                    <span>Arahan Adegan & Intonasi</span>
+                    <FlatIcon
+                      name="chevronDown"
+                      className={`w-4 h-4 transition-transform ${
+                        isVisualOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="relative flex items-start gap-2 bg-[#F3F4F6] rounded-lg p-2.5 border border-[#E2E8F0]">
+                  <textarea
+                    ref={idx === 0 ? firstTextareaRef : null}
+                    rows={3}
+                    value={sec.spokenText}
+                    onChange={(e) => {
+                      const valBaru = e.target.value
+                      const listUpdate = daftarBagianAktif.map((s, i) =>
+                        i === idx
+                          ? { ...s, spokenText: valBaru, voiceover: valBaru }
+                          : s,
+                      )
+                      const skripEdit = {
+                        ...hasilSkrip,
+                        sections: listUpdate,
+                        segmen: listUpdate,
+                      }
+                      setHasilSkrip(skripEdit)
+                    }}
+                    onBlur={() => simpanAtauUpdateSkripDatabase(hasilSkrip)}
+                    className={`w-full bg-transparent text-base sm:text-sm text-[#14141F] resize-none focus:outline-none leading-relaxed ${
+                      isEditMode
+                        ? "bg-white p-2 rounded border border-[#14141F]"
+                        : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRegenerateSatuKerangka(idx, "skrip")}
+                    title="Regenerasi Kalimat Ini"
+                    className="cursor-pointer w-8 h-8 rounded-md bg-white hover:bg-[#14141F] text-[#14141F] hover:text-[#D4F34A] border border-[#E2E8F0] flex items-center justify-center shrink-0 transition"
+                  >
+                    <FlatIcon
+                      name="refresh"
+                      className={`w-4 h-4 ${
+                        sedangRegenIni ? "animate-spin" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {isVisualOpen && (
+                  <div className="bg-[#F8F9FA] rounded-lg p-3 border border-[#E2E8F0] flex items-start justify-between gap-2">
+                    <div className="space-y-1.5 text-xs text-slate-600">
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-[#14141F] shrink-0">
+                          Arahan Kamera:
+                        </span>
+                        <span>{sec.cameraCue}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-[#14141F] shrink-0">
+                          Intonasi Suara:
+                        </span>
+                        <span>{sec.intonationCue}</span>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() =>
-                        setOpenVisualMap((prev) => ({
-                          ...prev,
-                          [idx]: !prev[idx],
-                        }))
+                        handleRegenerateSatuKerangka(idx, "visual")
                       }
-                      className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200 transition"
+                      title="Regenerasi Arahan Adegan"
+                      className="cursor-pointer w-8 h-8 rounded-md bg-white hover:bg-[#14141F] text-[#14141F] hover:text-[#D4F34A] border border-[#E2E8F0] flex items-center justify-center shrink-0 transition"
                     >
-                      <span>Arahan Adegan & Intonasi</span>
-                      <FlatIcon
-                        name="chevronDown"
-                        className={`w-3.5 h-3.5 transition ${
-                          isVisualOpen ? "rotate-180" : ""
-                        }`}
-                      />
+                      <FlatIcon name="refresh" className="w-4 h-4" />
                     </button>
                   </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
 
-                  <div className="bg-[#f4f5f7] border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
-                    <div className="flex-1 min-w-0">
-                      <textarea
-                        ref={idx === 0 ? firstTextareaRef : null}
-                        rows={4}
-                        value={teksAktif}
-                        onChange={(e) => {
-                          const valBaru = e.target.value
-                          const listUpdate = daftarBagianAktif.map((s, i) => {
-                            if (i !== idx) return s
-                            if (modeTampilanSkrip === "teks") {
-                              return {
-                                ...s,
-                                onScreenText: valBaru,
-                                teksLayar: valBaru,
-                              }
-                            }
-                            return {
-                              ...s,
-                              spokenText: valBaru,
-                              voiceover: valBaru,
-                            }
-                          })
-                          setHasilSkrip({
-                            ...hasilSkrip,
-                            sections: listUpdate,
-                            segmen: listUpdate,
-                          })
-                        }}
-                        className={`w-full bg-white border ${
-                          isEditMode
-                            ? "border-[#14141f] ring-2 ring-[#d4f34a]"
-                            : "border-slate-200"
-                        } rounded-lg p-2.5 text-base sm:text-sm font-normal text-[#14141f] leading-relaxed outline-none`}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRegenerateSatuKerangka(idx, "skrip")}
-                      title="Buat variasi baru khusus bagian ini"
-                      className="cursor-pointer w-8 h-8 rounded-lg bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
-                    >
-                      <FlatIcon
-                        name="refresh"
-                        className={`w-4 h-4 ${
-                          sedangRegenBarisIni ? "animate-spin" : ""
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* PANEL ARAHAN ADEGAN & INTONASI (MUNCUL SAAT PANAH DIKLIK) */}
-                  {isVisualOpen && (
-                    <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <span className="text-xs font-bold text-[#14141f] block">
-                          Arahan Adegan & Intonasi
-                        </span>
-                        <p className="text-xs font-normal text-slate-600 leading-relaxed break-words">
-                          {sec.visualCue}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRegenerateSatuKerangka(idx, "visual")
-                        }
-                        title="Buat variasi visual khusus bagian ini"
-                        className="cursor-pointer w-8 h-8 rounded-lg bg-[#f4f5f7] hover:bg-[#14141f] text-slate-700 hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
-                      >
-                        <FlatIcon
-                          name="refresh"
-                          className={`w-4 h-4 ${
-                            sedangRegenBarisIni ? "animate-spin" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* KRITIK & SARAN (DILETAKKAN DI ATAS KELENGKAPAN UPLOAD) */}
-          <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 sm:p-5 rounded-xl space-y-1.5">
-            <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
+        {/* 5. Kritik & Saran Pembawaan Naskah (Directly ABOVE Upload Package) */}
+        <div className="bg-[#F5FBD4] border border-[#D4F34A] rounded-xl p-4 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <FlatIcon name="bolt" className="w-5 h-5 text-[#4E6100]" />
+            <h3 className="text-base font-bold text-[#364300]">
               Kritik & Saran Pembawaan Naskah
             </h3>
-            <p className="text-xs text-slate-700 leading-relaxed">
-              {teksKritikSaran}
-            </p>
           </div>
+          <div className="space-y-1.5 text-xs sm:text-sm text-[#14141F]">
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-[#4E6100] shrink-0">
+                • Kelebihan:
+              </span>
+              <span>{kritikObj.kelebihan}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-[#4E6100] shrink-0">
+                • Catatan Pembawaan:
+              </span>
+              <span>{kritikObj.catatanPembawaan}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-[#4E6100] shrink-0">
+                • Kecepatan Bicara:
+              </span>
+              <span>{kritikObj.kecepatanBicara}</span>
+            </div>
+          </div>
+        </div>
 
-          {/* KELENGKAPAN UPLOAD */}
-          {paketUploadAktif && (
-            <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
-              <h3 className="text-sm font-bold text-[#14141f]">
-                Kelengkapan Upload (Judul Cover, Caption & Komentar Pertama)
+        {/* 6. Kelengkapan Publikasi Konten (Siap Salin) */}
+        {paketUploadAktif && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-bold text-[#14141F]">
+                Kelengkapan Publikasi Konten (Siap Salin)
               </h3>
+              <span className="text-[11px] font-bold text-[#556500] uppercase tracking-wider">
+                3 Elemen Lengkap
+              </span>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex flex-col justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-slate-500 block">
-                      1. Teks Judul Cover / Thumbnail
-                    </span>
-                    <p className="font-bold text-sm text-[#14141f] mt-1">
-                      {paketUploadAktif.coverTitle ||
-                        paketUploadAktif.cover_title}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        paketUploadAktif.coverTitle ||
-                          paketUploadAktif.cover_title ||
-                          "",
-                      )
-                      showToast("Judul cover disalin.")
-                    }}
-                    className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] font-bold py-2 rounded-lg transition"
-                  >
-                    Salin Judul Cover
-                  </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-[#F3F4F6] p-3 rounded-xl border border-[#E2E8F0]">
+              <div className="bg-white rounded-lg p-3.5 border border-[#E2E8F0] flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-slate-500 block">
+                    Judul Cover Video
+                  </span>
+                  <p className="text-sm font-bold text-[#14141F]">
+                    {paketUploadAktif.coverTitle ||
+                      paketUploadAktif.cover_title}
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      paketUploadAktif.coverTitle ||
+                        paketUploadAktif.cover_title ||
+                        "",
+                    )
+                    showToast("Judul Cover Video disalin.")
+                  }}
+                  className="cursor-pointer h-9 px-3 bg-[#14141F] text-[#D4F34A] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <FlatIcon name="copy" className="w-3.5 h-3.5" />
+                  <span>Salin Judul Cover</span>
+                </button>
+              </div>
 
-                <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex flex-col justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-slate-500 block">
-                      2. Caption & Hashtag
-                    </span>
-                    <p className="text-slate-700 mt-1 leading-relaxed">
-                      {paketUploadAktif.caption || paketUploadAktif.caption_seo}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        paketUploadAktif.caption ||
-                          paketUploadAktif.caption_seo ||
-                          "",
-                      )
-                      showToast("Caption disalin.")
-                    }}
-                    className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] font-bold py-2 rounded-lg transition"
-                  >
-                    Salin Caption
-                  </button>
+              <div className="bg-white rounded-lg p-3.5 border border-[#E2E8F0] flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-slate-500 block">
+                    SEO Caption & Tagar
+                  </span>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    {paketUploadAktif.caption || paketUploadAktif.caption_seo}
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      paketUploadAktif.caption ||
+                        paketUploadAktif.caption_seo ||
+                        "",
+                    )
+                    showToast("SEO Caption & Tagar disalin.")
+                  }}
+                  className="cursor-pointer h-9 px-3 bg-[#14141F] text-[#D4F34A] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <FlatIcon name="copy" className="w-3.5 h-3.5" />
+                  <span>Salin Caption</span>
+                </button>
+              </div>
 
-                <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex flex-col justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-slate-500 block">
-                      3. Komentar Pancingan Pertama
-                    </span>
-                    <p className="text-slate-700 mt-1">
-                      {paketUploadAktif.pinnedComment ||
-                        paketUploadAktif.pinned_comment}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        paketUploadAktif.pinnedComment ||
-                          paketUploadAktif.pinned_comment ||
-                          "",
-                      )
-                      showToast("Komentar pancingan disalin.")
-                    }}
-                    className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] font-bold py-2 rounded-lg transition"
-                  >
-                    Salin Komentar
-                  </button>
+              <div className="bg-white rounded-lg p-3.5 border border-[#E2E8F0] flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-slate-500 block">
+                    Komentar Pertama Dipin
+                  </span>
+                  <p className="text-xs text-[#14141F] leading-relaxed">
+                    {paketUploadAktif.pinnedComment ||
+                      paketUploadAktif.pinned_comment}
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      paketUploadAktif.pinnedComment ||
+                        paketUploadAktif.pinned_comment ||
+                        "",
+                    )
+                    showToast("Komentar Pertama disalin.")
+                  }}
+                  className="cursor-pointer h-9 px-3 bg-[#F3F4F6] hover:bg-slate-200 text-[#14141F] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border border-[#E2E8F0]"
+                >
+                  <FlatIcon name="copy" className="w-3.5 h-3.5" />
+                  <span>Salin</span>
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* OPSI GANDAKAN SKRIP MENJADI DROPDOWN RINGKAS */}
-          <div className="bg-[#14141f] text-white p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-xs sm:text-sm font-bold">
+        {/* 7. Compact Multiply Script Bar */}
+        <div className="bg-[#14141F] rounded-xl p-4 text-white flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <FlatIcon name="folder" className="w-5 h-5 text-[#D4F34A]" />
+              <span className="text-sm font-bold text-white">
                 Gandakan Topik Ini ke Dalam Folder Arsip
-              </h3>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Hasil penggandaan otomatis disimpan menjadi 1 folder pada topik
-                ini di menu Arsip.
-              </p>
+              </span>
             </div>
+            <span className="text-xs text-white/60 block mt-0.5">
+              Hasilkan variasi angle & hook otomatis ke dalam 1 folder di menu
+              Arsip
+            </span>
+          </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="bg-[#232336] rounded-lg px-3 h-11 flex items-center flex-1 sm:flex-initial">
               <select
                 value={pilihanMultiplierDropdown}
                 disabled={isMultiplyingScript}
                 onChange={(e) => setPilihanMultiplierDropdown(e.target.value)}
-                className="bg-white text-[#14141f] rounded-lg px-3 py-2.5 text-base sm:text-xs font-bold outline-none"
+                className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer w-full"
               >
-                <option value="2">Buat 2 Variasi Skrip (1 Koin)</option>
-                <option value="5">Buat 5 Variasi Skrip (2 Koin)</option>
-                <option value="10">Buat 10 Variasi Skrip (3 Koin)</option>
+                <option className="text-black" value="2">
+                  Buat 2 Variasi Skrip (1 Koin)
+                </option>
+                <option className="text-black" value="5">
+                  Buat 5 Variasi Skrip (2 Koin)
+                </option>
+                <option className="text-black" value="10">
+                  Buat 10 Variasi Skrip (3 Koin)
+                </option>
               </select>
+            </div>
+            <button
+              type="button"
+              disabled={isMultiplyingScript}
+              onClick={handleGandakanViaDropdown}
+              className="cursor-pointer h-11 px-4 bg-[#D4F34A] text-[#14141F] rounded-lg flex items-center justify-center gap-1.5 font-bold text-xs shrink-0 active:scale-95 transition disabled:opacity-50"
+            >
+              <FlatIcon
+                name={isMultiplyingScript ? "refresh" : "plus"}
+                className={`w-4 h-4 ${
+                  isMultiplyingScript ? "animate-spin" : ""
+                }`}
+              />
+              <span>{isMultiplyingScript ? "Memproses..." : "Gandakan"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
+  // ============================================================================
+  // LAYAR BUAT SKRIP KONTEN & ASESMEN (BAGIAN A & BAGIAN B - SESUAI GAMBAR 3.JPG)
+  // ============================================================================
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-6 pb-10">
+      {/* Account Switcher Bar */}
+      <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+              Profil Penulisan Aktif
+            </span>
+            <p className="text-sm font-semibold text-[#14141F]">
+              Pilih persona akun sosial mediamu:
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {daftarAkunTersimpan.length === 0 ? (
               <button
                 type="button"
-                disabled={isMultiplyingScript}
-                onClick={handleGandakanViaDropdown}
-                className="cursor-pointer bg-[#d4f34a] text-[#14141f] font-bold text-xs px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#14141F] text-white text-xs font-bold flex items-center gap-2 border border-[#14141F]"
               >
-                {isMultiplyingScript && (
-                  <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-                )}
+                <span className="w-2 h-2 rounded-full bg-[#D4F34A]" />
                 <span>
-                  {isMultiplyingScript ? "Menggandakan..." : "Gandakan Skrip"}
+                  Akun Utama (
+                  {personaProfile?.account_label || namaUser || "Kreator"})
+                </span>
+                <span className="bg-[#D4F34A] text-[#14141F] text-[10px] px-1.5 py-0.5 rounded font-extrabold">
+                  Aktif
                 </span>
               </button>
+            ) : (
+              daftarAkunTersimpan.map((ak, idx) => {
+                const aktif = idAkunTerpilih === ak.id
+                const terkunci = idx >= kuotaAkunMaksimal
+
+                if (terkunci) {
+                  return (
+                    <button
+                      key={ak.id}
+                      type="button"
+                      onClick={() => handleGantiAkunCepat(ak, idx)}
+                      className="cursor-pointer min-h-[44px] px-3.5 py-2 rounded-lg bg-slate-100 text-slate-400 text-xs font-semibold flex items-center gap-1.5 border border-dashed border-slate-300"
+                    >
+                      <FlatIcon name="lock" className="w-3.5 h-3.5" />
+                      <span>{ak.labelAkun} [Terkunci]</span>
+                    </button>
+                  )
+                }
+
+                return (
+                  <button
+                    key={ak.id}
+                    type="button"
+                    onClick={() => handleGantiAkunCepat(ak, idx)}
+                    className={`cursor-pointer min-h-[44px] px-3.5 py-2 rounded-lg text-xs flex items-center gap-2 border transition ${
+                      aktif
+                        ? "bg-[#14141F] text-white border-[#14141F] font-bold"
+                        : "bg-[#F4F5F7] hover:bg-slate-200 text-[#14141F] border-[#E2E8F0] font-semibold"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        aktif ? "bg-[#D4F34A]" : "bg-slate-400"
+                      }`}
+                    />
+                    <span>{ak.labelAkun}</span>
+                    {aktif && (
+                      <span className="bg-[#D4F34A] text-[#14141F] text-[10px] px-1.5 py-0.5 rounded font-extrabold">
+                        Aktif
+                      </span>
+                    )}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* BAGIAN A: PENGATURAN ARAH & TOPIK NASKAH */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 pt-1">
+          <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-bold text-xs">
+            A
+          </div>
+          <h2 className="text-lg font-bold text-[#14141F] tracking-tight">
+            Bagian A: Pengaturan Arah & Topik Naskah
+          </h2>
+        </div>
+
+        {/* Section 1: Pilih Fase Tujuan Konten */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+                1. Pilih Fase Tujuan Konten
+              </h3>
+              <p className="text-xs text-slate-500">
+                Pilih satu target utama yang ingin dicapai melalui naskah ini
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-500 bg-[#F4F5F7] px-2.5 py-1 rounded-md border border-[#E2E8F0]">
+              Wajib Pilih 1
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              {
+                id: "fase_1_viral",
+                fase: "Fase 1",
+                judul: "Cari Viral Dulu",
+                ket: "Fokus jangkauan luas (Reach/Views), memecah algoritma, dan mengumpulkan audiens baru.",
+                footer: "Topik Relatable & Polemik",
+              },
+              {
+                id: "fase_2_trust",
+                fase: "Fase 2",
+                judul: "Menciptakan Trust (Otoritas)",
+                ket: "Membangun kredibilitas, pembuktian keahlian, dan hubungan personal yang kokoh.",
+                footer: "Panel Otoritas Aktif",
+              },
+              {
+                id: "fase_3_konversi",
+                fase: "Fase 3",
+                judul: "Konten Konversi (Jualan)",
+                ket: "Mengarahkan audiens klik link bio, beli produk digital/fisik, atau konsultasi DM.",
+                footer: "Scanner Bukti Produk",
+              },
+            ].map((item) => {
+              const aktif = contentPhase === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setContentPhase(item.id)}
+                  className={`cursor-pointer p-3.5 rounded-xl border-2 text-left transition h-full flex flex-col justify-between ${
+                    aktif
+                      ? "border-[#14141F] bg-[#FAFAFB]"
+                      : "border-[#E2E8F0] bg-white hover:border-slate-400"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-extrabold text-[#14141F] uppercase tracking-wider">
+                        {item.fase}
+                      </span>
+                      <div
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          aktif
+                            ? "border-[#14141F] bg-[#14141F]"
+                            : "border-slate-300"
+                        }`}
+                      >
+                        {aktif && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#D4F34A]" />
+                        )}
+                      </div>
+                    </div>
+                    <h4 className="text-sm font-bold text-[#14141F] mb-1">
+                      {item.judul}
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      {item.ket}
+                    </p>
+                  </div>
+                  <div
+                    className={`mt-3 pt-2 border-t border-[#E2E8F0]/70 flex items-center text-[11px] font-bold ${
+                      aktif ? "text-[#4D6B14]" : "text-slate-500"
+                    }`}
+                  >
+                    <span>{item.footer}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Sub-Panel Fase 2 (Trust) */}
+          {contentPhase === "fase_2_trust" && (
+            <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#14141F] flex items-center gap-1.5">
+                  <FlatIcon name="shield" className="w-4 h-4 text-[#4D6B14]" />
+                  <span>4 Pendekatan Membangun Trust (Pilih Salah Satu):</span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                {EMPAT_PENDEKATAN_TRUST.map((tr) => {
+                  const aktif = trustApproach === tr.id
+                  return (
+                    <button
+                      key={tr.id}
+                      type="button"
+                      onClick={() => setTrustApproach(tr.id)}
+                      className={`cursor-pointer min-h-[44px] p-2.5 rounded-lg text-left text-xs flex items-start gap-2 transition ${
+                        aktif
+                          ? "border-2 border-[#14141F] bg-white font-bold text-[#14141F]"
+                          : "border border-[#E2E8F0] bg-white hover:border-slate-400 font-semibold text-[#14141F]"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full mt-1 shrink-0 ${
+                          aktif ? "bg-[#D4F34A]" : "bg-slate-300"
+                        }`}
+                      />
+                      <span>{tr.judul}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-[#14141F]">
+                    Spesifikasi Personal Diri / Jam Terbang yang Ingin Diangkat:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setPersonalSpecsInput("")}
+                    className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+                  >
+                    Hapus
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={personalSpecsInput}
+                  onChange={(e) => setPersonalSpecsInput(e.target.value)}
+                  placeholder="Contoh: 5 tahun mengelola usaha & 120 klien produk..."
+                  className="w-full text-base sm:text-sm px-3.5 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-[#14141F] focus:outline-none focus:border-[#14141F]"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sub-Panel Fase 3 (Konversi & Jualan) */}
+          {contentPhase === "fase_3_konversi" && (
+            <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[#14141F]">
+                  Mode Konversi Penjualan:
+                </span>
+                <div className="inline-flex rounded-lg border border-[#E2E8F0] p-0.5 bg-[#F4F5F7]">
+                  <button
+                    type="button"
+                    onClick={() => setSellingStyle("soft_selling")}
+                    className={`cursor-pointer px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                      sellingStyle === "soft_selling"
+                        ? "bg-[#14141F] text-[#D4F34A]"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    Soft Selling
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSellingStyle("hard_selling")}
+                    className={`cursor-pointer px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                      sellingStyle === "hard_selling"
+                        ? "bg-[#14141F] text-[#D4F34A]"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    Hard Selling
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <label className="cursor-pointer border border-dashed border-[#C8C5CC] bg-white rounded-lg p-3 flex items-center gap-2.5 text-xs">
+                  <FlatIcon name="upload" className="w-4 h-4 text-[#14141F]" />
+                  <span className="font-semibold truncate">
+                    {ssProduk
+                      ? ssProduk.namaFile
+                      : "1. Upload Screenshot Produk (Opsional)"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      const res = await kompresGambarScreenshot(f)
+                      if (res) setSsProduk({ ...res, namaFile: f.name })
+                    }}
+                    className="hidden"
+                  />
+                </label>
+
+                <label className="cursor-pointer border border-dashed border-[#C8C5CC] bg-white rounded-lg p-3 flex items-center gap-2.5 text-xs">
+                  <FlatIcon name="upload" className="w-4 h-4 text-[#14141F]" />
+                  <span className="font-semibold truncate">
+                    {ssSpesifikasi
+                      ? ssSpesifikasi.namaFile
+                      : "2. Upload Screenshot Spesifikasi"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0]
+                      if (!f) return
+                      const res = await kompresGambarScreenshot(f)
+                      if (res) setSsSpesifikasi({ ...res, namaFile: f.name })
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {(ssProduk || ssSpesifikasi) && (
+                <button
+                  type="button"
+                  disabled={isScanningSS}
+                  onClick={handleScanMarketplaceAI}
+                  className="cursor-pointer w-full bg-[#14141F] text-[#D4F34A] text-xs font-bold py-2.5 rounded-lg"
+                >
+                  {isScanningSS
+                    ? "Mengekstrak Data Produk..."
+                    : "Ekstrak Data Produk dari Screenshot"}
+                </button>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  value={formProduk.namaProduk}
+                  onChange={(e) =>
+                    setFormProduk({ ...formProduk, namaProduk: e.target.value })
+                  }
+                  placeholder="Nama Produk..."
+                  className="h-10 px-3 rounded-lg border border-[#E2E8F0] bg-white text-base sm:text-xs"
+                />
+                <input
+                  type="text"
+                  value={formProduk.hargaPromo}
+                  onChange={(e) =>
+                    setFormProduk({ ...formProduk, hargaPromo: e.target.value })
+                  }
+                  placeholder="Harga / Promo (Opsional)..."
+                  className="h-10 px-3 rounded-lg border border-[#E2E8F0] bg-white text-base sm:text-xs"
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Section 2: Pilih Format Pembawaan Konten (3x3 Grid of 9 Formats) */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+                2. Pilih Format Pembawaan Konten
+              </h3>
+              <p className="text-xs text-slate-500">
+                Grid 3x3 pola eksekusi penyampaian pesan
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-500 bg-[#F4F5F7] px-2.5 py-1 rounded-md border border-[#E2E8F0]">
+              9 Format Tersedia
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {SEMBILAN_FORMAT_KONTEN.map((fmt) => {
+              const aktif = contentFormat === fmt.id
+              return (
+                <button
+                  key={fmt.id}
+                  type="button"
+                  onClick={() => setContentFormat(fmt.id)}
+                  className={`cursor-pointer p-3 rounded-xl text-left transition flex items-center gap-3 min-h-[52px] ${
+                    aktif
+                      ? "border-2 border-[#14141F] bg-[#FAFAFB]"
+                      : "border border-[#E2E8F0] bg-white hover:border-slate-400"
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      aktif
+                        ? "bg-[#14141F] text-[#D4F34A]"
+                        : "bg-[#F4F5F7] text-[#14141F]"
+                    }`}
+                  >
+                    <FlatIcon name="bolt" className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-[#14141F] truncate">
+                        {fmt.judul}
+                      </p>
+                      {aktif && (
+                        <span className="w-2 h-2 rounded-full bg-[#D4F34A] shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {fmt.ket}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Section 3: Pilih Faktor Pemicu Perhatian & Viral (5 Cards) */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+                3. Pilih Faktor Pemicu Perhatian & Viral
+              </h3>
+              <p className="text-xs text-slate-500">
+                Pemicu psikologis retensi audiens di 3 detik pertama
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-500 bg-[#F4F5F7] px-2.5 py-1 rounded-md border border-[#E2E8F0]">
+              5 Opsi Psikologis
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {LIMA_FAKTOR_VIRAL.map((fv) => {
+              const aktif = viralTrigger === fv.id
+              return (
+                <button
+                  key={fv.id}
+                  type="button"
+                  onClick={() => setViralTrigger(fv.id)}
+                  className={`cursor-pointer p-3 rounded-xl text-left transition flex flex-col justify-between h-full ${
+                    aktif
+                      ? "border-2 border-[#14141F] bg-[#FAFAFB]"
+                      : "border border-[#E2E8F0] bg-white hover:border-slate-400"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <span
+                      className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded inline-block ${
+                        aktif
+                          ? "bg-[#D4F34A]/50 text-[#14141F]"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {fv.badge}
+                    </span>
+                    <h4 className="text-xs font-bold text-[#14141F] pt-1">
+                      {fv.judul}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      {fv.ket}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold mt-2 ${
+                      aktif ? "text-[#4D6B14]" : "text-slate-400"
+                    }`}
+                  >
+                    {aktif ? "Terpilih" : "Tersedia"}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Section 4: Kepadatan Kata, Konteks Bidang & Durasi Riil */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+              4. Kepadatan Kata, Konteks Bidang & Durasi Riil
+            </h3>
+            <p className="text-xs text-slate-500">
+              Parameter teknis panjang naskah dan pembatasan kosakata naskah
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#14141F] block">
+                Kepadatan Kata (Vocabulary Density):
+              </label>
+              <div className="grid grid-cols-2 p-1 bg-[#F4F5F7] rounded-lg border border-[#E2E8F0] gap-1">
+                <button
+                  type="button"
+                  onClick={() => setWordDensity("padat_kaya_kosakata")}
+                  className={`cursor-pointer min-h-[44px] px-2 py-1.5 rounded-md text-xs transition ${
+                    wordDensity === "padat_kaya_kosakata"
+                      ? "bg-white text-[#14141F] font-bold border border-slate-200"
+                      : "text-slate-500 font-semibold"
+                  }`}
+                >
+                  Padat & Kaya Kosakata
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWordDensity("irit_ringkas")}
+                  className={`cursor-pointer min-h-[44px] px-2 py-1.5 rounded-md text-xs transition ${
+                    wordDensity === "irit_ringkas"
+                      ? "bg-white text-[#14141F] font-bold border border-slate-200"
+                      : "text-slate-500 font-semibold"
+                  }`}
+                >
+                  Ringkas & Irit Kata
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#14141F] block">
+                Konteks Bidang Pembahasan:
+              </label>
+              <div className="grid grid-cols-2 p-1 bg-[#F4F5F7] rounded-lg border border-[#E2E8F0] gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleUbahContextMode("sesuai_niche")}
+                  className={`cursor-pointer min-h-[44px] px-2 py-1.5 rounded-md text-xs transition ${
+                    contextMode === "sesuai_niche"
+                      ? "bg-white text-[#14141F] font-bold border border-slate-200"
+                      : "text-slate-500 font-semibold"
+                  }`}
+                >
+                  Sesuai Bidang Profil
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUbahContextMode("lintas_produk")}
+                  className={`cursor-pointer min-h-[44px] px-2 py-1.5 rounded-md text-xs transition ${
+                    contextMode === "lintas_produk"
+                      ? "bg-white text-[#14141F] font-bold border border-slate-200"
+                      : "text-slate-500 font-semibold"
+                  }`}
+                >
+                  Lintas Topik / Bebas
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#14141F] block">
+                Target Durasi Baca Riil (Audio Pacing):
+              </label>
+              <div className="relative">
+                <select
+                  value={targetPlatformInput}
+                  onChange={(e) => setTargetPlatformInput(e.target.value)}
+                  className="w-full min-h-[44px] text-base sm:text-xs px-3.5 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-[#14141F] font-semibold appearance-none focus:outline-none focus:border-[#14141F] pr-9"
+                >
+                  {PILIHAN_DURASI_KONTEN.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-3 text-slate-500">
+                  <FlatIcon name="chevronDown" className="w-4 h-4" />
+                </span>
+              </div>
             </div>
           </div>
+        </section>
+
+        {/* Section 5: Input Topik Mandiri (Placed ABOVE Topic Recommendations) */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+              5. Input Topik Mandiri
+            </h3>
+            <p className="text-xs text-slate-500">
+              Tulis ide atau topik bebasmu sendiri, atau pilih rekomendasi
+              otomatis di bawahnya
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#14141F]">
+                Topik / Ide Utama yang Ingin Dibahas:
+              </label>
+              <button
+                type="button"
+                onClick={() => setRawTopicInput("")}
+                className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+              >
+                Hapus
+              </button>
+            </div>
+
+            <StoryVoiceInput
+              rows={3}
+              value={rawTopicInput}
+              onChange={setRawTopicInput}
+              placeholder="Tuliskan topik bahasan, keresahan yang ingin diangkat, atau tempel draf ide kasarmu di sini..."
+              onNotify={showToast}
+            />
+          </div>
+
+          {/* Rekomendasi Ide Materi dari Analisis Profil Akun (Hanya muncul jika Sesuai Bidang Profil) */}
+          {contextMode === "sesuai_niche" && (
+            <div className="border-t border-[#E2E8F0] pt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold text-[#14141F] flex items-center gap-1.5">
+                    <FlatIcon name="dna" className="w-4 h-4 text-[#4D6B14]" />
+                    <span>
+                      Rekomendasi Ide Materi dari Analisis Profil Akun
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Diekstrak otomatis dari niche profil akun yang sedang aktif
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isLoadingIdeTopik}
+                  onClick={handleGenerate10IdeTopikAI}
+                  className="cursor-pointer min-h-[44px] px-3.5 py-2 rounded-lg bg-[#14141F] text-white hover:bg-black text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                >
+                  <FlatIcon
+                    name={isLoadingIdeTopik ? "refresh" : "search"}
+                    className={`w-4 h-4 text-[#D4F34A] ${
+                      isLoadingIdeTopik ? "animate-spin" : ""
+                    }`}
+                  />
+                  <span>
+                    {isLoadingIdeTopik
+                      ? "Menganalisis Profil..."
+                      : "Analisis Profil & Cari 10 Ide"}
+                  </span>
+                </button>
+              </div>
+
+              {daftar10IdeTopik.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto pb-2 pt-1">
+                  {daftar10IdeTopik.map((ide, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setRawTopicInput(ide.judul)
+                        showToast(`Topik dipilih: ${ide.judul}`)
+                      }}
+                      className="min-w-[260px] max-w-[280px] p-3 rounded-xl border border-[#E2E8F0] bg-[#F8F9FA] hover:border-[#14141F] cursor-pointer transition flex flex-col justify-between shrink-0"
+                    >
+                      <div>
+                        <span className="text-[10px] font-extrabold text-[#4D6B14] bg-[#F2FCE2] px-2 py-0.5 rounded">
+                          Rekomendasi #{String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <p className="text-xs font-bold text-[#14141F] mt-1.5 leading-snug">
+                          {ide.judul}
+                        </p>
+                      </div>
+                      <div className="mt-2.5 pt-2 border-t border-[#E2E8F0] flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">
+                          {ide.nuansa || "Relevan"}
+                        </span>
+                        <span className="font-bold text-[#14141F] flex items-center gap-1">
+                          Pilih{" "}
+                          <FlatIcon name="arrowRight" className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
-            disabled={isLearningDiff}
-            onClick={handleSimpanEditanUser}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-lg"
+            disabled={isLoadingOpsi}
+            onClick={() => handleMuatOpsiAsesmen(false)}
+            className="cursor-pointer w-full min-h-[48px] bg-[#14141F] text-[#D4F34A] text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-95 transition"
           >
-            {isLearningDiff
-              ? "Menyimpan..."
-              : "Simpan Revisi Skrip & Perbarui Kamus Gaya Bahasa"}
+            <FlatIcon
+              name={isLoadingOpsi ? "refresh" : "bolt"}
+              className={`w-4 h-4 ${isLoadingOpsi ? "animate-spin" : ""}`}
+            />
+            <span>
+              {isLoadingOpsi
+                ? "Menyusun Opsi Asesmen Terpandu..."
+                : "Muat Opsi Sudut Pandang, Ilustrasi & Hook (Bagian B)"}
+            </span>
           </button>
+        </section>
+      </div>
+
+      {/* ====================================================================
+          BAGIAN B: TAHAP ASESMEN TERPANDU (TEXTBOX-FIRST DALAM 1 LAYAR)
+      ==================================================================== */}
+      <div className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-bold text-xs">
+            B
+          </div>
+          <h2 className="text-lg font-bold text-[#14141F] tracking-tight">
+            Bagian B: Tahap Asesmen Terpandu (Textbox-First)
+          </h2>
         </div>
-      )}
+
+        {isLoadingOpsi && (
+          <AILoadingBox
+            label="Menyusun opsi sudut pandang, metafora, dan kategori hook..."
+            onRefresh={() => handleMuatOpsiAsesmen(false)}
+          />
+        )}
+
+        {/* 1. Producer Note Card & Set History Bar */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+          <div className="bg-[#14141F] text-white p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#D4F34A] block">
+                  Catatan Produser AI Hookya
+                </span>
+                <h3 className="text-base sm:text-lg font-bold leading-tight">
+                  Konstruksi Retensi & Eksplorasi Multi-Angle
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                  {currentAssessment?.co_pilot_message ||
+                    "Asesmen ini menggali bobot cerita otentik dari kepalamu. Textbox diutamakan agar narasi tidak seragam, sedangkan tombol opsi berfungsi sebagai pemicu referensi saat ide buntu."}
+                </p>
+              </div>
+              <div className="hidden sm:block text-right shrink-0">
+                <span className="text-xs font-semibold text-slate-400 block">
+                  Sesi Asesmen
+                </span>
+                <span className="text-xs font-bold text-white bg-white/10 px-2 py-1 rounded">
+                  Aktif • {targetPlatformInput.split("(")[0]}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#F8F9FA] px-4 py-2.5 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-[#14141F] mr-1">
+                Pilihan Set Arahan:
+              </span>
+              {[0, 1, 2].map((idx) => {
+                const tersedia = Boolean(assessmentBatches[idx])
+                const aktif = activeBatchIdx === idx
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={!tersedia}
+                    onClick={() => setActiveBatchIdx(idx)}
+                    className={`cursor-pointer min-h-[36px] px-3 py-1 rounded-md text-xs transition ${
+                      aktif && tersedia
+                        ? "bg-[#14141F] text-white font-bold"
+                        : "bg-white text-slate-500 border border-[#E2E8F0] font-semibold disabled:opacity-40"
+                    }`}
+                  >
+                    Set {idx + 1}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              type="button"
+              disabled={assessmentBatches.length >= 3 || isLoadingOpsi}
+              onClick={() => handleMuatOpsiAsesmen(true)}
+              className="cursor-pointer min-h-[36px] px-3 py-1.5 rounded-lg border border-[#14141F] bg-white hover:bg-slate-50 text-xs font-bold text-[#14141F] flex items-center gap-1.5 transition disabled:opacity-40"
+            >
+              <FlatIcon name="refresh" className="w-3.5 h-3.5" />
+              <span>
+                Cari Opsi Lain (Sisa{" "}
+                {Math.max(0, 3 - Math.max(1, assessmentBatches.length))}x)
+              </span>
+            </button>
+          </div>
+        </section>
+
+        {/* 2. Pilih Sudut Pandang Bahasan (3 Cards + Textbox) */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+              1. Pilih Sudut Pandang Bahasan (Angle)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Tentukan lensa penceritaan utama dan tuliskan pengalaman spesifik
+              jika ada
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(
+              currentAssessment?.angle_options || [
+                {
+                  label: "Angle 1",
+                  type: "Pengalaman Kegagalan Pribadi",
+                  angle_text:
+                    "Menggunakan sudut pandang pribadi yang pernah rugi dan belajar dari kesalahan nyata di lapangan.",
+                },
+                {
+                  label: "Angle 2",
+                  type: "Pengamat Kritis / Anti-Gimmick",
+                  angle_text:
+                    "Membongkar tren yang salah kaprah di kalangan pemula dengan nada jujur dan realistis.",
+                },
+                {
+                  label: "Angle 3",
+                  type: "Panduan Eksekusi Step-by-Step",
+                  angle_text:
+                    "Struktur taktis tanpa basa-basi langsung ke langkah penyelamatan dan solusi praktis.",
+                },
+              ]
+            ).map((ang, idx) => {
+              const dipilih = chosenAngle === ang.angle_text
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setChosenAngle(ang.angle_text)}
+                  className={`cursor-pointer p-3.5 rounded-xl text-left transition h-full flex flex-col justify-between ${
+                    dipilih
+                      ? "border-2 border-[#14141F] bg-[#FAFAFB]"
+                      : "border border-[#E2E8F0] bg-white hover:border-slate-400"
+                  }`}
+                >
+                  <div>
+                    <span
+                      className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                        dipilih
+                          ? "bg-[#D4F34A]/50 text-[#14141F]"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {ang.label || `Angle ${idx + 1}`}
+                    </span>
+                    <h4 className="text-xs font-bold text-[#14141F] mt-1.5">
+                      {ang.type}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-tight mt-1">
+                      {ang.angle_text}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold mt-2 ${
+                      dipilih ? "text-[#4D6B14]" : "text-slate-400"
+                    }`}
+                  >
+                    {dipilih ? "Terpilih" : "Tersedia"}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#14141F]">
+                Catatan Pengalaman Personal Spesifik (Opsional):
+              </label>
+              <button
+                type="button"
+                onClick={() => setPengalamanInput("")}
+                className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+              >
+                Hapus
+              </button>
+            </div>
+            <StoryVoiceInput
+              rows={2}
+              value={pengalamanInput}
+              onChange={setPengalamanInput}
+              placeholder="Tuliskan pengalaman nyata singkat jika ingin dimasukkan ke dalam cerita..."
+              onNotify={showToast}
+            />
+          </div>
+        </section>
+
+        {/* 3. Ilustrasi / Perumpamaan Sehari-hari (Textbox-First, Optional) */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+                2. Ilustrasi / Perumpamaan Sehari-hari (Opsional)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Gunakan metafora konkret agar konsep rumit dipahami dalam 5
+                detik
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setShowRekomendasiIlustrasi(!showRekomendasiIlustrasi)
+              }
+              className="cursor-pointer min-h-[44px] px-3.5 py-1.5 rounded-lg border border-[#14141F] bg-white hover:bg-slate-50 text-xs font-bold text-[#14141F] flex items-center gap-1.5 shrink-0 transition"
+            >
+              <FlatIcon name="bolt" className="w-4 h-4 text-[#4D6B14]" />
+              <span>
+                {showRekomendasiIlustrasi
+                  ? "Sembunyikan Rekomendasi"
+                  : "Minta Rekomendasi Ilustrasi"}
+              </span>
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#14141F]">
+                Tuliskan Ilustrasi atau Metafora Sendiri:
+              </label>
+              <button
+                type="button"
+                onClick={() => setIlustrasiInput("")}
+                className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+              >
+                Hapus
+              </button>
+            </div>
+            <StoryVoiceInput
+              rows={2}
+              value={ilustrasiInput}
+              onChange={setIlustrasiInput}
+              placeholder="Ketik perumpamaan versimu sendiri, atau klik tombol Minta Rekomendasi Ilustrasi..."
+              onNotify={showToast}
+            />
+          </div>
+
+          {showRekomendasiIlustrasi && (
+            <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
+              <span className="text-[11px] font-bold text-[#14141F] uppercase tracking-wider block">
+                3 Pilihan Metafora Rekomendasi AI:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(
+                  currentAssessment?.relatable_analogies || [
+                    {
+                      judul: "Helm Balap Tanpa Motor",
+                      ringkasan:
+                        "Perumpamaan beli tools mahal tapi belum ada pembeli.",
+                      teks: "Seperti beli helm balap F1 tapi motornya sendiri belum kebeli.",
+                    },
+                    {
+                      judul: "Pesta Tanpa Undangan",
+                      ringkasan:
+                        "Perumpamaan membangun produk 2 bulan tanpa validasi pasar.",
+                      teks: "Seperti masak rendang 10 porsi buat pesta yang tamunya belum diundang.",
+                    },
+                    {
+                      judul: "Brankas Dinding Kardus",
+                      ringkasan:
+                        "Perumpamaan terlalu rumit di awal tanpa fondasi dasar.",
+                      teks: "Seperti pasang pintu brankas baja di rumah yang dindingnya dari kardus.",
+                    },
+                  ]
+                ).map((item, idx) => {
+                  const judulMeta =
+                    typeof item === "string"
+                      ? `Metafora #${idx + 1}`
+                      : item.judul
+                  const ketMeta =
+                    typeof item === "string" ? item : item.ringkasan
+                  const teksIsi =
+                    typeof item === "string"
+                      ? item
+                      : item.teks || item.ringkasan
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setIlustrasiInput(teksIsi)}
+                      className="p-2.5 rounded-lg border border-[#E2E8F0] bg-white hover:border-[#14141F] cursor-pointer text-xs transition"
+                    >
+                      <p className="font-bold text-[#14141F]">{judulMeta}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {ketMeta}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 4. Pondasi Fakta & Alasan Masuk Akal */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+                3. Pondasi Fakta & Alasan Masuk Akal
+              </h3>
+              <p className="text-xs text-slate-500">
+                Kenyataan lapangan, alasan masuk akal, atau bukti nyata apa yang
+                membuat penonton percaya pada bahasanmu ini?
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRekomendasiFakta(!showRekomendasiFakta)}
+              className="cursor-pointer min-h-[44px] px-3.5 py-1.5 rounded-lg border border-[#14141F] bg-white hover:bg-slate-50 text-xs font-bold text-[#14141F] flex items-center gap-1.5 shrink-0 transition"
+            >
+              <FlatIcon name="search" className="w-4 h-4" />
+              <span>
+                {showRekomendasiFakta
+                  ? "Sembunyikan Ide Fakta"
+                  : "Lihat Ide Fakta Pendukung"}
+              </span>
+            </button>
+          </div>
+
+          {showRekomendasiFakta &&
+            Array.isArray(currentAssessment?.reference_cards) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {currentAssessment.reference_cards.map((rc, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setFaktaInput(`${rc.title}: ${rc.summary}`)}
+                    className="p-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8F9FA] hover:border-[#14141F] cursor-pointer text-xs transition"
+                  >
+                    <p className="font-bold text-[#14141F]">{rc.title}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {rc.summary}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#14141F]">
+                Argumen Fakta Lapangan yang Ingin Kamu Pakai:
+              </label>
+              <button
+                type="button"
+                onClick={() => setFaktaInput("")}
+                className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+              >
+                Hapus
+              </button>
+            </div>
+            <StoryVoiceInput
+              rows={2}
+              value={faktaInput}
+              onChange={setFaktaInput}
+              placeholder="Tuliskan data, realita lapangan, atau argumen logis yang sulit dibantah penonton..."
+              onNotify={showToast}
+            />
+          </div>
+        </section>
+
+        {/* 5. Struktur Alur, Formula Hook & Call-To-Action */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-5">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+              4. Struktur Alur, Formula Hook & Call-To-Action
+            </h3>
+            <p className="text-xs text-slate-500">
+              Atur kerangka penceritaan agar alur mengalir mulus ke penutup
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#14141F] block">
+              Pilih Struktur Kerangka Naskah:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {EMPAT_FRAMEWORK_ALUR.map((fw) => {
+                const dipilih = selectedFramework === fw.id
+                return (
+                  <button
+                    key={fw.id}
+                    type="button"
+                    onClick={() => setSelectedFramework(fw.id)}
+                    className={`cursor-pointer p-3 rounded-xl text-left transition h-full ${
+                      dipilih
+                        ? "border-2 border-[#14141F] bg-[#FAFAFB]"
+                        : "border border-[#E2E8F0] bg-white hover:border-slate-400"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                        dipilih
+                          ? "bg-[#D4F34A]/50 text-[#14141F]"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {fw.kode}
+                    </span>
+                    <p className="text-xs font-bold text-[#14141F] mt-1">
+                      {fw.judul}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {fw.ket}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#14141F] block">
+              Pilih 1 dari 6 Kategori Pembuka (Hook 3 Detik Pertama):
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {(
+                currentAssessment?.hook_options || [
+                  {
+                    badge: "#1",
+                    category: "Anti-Gimmick / Satir",
+                    text: "Anti-Gimmick / Satir",
+                  },
+                  {
+                    badge: "#2",
+                    category: "Pertanyaan Menohok",
+                    text: "Pertanyaan Menohok",
+                  },
+                  {
+                    badge: "#3",
+                    category: "Pernyataan Kontras",
+                    text: "Pernyataan Kontras",
+                  },
+                  {
+                    badge: "#4",
+                    category: "Pengakuan Kesalahan",
+                    text: "Pengakuan Kesalahan",
+                  },
+                  {
+                    badge: "#5",
+                    category: "Statistik Tak Lazim",
+                    text: "Statistik Tak Lazim",
+                  },
+                  {
+                    badge: "#6",
+                    category: "Larangan Tegas",
+                    text: "Larangan Tegas",
+                  },
+                ]
+              ).map((hk, idx) => {
+                const nilaiHook = hk.text || hk.category
+                const aktif = lockedHook === nilaiHook
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setLockedHook(nilaiHook)}
+                    className={`cursor-pointer p-2.5 rounded-lg text-left text-xs transition ${
+                      aktif
+                        ? "border-2 border-[#14141F] bg-[#14141F] text-white font-bold"
+                        : "border border-[#E2E8F0] bg-[#F8F9FA] hover:border-slate-400 text-[#14141F] font-semibold"
+                    }`}
+                  >
+                    <span
+                      className={`block text-[10px] ${
+                        aktif ? "text-[#D4F34A]" : "text-slate-400"
+                      }`}
+                    >
+                      {hk.badge || `#${idx + 1}`}
+                    </span>
+                    <span className="line-clamp-2">{hk.category}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#14141F] block">
+              Pilih Target Penutup (Call-to-Action):
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(
+                currentAssessment?.cta_options || [
+                  {
+                    category: "1. Interaksi Komentar Kata Kunci",
+                    text: "Komen kata kunci di bawah buat diskusi lebih lanjut.",
+                  },
+                  {
+                    category: "2. Akses Tautan di Profil / Bio",
+                    text: "Cek link di bio untuk coba langsung panduannya.",
+                  },
+                  {
+                    category: "3. Simpan & Bagikan ke Teman",
+                    text: "Save video ini biar gak hilang saat kamu butuh nanti.",
+                  },
+                ]
+              ).map((ct, idx) => {
+                const teksCta = ct.text || ct.category
+                const dipilih = callToAction === teksCta
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCallToAction(teksCta)}
+                    className={`cursor-pointer p-3 rounded-xl text-left transition ${
+                      dipilih
+                        ? "border-2 border-[#14141F] bg-[#FAFAFB]"
+                        : "border border-[#E2E8F0] bg-white hover:border-slate-400"
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-[#14141F]">
+                      {ct.category}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {teksCta}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* 6. Tahap Periksa Rancangan Konten */}
+        <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-6 space-y-4">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
+              5. Tahap Periksa Rancangan Konten
+            </h3>
+            <p className="text-xs text-slate-500">
+              Tinjau keselarasan instruksi sebelum generator AI menyusun naskah
+              utuh
+            </p>
+          </div>
+
+          <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-4 space-y-3">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#14141F] block">
+              Ringkasan Konfigurasi Naskah:
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-slate-500 block">Tujuan:</span>
+                <span className="font-bold text-[#14141F]">
+                  {contentPhase === "fase_1_viral"
+                    ? "Fase 1 (Cari Viral)"
+                    : contentPhase === "fase_2_trust"
+                      ? "Fase 2 (Trust & Otoritas)"
+                      : "Fase 3 (Konversi Jualan)"}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Format:</span>
+                <span className="font-bold text-[#14141F]">
+                  {infoFormatAktif?.judul}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Durasi Riil:</span>
+                <span className="font-bold text-[#14141F]">
+                  {targetPlatformInput.split("(")[0]}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Pemicu Viral:</span>
+                <span className="font-bold text-[#14141F]">
+                  {infoFaktorAktif?.judul}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#14141F]">
+                Catatan Tambahan / Koreksi Akhir Sebelum Naskah Dibuat
+                (Opsional):
+              </label>
+              <button
+                type="button"
+                onClick={() => setKoreksiAkhirInput("")}
+                className="cursor-pointer text-xs text-rose-500 hover:text-rose-700 font-semibold"
+              >
+                Hapus
+              </button>
+            </div>
+            <StoryVoiceInput
+              rows={2}
+              value={koreksiAkhirInput}
+              onChange={setKoreksiAkhirInput}
+              placeholder="Masukkan instruksi khusus untuk memastikan hasil naskah sesuai keinginanmu..."
+              onNotify={showToast}
+            />
+          </div>
+
+          <div className="pt-2">
+            {isGenerating ? (
+              <AILoadingBox
+                label="Menyusun naskah skrip penuh sesuai target jumlah kata..."
+                onRefresh={handleBuatSkripSekarang}
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleBuatSkripSekarang}
+                  className="cursor-pointer w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-[#D4F34A] hover:opacity-95 text-[#14141F] font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 border border-[#14141F] active:scale-[0.99] transition"
+                >
+                  <FlatIcon name="edit" className="w-5 h-5" />
+                  <span>Susun Naskah Skrip Sekarang (Potong 1 Koin)</span>
+                </button>
+                <p className="text-center text-xs text-slate-500 font-medium mt-2">
+                  Estimasi waktu proses: ~5-8 detik • Menghasilkan naskah siap
+                  rekam & teleprompter
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

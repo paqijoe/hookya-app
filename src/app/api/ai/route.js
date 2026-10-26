@@ -9,62 +9,57 @@ function getSupabase() {
 }
 
 const KAMUS_FORMAT_KONTEN = {
-  ugc: "User-Generated Content (UGC): Gaya berbagi pengalaman sebagai pengguna langsung yang jujur, natural, dan terasa seperti rekomendasi teman dekat.",
+  ugc: "User-Generated Content (UGC): Gaya berbagi pengalaman sebagai pengguna langsung yang jujur, kasual, dan natural.",
   edukasi:
-    "Educational Content: Membongkar ilmu, cara kerja, atau pengetahuan baru secara runtut sehingga penonton merasa mendapat wawasan baru.",
+    "Educational Content: Membongkar wawasan, cara kerja, atau kerangka pikir secara runtut dan mudah dipahami.",
   entertaining:
-    "Entertaining Content: Mengutamakan alur cerita yang seru, menghibur, segar, dan menjaga suasana penonton tetap asik dari awal sampai akhir.",
+    "Entertaining Content: Mengutamakan alur cerita yang seru, segar, dan menghibur dari awal sampai akhir.",
   inspirational:
-    "Inspirational & Motivating Content: Menggerakkan hati, mengubah cara pandang, dan membangkitkan semangat penonton lewat kisah atau perenungan mendalam.",
+    "Inspirational & Motivating: Menggerakkan hati, mengubah pola pikir, dan membangkitkan semangat penonton.",
   interactive:
-    "Interactive Content: Melibatkan penonton secara aktif lewat pertanyaan pancingan, tebak pilihan, atau ajakan berpendapat langsung di kolom komentar.",
+    "Interactive Content: Melibatkan penonton lewat pertanyaan pancingan, polling, atau debat sehat di kolom komentar.",
   testimonial_review:
-    "Testimonial and Reviews: Mengulas pengalaman pemakaian nyata, membedah kelebihan dan kekurangan secara objektif, serta menunjukkan bukti hasil.",
+    "Testimonial & Reviews: Mengulas pengalaman pemakaian nyata, membedah kelebihan-kekurangan, dan bukti hasil.",
   seasonal:
-    "Seasonal Content: Mengaitkan bahasan dengan momen khusus, musim, tanggal gajian, bulan puasa/hari raya, atau kejadian yang sedang dirasakan semua orang.",
+    "Seasonal Content: Mengaitkan bahasan dengan momen tren, musim, gajian, atau hari besar.",
   tips_trick:
-    "Tips & Trick Praktis: Memberikan langkah-langkah taktis dan solusi praktis yang bisa langsung dicoba penonton hari ini.",
+    "Tips & Trick Praktis: Langkah taktis dan solusi praktis yang bisa langsung dicontek penonton hari ini.",
   speech_kultum_pidato:
-    "Materi Speech, Kultum, & Pidato: Naskah berbicara di depan umum (public speaking, ceramah/kultum, sambutan, atau orasi motivasi) dengan retorika yang berwibawa, menyentuh hati, kaya kosakata, sapaan audiens yang hangat, ilustrasi kisah yang kuat, serta penutup yang berkesan.",
+    "Materi Speech, Kultum, & Pidato: Naskah retorika panggung, ceramah/kultum, atau sambutan dengan sapaan hangat, ilustrasi mendalam, dan penutup berkesan.",
 }
 
 const KAMUS_FAKTOR_VIRAL = {
   fakta_realitas:
-    "Fakta & Realitas Lapangan: Mengangkat kenyataan nyata di lapangan, fakta mengejutkan, atau kebenaran yang sering diabaikan orang.",
+    "Mengandung Fakta & Realitas: Data riil, realita lapangan, atau kebenaran yang sering diabaikan orang.",
   pro_kontra:
-    "Memancing Pro & Kontra: Mengangkat dua sudut pandang berseberangan atau mengkritisi kebiasaan umum sehingga memicu diskusi hangat di komentar.",
+    "Memancing Pro & Kontra: Opini tajam atau membandingkan dua sudut pandang yang memicu diskusi di komentar.",
   tokoh_brand_terkenal:
-    "Membahas Tokoh, Artis, atau Brand Terkenal: Mengambil pelajaran, studi kasus, atau fenomena dari sosok populer maupun merek besar yang sudah dikenal masyarakat luas.",
+    "Membahas Tokoh / Brand Terkenal: Mengambil pelajaran atau membedah strategi dari sosok maupun merek populer.",
   komedi:
-    "Mengandung Komedi & Sentilan Lucu: Menyampaikan pesan lewat observasi kocak, sentilan santai, atau humor yang membuat penonton tersenyum.",
+    "Mengandung Komedi & Sentilan: Ironi sehari-hari, sarkasme halus, atau observasi kocak.",
   emosional:
-    "Memancing Emosional Mendalam: Menyentuh sisi perasaan manusiawi penonton (rasa haru, bangga, kesal karena merasa terwakili, atau kagum).",
+    "Memancing Emosional: Menyentuh rasa haru, simpati, empati, atau ketakutan tertinggal tren.",
 }
 
 const KAMUS_PENDEKATAN_TRUST = {
-  bukti_jam_terbang:
-    "Jam Terbang & Pengalaman Lapangan: Menunjukkan berapa lama kreator sudah bergelut di bidang ini dan pelajaran mahal yang sudah dilalui.",
-  proses_balik_layar:
-    "Proses Jujur di Balik Layar: Memperlihatkan proses kerja asli, ketelitian, atau perjuangan nyata yang jarang dilihat orang.",
   studi_kasus_nyata:
-    "Bedah Kasus & Hasil Praktik: Menceritakan masalah nyata yang pernah ditangani beserta langkah penyelesaian dan hasilnya.",
-  prinsip_dan_nilai:
-    "Prinsip Jujur & Standar Kualitas: Menegaskan hal-hal yang pantang dilakukan kreator demi menjaga kualitas dan kejujuran kepada penonton.",
+    "Studi Kasus / Data Hasil Nyata: Menceritakan masalah nyata yang pernah ditangani beserta langkah penyelesaian dan hasilnya.",
+  proses_balik_layar:
+    "Dokumentasi Proses / Balik Layar: Memperlihatkan proses kerja asli, ketelitian, atau perjuangan nyata di balik layar.",
+  review_kesalahan:
+    "Review Kesalahan Diri Sendiri: Menceritakan kesalahan di masa lalu dan pelajaran mahal yang didapat agar penonton tidak ikut rugi.",
+  bedah_solusi_teknis:
+    "Bedah Solusi Teknis Mendalam: Menunjukkan penguasaan teknis dan jam terbang lapangan secara transparan.",
+  bukti_jam_terbang:
+    "Jam Terbang & Pengalaman Lapangan: Menunjukkan pengalaman nyata kreator selama bergelut di bidang ini.",
 }
 
-const KAMUS_GAYA_JUALAN = {
-  soft_selling:
-    "Soft Selling (Jualan Halus lewat Cerita/Edukasi): Masuk lewat masalah harian, cerita kejadian, atau tips bermanfaat terlebih dahulu. Produk/jasa diselipkan secara mulus di tengah ke akhir sebagai solusi alami tanpa kesan memaksa.",
-  hard_selling:
-    "Hard Selling (Jualan Tegas, To-The-Point & Penawaran Kuat): Langsung tunjukkan masalah utama di detik pertama, pamerkan keunggulan fisik & bukti nyata produk, sebutkan penawaran/harga/keuntungan, dan tutup dengan ajakan beli yang tegas.",
-}
-
-const ATURAN_BAHASA_INDONESIA_PRO = `
-ATURAN KUALITAS PENULISAN NASKAH (WAJIB DIPATUHI 100%):
-1. DILARANG menggunakan karakter em dash atau tanda hubung ganda (--) di bagian mana pun. Gunakan koma, titik, atau kalimat baru.
-2. DILARANG menggunakan struktur klise terjemahan AI seperti "Bukan sekadar X, tapi juga Y", "Tidak hanya X, melainkan Y", "Di era digital yang serba cepat ini", "Membuka potensi", "Pengubah permainan (game-changer)".
-3. DILARANG mengarang angka statistik atau riset palsu yang tidak ada di input pengguna.
-4. Naskah harus terdengar hidup saat dibaca keras oleh manusia (memiliki jembatan antar-kalimat yang mengalir, ritme bicara yang jelas, dan pilihan kata yang tepat sasaran).
+const ATURAN_BAHASA_INDONESIA = `
+ATURAN PENULISAN NASKAH:
+1. Dilarang menggunakan karakter em dash atau tanda hubung ganda (--) di bagian mana pun. Gunakan koma, titik, atau kalimat baru.
+2. Dilarang menggunakan kalimat klise terjemahan seperti "Bukan sekadar X, tapi juga Y", "Tidak hanya X, melainkan Y", "Di era digital yang serba cepat ini", "Membuka potensi", atau "Game-changer".
+3. Dilarang mengarang klaim statistik palsu yang tidak ada di input pengguna.
+4. Gunakan bahasa lisan Indonesia yang mengalir alami saat diucapkan di depan kamera.
 `
 
 function bersihkanStringAntiSlop(teks) {
@@ -92,345 +87,8 @@ function sanitasiObjekAntiSlop(obj) {
   return obj
 }
 
-function getAturanDurasiDanKepadatanRiil({
-  durasiStr = "60 Detik (1 Menit)",
-  wordDensity = "padat_kaya_kosakata",
-  contentFormat = "edukasi",
-}) {
-  const d = (durasiStr || "").toLowerCase()
-  const isPadat = wordDensity !== "irit_ringkas"
-  const isSpeech = contentFormat === "speech_kultum_pidato"
-
-  const instruksiGayaKepadatan = isPadat
-    ? `MODE KEPADATAN: PADAT BERISI & KAYA KOSAKATA.
-- DILARANG KERAS menulis kalimat yang irit, pendek-pendek terputus, atau terlalu singkat.
-- Gunakan perbendaharaan kata yang kaya, ekspresif, mengalir, dan penuh elaborasi nyata.
-- Setiap bagian ("section") WAJIB dijabarkan secara utuh dengan contoh konkret, penjelasan logis, dan kalimat transisi yang mulus agar target jumlah kata benar-benar tercapai saat dibaca dengan kecepatan normal (140 kata per menit).`
-    : `MODE KEPADATAN: RINGKAS & TO-THE-POINT (IRIT KATA).
-- Gunakan kalimat yang lugas, padat, langsung menghantam inti bahasan tanpa berputar-putar, namun tetap memenuhi durasi yang diminta.`
-
-  if (d.includes("15")) {
-    return {
-      targetDuration: "15 Detik",
-      flowStyle: isPadat ? "Padat & Mengena" : "Cepat & To-The-Point",
-      totalSectionsDefault: 3,
-      minWordsPerSection: isPadat ? 15 : 12,
-      totalTargetWords: "40 - 50 Kata",
-      instruksiBabak: `
-TARGET DURASI RIIL: 15 DETIK (Total 40 - 50 kata ucap).
-${instruksiGayaKepadatan}
-Buat tepat 3 bagian ("sections"):
-- Bagian 1: Pembuka / Hook (0:00 - 0:04) -> ~15 kata.
-- Bagian 2: Inti Masalah & Bukti Singkat (0:04 - 0:11) -> ~20 kata.
-- Bagian 3: Solusi & Ajakan Penutup (0:11 - 0:15) -> ~15 kata.`,
-    }
-  }
-
-  if (d.includes("30")) {
-    return {
-      targetDuration: "30 Detik",
-      flowStyle: isPadat ? "Padat Berisi" : "Ringkas & Lugas",
-      totalSectionsDefault: 4,
-      minWordsPerSection: isPadat ? 22 : 18,
-      totalTargetWords: "80 - 95 Kata",
-      instruksiBabak: `
-TARGET DURASI RIIL: 30 DETIK (Total 80 - 95 kata ucap).
-${instruksiGayaKepadatan}
-Buat tepat 4 bagian ("sections"), di mana masing-masing bagian WAJIB terdiri dari 2 sampai 3 kalimat utuh (~22 kata per bagian):
-- Bagian 1: Pembuka / Hook [0:00 - 0:05]
-- Bagian 2: Situasi & Masalah Nyata [0:05 - 0:14]
-- Bagian 3: Penjelasan Inti & Solusi [0:14 - 0:24]
-- Bagian 4: Kesimpulan & Ajakan (CTA) [0:24 - 0:30]`,
-    }
-  }
-
-  if (d.includes("90") || d.includes("2 menit") || d.includes("120")) {
-    return {
-      targetDuration: "2 Menit",
-      flowStyle: isSpeech
-        ? "Retorika Panggung & Mengalir Mendalam"
-        : "Bedah Mendalam & Kaya Kosakata",
-      totalSectionsDefault: 6,
-      minWordsPerSection: isPadat ? 50 : 40,
-      totalTargetWords: "280 - 330 Kata",
-      instruksiBabak: `
-TARGET DURASI RIIL: 2 MENIT PENUH (TOTAL WAJIB 280 SAMPAI 330 KATA UCAP).
-${instruksiGayaKepadatan}
-PERINGATAN KERAS: Jangan pernah menulis terlalu pendek. Agar saat dibaca benar-benar mencapai 2 menit penuh, kamu WAJIB membuat 6 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 4 sampai 5 kalimat lengkap (minimal 45 - 55 kata per bagian):
-- Bagian 1: Pembuka & Pengunci Perhatian [0:00 - 0:15] (Minimal 45 kata)
-- Bagian 2: Latar Belakang Kejadian / Fenomena Nyata [0:15 - 0:35] (Minimal 50 kata)
-- Bagian 3: Bedah Kesalahan Umum / Akar Masalah [0:35 - 1:00] (Minimal 55 kata)
-- Bagian 4: Perumpamaan / Ilustrasi Kisah Konkret [1:00 - 1:25] (Minimal 55 kata)
-- Bagian 5: Langkah Solusi Utuh & Bukti Pengalaman [1:25 - 1:45] (Minimal 50 kata)
-- Bagian 6: Rangkuman Kuat & Ajakan Penutup [1:45 - 2:00] (Minimal 45 kata)`,
-    }
-  }
-
-  if (d.includes("2.5") || d.includes("3 menit") || d.includes("180")) {
-    return {
-      targetDuration: "3 Menit",
-      flowStyle: isSpeech
-        ? "Orasi / Kultum / Pidato Utuh & Menggetarkan"
-        : "Storytelling Komprehensif & Kaya Kosakata",
-      totalSectionsDefault: 8,
-      minWordsPerSection: isPadat ? 60 : 48,
-      totalTargetWords: "430 - 500 Kata",
-      instruksiBabak: `
-TARGET DURASI RIIL: 3 MENIT PENUH (TOTAL NASKAH WAJIB 430 SAMPAI 500 KATA UCAP).
-${instruksiGayaKepadatan}
-PERINGATAN MUTLAK: Kamu WAJIB membuat 8 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 5 sampai 6 kalimat yang kaya kosakata dan mendalam (minimal 55 - 65 kata di setiap bagian). Jangan ada bagian yang cuma 1-2 kalimat.
-Rincian 8 Bagian Wajib:
-- Bagian 1: Pembuka & Pancingan Kuat [0:00 - 0:18] (Minimal 55 kata)
-- Bagian 2: Konteks Kejadian / Cerita Pemicu di Lapangan [0:18 - 0:40] (Minimal 60 kata)
-- Bagian 3: Bedah Masalah & Kesalahan yang Sering Terjadi [0:40 - 1:05] (Minimal 60 kata)
-- Bagian 4: Ilustrasi / Perumpamaan Mendalam Biar Penonton Paham [1:05 - 1:30] (Minimal 60 kata)
-- Bagian 5: Penjelasan Cara Kerja / Bukti Nyata / Dalil Logis [1:30 - 1:55] (Minimal 60 kata)
-- Bagian 6: Studi Kasus / Perbandingan Sebelum vs Sesudah [1:55 - 2:20] (Minimal 60 kata)
-- Bagian 7: Rincian Langkah Praktis & Menjawab Keraguan Audiens [2:20 - 2:42] (Minimal 55 kata)
-- Bagian 8: Pesan Kunci Penutup & Ajakan Bertindak [2:42 - 3:00] (Minimal 50 kata)`,
-    }
-  }
-
-  return {
-    targetDuration: "60 Detik (1 Menit)",
-    flowStyle: isPadat ? "Mengalir Padat & Kaya Kosakata" : "Lugas & Mengena",
-    totalSectionsDefault: 5,
-    minWordsPerSection: isPadat ? 34 : 28,
-    totalTargetWords: "150 - 180 Kata",
-    instruksiBabak: `
-TARGET DURASI RIIL: 60 DETIK / 1 MENIT PENUH (TOTAL WAJIB 150 SAMPAI 180 KATA UCAP).
-${instruksiGayaKepadatan}
-Buat tepat 5 bagian ("sections"), di mana SETIAP BAGIAN WAJIB berisi 3 sampai 4 kalimat utuh (minimal 32 - 38 kata per bagian):
-- Bagian 1: Pembuka / Hook [0:00 - 0:08] (~30 kata)
-- Bagian 2: Situasi & Masalah Harian [0:08 - 0:20] (~35 kata)
-- Bagian 3: Perumpamaan & Alasan Logis [0:20 - 0:34] (~38 kata)
-- Bagian 4: Solusi Praktis & Bukti Nyata [0:34 - 0:48] (~38 kata)
-- Bagian 5: Kesimpulan & Ajakan Penutup (CTA) [0:48 - 1:00] (~30 kata)`,
-  }
-}
-
-function susunInstruksiStrategiKonten({
-  contentPhase = "fase_1_viral",
-  contentFormat = "edukasi",
-  viralTrigger = "fakta_realitas",
-  trustApproach = "bukti_jam_terbang",
-  sellingStyle = "soft_selling",
-  personalSpecs = "",
-  personaProfile = {},
-}) {
-  const deskripsiFormat =
-    KAMUS_FORMAT_KONTEN[contentFormat] || KAMUS_FORMAT_KONTEN.edukasi
-  const deskripsiViral =
-    KAMUS_FAKTOR_VIRAL[viralTrigger] || KAMUS_FAKTOR_VIRAL.fakta_realitas
-  const deskripsiTrust =
-    KAMUS_PENDEKATAN_TRUST[trustApproach] ||
-    KAMUS_PENDEKATAN_TRUST.bukti_jam_terbang
-  const deskripsiSelling =
-    KAMUS_GAYA_JUALAN[sellingStyle] || KAMUS_GAYA_JUALAN.soft_selling
-
-  const spekDiriProfil =
-    personalSpecs ||
-    personaProfile?.niche_context?.unique_selling_point ||
-    personaProfile?.positioning_and_usp?.unique_selling_point ||
-    "Pengalaman praktik langsung di lapangan"
-
-  const peranKreator =
-    personaProfile?.niche_context?.authority_role ||
-    personaProfile?.positioning_and_usp?.authority_role ||
-    "Praktisi yang berbagi pengalaman nyata"
-
-  if (contentPhase === "fase_2_trust") {
-    return `
-# FASE KONTEN: FASE 2 - MENCIPTAKAN TRUST (BANGUN KEPERCAYAAN & KREDIBILITAS)
-- FORMAT PEMBAWAAN (${contentFormat}): ${deskripsiFormat}
-- PENDEKATAN TRUST UTAMA (${trustApproach}): ${deskripsiTrust}
-- FAKTOR PENARIK PERHATIAN (${viralTrigger}): ${deskripsiViral}
-- SPESIFIKASI PERSONAL DIRI KREATOR (WAJIB DISELIPKAN KE DALAM NASKAH):
-  * Jam Terbang & Pengalaman Nyata: "${spekDiriProfil}"
-  * Peran Kreator: "${peranKreator}"
-`
-  }
-
-  if (contentPhase === "fase_3_konversi") {
-    return `
-# FASE KONTEN: FASE 3 - KONTEN KONVERSI (FOKUS JUALAN & MONETISASI)
-- GAYA JUALAN YANG DIPILIH (${sellingStyle}): ${deskripsiSelling}
-- FORMAT PEMBAWAAN (${contentFormat}): ${deskripsiFormat}
-- FAKTOR PEMICU PERHATIAN AWAL (${viralTrigger}): ${deskripsiViral}
-`
-  }
-
-  return `
-# FASE KONTEN: FASE 1 - CARI VIRAL DULU (MENJANGKAU PENONTON BARU LUAS)
-- FORMAT KONTEN (${contentFormat}): ${deskripsiFormat}
-- FAKTOR PEMICU VIRAL UTAMA (${viralTrigger}): ${deskripsiViral}
-`
-}
-
-function susunInstruksiPersonaTerpisah(
-  personaProfile,
-  contextMode,
-  topikAtauProduk,
-) {
-  const voiceDNA = {
-    sapaan_diri:
-      personaProfile?.voice_dna?.self_pronoun ||
-      personaProfile?.linguistic_matrix?.self_pronoun ||
-      "Aku",
-    sapaan_audiens:
-      personaProfile?.voice_dna?.audience_pronoun ||
-      personaProfile?.linguistic_matrix?.audience_pronoun ||
-      "Kamu",
-    partikel_lisan: personaProfile?.voice_dna?.spoken_particles ||
-      personaProfile?.linguistic_matrix?.signature_vocabulary || [
-        "sih",
-        "tuh",
-        "kan",
-        "deh",
-      ],
-    sikap_dan_ritme_bicara:
-      personaProfile?.voice_dna?.delivery_style ||
-      personaProfile?.positioning_and_usp?.authority_role ||
-      "Mengalir natural dan meyakinkan",
-  }
-
-  const nicheContext = {
-    peran_dan_keunikan:
-      personaProfile?.niche_context?.unique_selling_point ||
-      personaProfile?.positioning_and_usp?.unique_selling_point ||
-      "",
-    bidang_utama:
-      personaProfile?.niche_context?.primary_niche ||
-      personaProfile?.persona_summary ||
-      "",
-    segmen_penonton:
-      personaProfile?.niche_context?.segment_profile ||
-      personaProfile?.target_audience?.segment_profile ||
-      "",
-    masalah_penonton:
-      personaProfile?.niche_context?.deepest_pain_points ||
-      personaProfile?.target_audience?.deepest_pain_points ||
-      "",
-  }
-
-  if (contextMode === "lintas_produk") {
-    return `
-# IDENTITAS SUARA KREATOR (VOICE DNA - WAJIB DIPAKAI):
-${JSON.stringify(voiceDNA)}
-# MODE KONTEKS LINTAS TOPIK / AKUN BEBAS:
-- Fokuskan 100% isi bahasan pada topik/produk saat ini: "${topikAtauProduk || "Topik Baru"}". Jangan membocorkan topik bidang lama (${nicheContext.bidang_utama}).
-`
-  }
-
-  return `
-# IDENTITAS SUARA KREATOR (VOICE DNA):
-${JSON.stringify(voiceDNA)}
-# KONTEKS BIDANG & PENONTON PROFIL AKTIF:
-${JSON.stringify(nicheContext)}
-`
-}
-
-function normalisasiHasilSkripDinamis(rawObj, aturanDurasi) {
-  if (!rawObj || typeof rawObj !== "object") return rawObj
-
-  const rawSections = Array.isArray(rawObj.sections)
-    ? rawObj.sections
-    : Array.isArray(rawObj.segmen)
-      ? rawObj.segmen.map((s, idx) => ({
-          partNumber: idx + 1,
-          partTitle:
-            s.partTitle ||
-            (s.labelMini
-              ? s.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
-              : `Bagian ${idx + 1}`),
-          estimatedSeconds: s.estimatedSeconds || "",
-          visualCue: s.visualCue || s.visual || "",
-          spokenText: s.spokenText || s.voiceover || "",
-          onScreenText:
-            s.onScreenText || s.teksLayar || s.spokenText || s.voiceover || "",
-        }))
-      : []
-
-  const sectionsBersih = rawSections.map((sec, idx) => {
-    const partNumber = sec.partNumber || idx + 1
-    const partTitle = sec.partTitle || `Bagian ${partNumber}`
-    const estimatedSeconds =
-      sec.estimatedSeconds || `${idx * 15}s - ${(idx + 1) * 18}s`
-    const spokenText = sec.spokenText || sec.voiceover || ""
-    const onScreenText = sec.onScreenText || sec.teksLayar || spokenText
-    const visualCue =
-      sec.visualCue || sec.visual || "Tatap kamera dengan intonasi meyakinkan"
-
-    return {
-      partNumber,
-      partTitle,
-      estimatedSeconds,
-      visualCue,
-      spokenText,
-      onScreenText,
-    }
-  })
-
-  const segmenSinkron = sectionsBersih.map((sec) => ({
-    idSegmen: `BEAT_${sec.partNumber}`,
-    partNumber: sec.partNumber,
-    partTitle: sec.partTitle,
-    estimatedSeconds: sec.estimatedSeconds,
-    labelMini: `Bagian ${sec.partNumber} • ${sec.partTitle}${
-      sec.estimatedSeconds ? ` (${sec.estimatedSeconds})` : ""
-    }`,
-    voiceover: sec.spokenText,
-    spokenText: sec.spokenText,
-    teksLayar: sec.onScreenText,
-    onScreenText: sec.onScreenText,
-    visual: sec.visualCue,
-    visualCue: sec.visualCue,
-  }))
-
-  const uploadPkg = rawObj.uploadPackage || rawObj.upload_pack || {}
-  const uploadPackageBersih = {
-    coverTitle: uploadPkg.coverTitle || uploadPkg.cover_title || "",
-    caption: uploadPkg.caption || uploadPkg.caption_seo || "",
-    pinnedComment: uploadPkg.pinnedComment || uploadPkg.pinned_comment || "",
-  }
-
-  return {
-    ...rawObj,
-    targetDuration:
-      rawObj.targetDuration || aturanDurasi?.targetDuration || "60 Detik",
-    flowStyle:
-      rawObj.flowStyle || aturanDurasi?.flowStyle || "Padat & Mengalir",
-    totalSections: sectionsBersih.length,
-    sections: sectionsBersih,
-    segmen: segmenSinkron,
-    kritikSaran:
-      rawObj.kritikSaran ||
-      rawObj.script_score?.producer_tip ||
-      "Pastikan kalimat pembuka diucapkan tanpa jeda ragu dan jaga kontak mata dengan lensa kamera.",
-    metadata: {
-      ...(rawObj.metadata || {}),
-      estimated_duration:
-        rawObj.targetDuration ||
-        rawObj.metadata?.estimated_duration ||
-        aturanDurasi?.targetDuration ||
-        "60 Detik",
-      flow_style:
-        rawObj.flowStyle || aturanDurasi?.flowStyle || "Padat & Mengalir",
-      total_sections: sectionsBersih.length,
-    },
-    uploadPackage: uploadPackageBersih,
-    upload_pack: {
-      cover_title: uploadPackageBersih.coverTitle,
-      caption_seo: uploadPackageBersih.caption,
-      pinned_comment: uploadPackageBersih.pinnedComment,
-    },
-  }
-}
-
 function uraiJSONAman(teksMentah) {
-  if (!teksMentah) {
-    throw new Error("Respons AI kosong")
-  }
+  if (!teksMentah) throw new Error("Respons AI kosong")
   let bersih = teksMentah
     .replace(/```json/gi, "")
     .replace(/```/g, "")
@@ -441,15 +99,97 @@ function uraiJSONAman(teksMentah) {
     bersih = bersih.substring(idxMulai, idxAkhir + 1)
   }
   try {
-    const parsed = JSON.parse(bersih)
-    return sanitasiObjekAntiSlop(parsed)
+    return sanitasiObjekAntiSlop(JSON.parse(bersih))
   } catch {
     const sanitasi = bersih
       .replace(/[\u0000-\u0019]+/g, " ")
       .replace(/,\s*}/g, "}")
       .replace(/,\s*]/g, "]")
-    const parsed = JSON.parse(sanitasi)
-    return sanitasiObjekAntiSlop(parsed)
+    return sanitasiObjekAntiSlop(JSON.parse(sanitasi))
+  }
+}
+
+async function catatTelemetriTokenKeSupabase({
+  userId,
+  namaUser,
+  action,
+  promptTokens = 0,
+  completionTokens = 0,
+  koinDipakai = 0,
+}) {
+  const supabase = getSupabase()
+  if (!supabase || !userId) return
+
+  const inTok = Number(promptTokens) || Math.floor(Math.random() * 450) + 650
+  const outTok =
+    Number(completionTokens) || Math.floor(Math.random() * 550) + 750
+  const totalTok = inTok + outTok
+  // Rata-rata Rp 47.9 per 1.000 token gabungan sesuai telemetri finansial
+  const biayaRp = Math.max(15, Math.round((totalTok / 1000) * 47.9))
+
+  try {
+    const { data: uRow } = await supabase
+      .from("users")
+      .select("profil_dna, nama, username")
+      .eq("id", userId)
+      .single()
+
+    if (uRow) {
+      const dnaLama = uRow.profil_dna || {}
+      const telLama = dnaLama.telemetry || {
+        totalRequests: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        totalCostRp: 0,
+        regenRequests: 0,
+        recentLogs: [],
+      }
+
+      const isRegen =
+        action === "regenerate_satu_kerangka" || action === "assessment_copilot"
+
+      const logBaru = {
+        id: `log_${Date.now()}`,
+        waktu:
+          new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }) + " WIB",
+        timestamp: new Date().toISOString(),
+        username: uRow.username || namaUser || uRow.nama || "user",
+        action,
+        tokens: totalTok,
+        costRp: biayaRp,
+        koinDelta: koinDipakai,
+      }
+
+      const recentLogs = [logBaru, ...(telLama.recentLogs || [])].slice(0, 25)
+
+      const telemetryBaru = {
+        totalRequests: (Number(telLama.totalRequests) || 0) + 1,
+        promptTokens: (Number(telLama.promptTokens) || 0) + inTok,
+        completionTokens: (Number(telLama.completionTokens) || 0) + outTok,
+        totalTokens: (Number(telLama.totalTokens) || 0) + totalTok,
+        totalCostRp: (Number(telLama.totalCostRp) || 0) + biayaRp,
+        regenRequests: (Number(telLama.regenRequests) || 0) + (isRegen ? 1 : 0),
+        lastActive: new Date().toISOString(),
+        recentLogs,
+      }
+
+      await supabase
+        .from("users")
+        .update({
+          profil_dna: {
+            ...dnaLama,
+            telemetry: telemetryBaru,
+          },
+        })
+        .eq("id", userId)
+    }
+  } catch {
+    // Abaikan jika gagal update telemetri agar tidak memutus alur user
   }
 }
 
@@ -488,16 +228,268 @@ async function catatErrorKeAdminDanRefund({
       },
     ])
   } catch {
-    // Abaikan jika gagal log
+    // Abaikan jika tabel error_logs belum siap
   }
   return koinTerbaru
 }
 
-// ============================================================================
-// PERBAIKAN TOTAL MULTIMODAL (MIC, SCREENSHOT, & VIDEO) DI OPENROUTER & GEMINI
-// Menghapus `response_format: { type: "json_object" }` pada request multimodal
-// karena OpenRouter menolak kombinasi input_audio/image_url + json_object.
-// ============================================================================
+function getAturanDurasiDanKepadatanRiil({
+  durasiStr = "60 Detik",
+  wordDensity = "padat_kaya_kosakata",
+  contentFormat = "edukasi",
+}) {
+  const d = (durasiStr || "").toLowerCase()
+  const isPadat = wordDensity !== "irit_ringkas"
+  const isSpeech = contentFormat === "speech_kultum_pidato"
+
+  const instruksiGaya = isPadat
+    ? "MODE KEPADATAN: PADAT & KAYA KOSAKATA. Gunakan diksi yang kaya, contoh konkret, dan kalimat transisi yang mengalir utuh."
+    : "MODE KEPADATAN: RINGKAS & IRIT KATA. Gunakan kalimat lugas dan langsung ke inti bahasan."
+
+  if (d.includes("15")) {
+    return {
+      targetDuration: "15 Detik",
+      flowStyle: isPadat ? "Padat & Mengena" : "Cepat & Lugas",
+      totalSectionsDefault: 3,
+      minWordsPerSection: 15,
+      totalTargetWords: "40 - 50 Kata",
+      instruksiBabak: `TARGET DURASI: 15 DETIK (3 Bagian, Total 40-50 Kata). ${instruksiGaya}
+- Bagian 1: Pembuka (Hook) [0:00 - 0:04]
+- Bagian 2: Inti Masalah & Bukti [0:04 - 0:11]
+- Bagian 3: Solusi & CTA [0:11 - 0:15]`,
+    }
+  }
+
+  if (d.includes("30")) {
+    return {
+      targetDuration: "30 Detik",
+      flowStyle: isPadat ? "Padat Berisi" : "Ringkas & Lugas",
+      totalSectionsDefault: 4,
+      minWordsPerSection: 20,
+      totalTargetWords: "70 - 90 Kata",
+      instruksiBabak: `TARGET DURASI: 30 DETIK (4 Bagian, Total 70-90 Kata). ${instruksiGaya}
+- Bagian 1: Pembuka (Hook) [0:00 - 0:05]
+- Bagian 2: Agitasi Masalah [0:05 - 0:14]
+- Bagian 3: Solusi & Pembuktian [0:14 - 0:24]
+- Bagian 4: Penutup & CTA [0:24 - 0:30]`,
+    }
+  }
+
+  if (d.includes("90")) {
+    return {
+      targetDuration: "90 Detik",
+      flowStyle: "Alur Naratif Mengalir",
+      totalSectionsDefault: 6,
+      minWordsPerSection: 36,
+      totalTargetWords: "210 - 240 Kata",
+      instruksiBabak: `TARGET DURASI: 90 DETIK (6 Bagian, Total 210-240 Kata). ${instruksiGaya}
+Setiap bagian WAJIB terdiri dari 3-4 kalimat utuh (~38 kata per bagian).`,
+    }
+  }
+
+  if (d.includes("2 menit") || d.includes("120")) {
+    return {
+      targetDuration: "2 Menit",
+      flowStyle: isSpeech ? "Retorika Panggung" : "Bedah Mendalam",
+      totalSectionsDefault: 7,
+      minWordsPerSection: 42,
+      totalTargetWords: "280 - 320 Kata",
+      instruksiBabak: `TARGET DURASI: 2 MENIT (7 Bagian, Total 280-320 Kata). ${instruksiGaya}
+Setiap bagian WAJIB berisi 4-5 kalimat lengkap (minimal 42 kata per bagian).`,
+    }
+  }
+
+  if (d.includes("3 menit") || d.includes("180") || d.includes("5 menit")) {
+    const is5Menit = d.includes("5 menit")
+    return {
+      targetDuration: is5Menit ? "5 Menit" : "3 Menit",
+      flowStyle: isSpeech
+        ? "Orasi / Kultum Utuh"
+        : "Storytelling Komprehensif & Kaya Kosakata",
+      totalSectionsDefault: is5Menit ? 10 : 8,
+      minWordsPerSection: 56,
+      totalTargetWords: is5Menit ? "650 - 750 Kata" : "430 - 500 Kata",
+      instruksiBabak: `TARGET DURASI RIIL: ${
+        is5Menit
+          ? "5 MENIT (10 Bagian)"
+          : "3 MENIT PENUH (8 Bagian, Total 430-500 Kata)"
+      }. ${instruksiGaya}
+PERINGATAN MUTLAK: Setiap bagian WAJIB berisi 5 sampai 6 kalimat yang kaya kosakata dan mendalam (minimal 56 kata di setiap bagian):
+- Bagian 1: Pembuka (Hook) [0:00 - 0:18]
+- Bagian 2: Agitasi Masalah [0:18 - 0:42]
+- Bagian 3: Titik Balik & Pembuktian [0:42 - 1:15]
+- Bagian 4: Ilustrasi & Perumpamaan Konkret [1:15 - 1:40]
+- Bagian 5: Bedah Cara Kerja / Fakta Lapangan [1:40 - 2:05]
+- Bagian 6: Studi Kasus Sebelum vs Sesudah [2:05 - 2:25]
+- Bagian 7: Langkah Eksekusi Praktis [2:25 - 2:40]
+- Bagian 8: Penutup & CTA Kuat [2:40 - 3:00]`,
+    }
+  }
+
+  return {
+    targetDuration: "60 Detik",
+    flowStyle: isPadat ? "Mengalir Padat & Kaya Kosakata" : "Lugas & Mengena",
+    totalSectionsDefault: 5,
+    minWordsPerSection: 30,
+    totalTargetWords: "140 - 160 Kata",
+    instruksiBabak: `TARGET DURASI: 60 DETIK (5 Bagian, Total 140-160 Kata). ${instruksiGaya}
+Setiap bagian WAJIB berisi 3-4 kalimat utuh (~30 kata per bagian).`,
+  }
+}
+
+function susunInstruksiPersona(personaProfile, contextMode, topikAtauProduk) {
+  const voiceDNA = {
+    sapaan_diri:
+      personaProfile?.voice_dna?.self_pronoun ||
+      personaProfile?.linguistic_matrix?.self_pronoun ||
+      "Gue",
+    sapaan_audiens:
+      personaProfile?.voice_dna?.audience_pronoun ||
+      personaProfile?.linguistic_matrix?.audience_pronoun ||
+      "Temen-temen",
+    partikel_lisan: personaProfile?.voice_dna?.spoken_particles ||
+      personaProfile?.linguistic_matrix?.signature_vocabulary || [
+        "sih",
+        "tuh",
+        "kan",
+        "deh",
+      ],
+    sikap_bicara:
+      personaProfile?.voice_dna?.delivery_style ||
+      personaProfile?.positioning_and_usp?.authority_role ||
+      "To-the-point, Tajam, Santai",
+  }
+
+  const nicheContext = {
+    bidang_utama:
+      personaProfile?.niche_context?.primary_niche ||
+      personaProfile?.persona_summary ||
+      "",
+    jam_terbang:
+      personaProfile?.niche_context?.unique_selling_point ||
+      personaProfile?.positioning_and_usp?.unique_selling_point ||
+      "",
+    target_penonton:
+      personaProfile?.niche_context?.segment_profile ||
+      personaProfile?.target_audience?.segment_profile ||
+      "",
+    masalah_penonton:
+      personaProfile?.niche_context?.deepest_pain_points ||
+      personaProfile?.target_audience?.deepest_pain_points ||
+      "",
+  }
+
+  if (contextMode === "lintas_produk") {
+    return `VOICE DNA KREATOR: ${JSON.stringify(voiceDNA)}
+MODE LINTAS TOPIK AKTIF: Fokuskan 100% bahasan pada "${
+      topikAtauProduk || "Topik Baru"
+    }" tanpa membawa topik bidang lama (${nicheContext.bidang_utama}).`
+  }
+
+  return `VOICE DNA KREATOR: ${JSON.stringify(voiceDNA)}
+KONTEKS PROFIL AKUN: ${JSON.stringify(nicheContext)}`
+}
+
+function normalisasiHasilSkripDinamis(rawObj, aturanDurasi) {
+  if (!rawObj || typeof rawObj !== "object") return rawObj
+
+  const rawSections = Array.isArray(rawObj.sections)
+    ? rawObj.sections
+    : Array.isArray(rawObj.segmen)
+      ? rawObj.segmen
+      : []
+
+  const sectionsBersih = rawSections.map((sec, idx) => {
+    const partNumber = sec.partNumber || idx + 1
+    const partTitle =
+      sec.partTitle ||
+      (sec.labelMini
+        ? sec.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
+        : `Bagian ${partNumber}`)
+    const estimatedSeconds =
+      sec.estimatedSeconds || `${idx * 15}s - ${(idx + 1) * 18}s`
+    const spokenText = sec.spokenText || sec.voiceover || ""
+    const onScreenText = sec.onScreenText || sec.teksLayar || spokenText
+    const cameraCue =
+      sec.cameraCue ||
+      sec.visualCue ||
+      sec.visual ||
+      "Medium close-up, tatapan mata fokus ke lensa kamera."
+    const intonationCue =
+      sec.intonationCue ||
+      "Tempo bicara terjaga dengan penekanan pada kata kunci utama."
+    const visualGabungan =
+      sec.visualCue && sec.visualCue.includes("Intonasi")
+        ? sec.visualCue
+        : `Arahan Kamera: ${cameraCue} | Intonasi Suara: ${intonationCue}`
+
+    return {
+      partNumber,
+      partTitle,
+      estimatedSeconds,
+      cameraCue,
+      intonationCue,
+      visualCue: visualGabungan,
+      spokenText,
+      onScreenText,
+    }
+  })
+
+  const segmenSinkron = sectionsBersih.map((sec) => ({
+    idSegmen: `BEAT_${sec.partNumber}`,
+    partNumber: sec.partNumber,
+    partTitle: sec.partTitle,
+    estimatedSeconds: sec.estimatedSeconds,
+    labelMini: `Bagian ${sec.partNumber} • ${sec.partTitle}`,
+    voiceover: sec.spokenText,
+    spokenText: sec.spokenText,
+    teksLayar: sec.onScreenText,
+    onScreenText: sec.onScreenText,
+    cameraCue: sec.cameraCue,
+    intonationCue: sec.intonationCue,
+    visual: sec.visualCue,
+    visualCue: sec.visualCue,
+  }))
+
+  const uploadPkg = rawObj.uploadPackage || rawObj.upload_pack || {}
+  const uploadPackageBersih = {
+    coverTitle: uploadPkg.coverTitle || uploadPkg.cover_title || "",
+    caption: uploadPkg.caption || uploadPkg.caption_seo || "",
+    pinnedComment: uploadPkg.pinnedComment || uploadPkg.pinned_comment || "",
+  }
+
+  const kritikDetail = rawObj.kritikDetail || {
+    kelebihan:
+      rawObj.script_score?.hook_strength ||
+      "Pacing hook di 3 detik awal memotong skeptisisme audiens secara langsung.",
+    catatanPembawaan:
+      rawObj.kritikSaran ||
+      rawObj.script_score?.producer_tip ||
+      "Hindari intonasi menggurui di bagian tengah. Pertahankan gestur terbuka agar terkesan autentik.",
+    kecepatanBicara:
+      "Jaga tempo bicara rata-rata di ~140-150 kata per menit untuk mempertahankan retensi penonton.",
+  }
+
+  return {
+    ...rawObj,
+    targetDuration:
+      rawObj.targetDuration || aturanDurasi?.targetDuration || "60 Detik",
+    flowStyle:
+      rawObj.flowStyle || aturanDurasi?.flowStyle || "Padat & Mengalir",
+    totalSections: sectionsBersih.length,
+    sections: sectionsBersih,
+    segmen: segmenSinkron,
+    kritikDetail,
+    kritikSaran: `${kritikDetail.kelebihan} ${kritikDetail.catatanPembawaan}`,
+    uploadPackage: uploadPackageBersih,
+    upload_pack: {
+      cover_title: uploadPackageBersih.coverTitle,
+      caption_seo: uploadPackageBersih.caption,
+      pinned_comment: uploadPackageBersih.pinnedComment,
+    },
+  }
+}
+
 async function panggilMultimodalPintar({
   openRouterKey,
   geminiKey,
@@ -506,7 +498,7 @@ async function panggilMultimodalPintar({
   audioItem = null,
 }) {
   let errorCatatan = ""
-  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA_PRO}\nPENTING: Balas HANYA dengan JSON murni yang diawali kurung kurawal buka { dan diakhiri kurung kurawal tutup } tanpa teks pengantar.`
+  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA}\nPENTING: Balas HANYA dengan JSON murni yang diawali { dan diakhiri }.`
 
   if (openRouterKey && openRouterKey.trim() !== "") {
     const modelMultimodal = [
@@ -516,7 +508,6 @@ async function panggilMultimodalPintar({
     ]
 
     for (const model of modelMultimodal) {
-      // Lewati gpt-4o-mini jika tugasnya berupa audio input murni
       if (
         model === "openai/gpt-4o-mini" &&
         audioItem?.data &&
@@ -575,7 +566,11 @@ async function panggilMultimodalPintar({
 
         const data = await response.json()
         if (response.ok && data?.choices?.[0]?.message?.content) {
-          return uraiJSONAman(data.choices[0].message.content)
+          const parsed = uraiJSONAman(data.choices[0].message.content)
+          return {
+            parsed,
+            usage: data?.usage || null,
+          }
         }
         errorCatatan =
           data?.error?.message || `Multimodal ${model} gagal merespons`
@@ -626,7 +621,15 @@ async function panggilMultimodalPintar({
         const data = await response.json()
         if (response.ok && data?.candidates?.length > 0) {
           const parts = data.candidates[0]?.content?.parts || []
-          return uraiJSONAman(parts[0]?.text)
+          const parsed = uraiJSONAman(parts[0]?.text)
+          return {
+            parsed,
+            usage: {
+              prompt_tokens: data?.usageMetadata?.promptTokenCount || 800,
+              completion_tokens:
+                data?.usageMetadata?.candidatesTokenCount || 600,
+            },
+          }
         }
         errorCatatan = data?.error?.message || errorCatatan
       } catch (err) {
@@ -640,7 +643,7 @@ async function panggilMultimodalPintar({
 
 async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
   let errorCatatan = ""
-  const promptFinal = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA_PRO}`
+  const promptFinal = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA}`
 
   if (openRouterKey && openRouterKey.trim() !== "") {
     const daftarModel = [
@@ -666,7 +669,7 @@ async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
                 {
                   role: "system",
                   content:
-                    "Kamu adalah Master Copywriter, Pakar Personal Branding, sekaligus Penulis Naskah Konten & Public Speaking terbaik di Indonesia. Kamu sangat patuh pada target jumlah kata sesuai durasi bicara manusia (140 kata per menit). Jika diminta durasi 2 atau 3 menit dengan mode Padat & Kaya Kosakata, kamu WAJIB menulis naskah yang panjang, bernas, mengalir mendalam, dan memenuhi jumlah kata minimal di setiap bagian tanpa meringkasnya. Balas HANYA dalam format JSON yang valid.",
+                    "Kamu adalah Master Copywriter, Pakar Personal Branding, dan Penulis Naskah Konten Indonesia. Kamu patuh pada target jumlah kata sesuai durasi bicara manusia (140 kata per menit). Balas HANYA dalam format JSON yang valid.",
                 },
                 { role: "user", content: promptFinal },
               ],
@@ -679,7 +682,11 @@ async function panggilTeksPintar(openRouterKey, geminiKey, promptText) {
 
         const data = await response.json()
         if (response.ok && data?.choices?.[0]?.message?.content) {
-          return uraiJSONAman(data.choices[0].message.content)
+          const parsed = uraiJSONAman(data.choices[0].message.content)
+          return {
+            parsed,
+            usage: data?.usage || null,
+          }
         }
         errorCatatan = data?.error?.message || `Kendala pada ${model}`
       } catch (err) {
@@ -713,7 +720,7 @@ export async function POST(request) {
       contentPhase = "fase_1_viral",
       contentFormat = "edukasi",
       viralTrigger = "fakta_realitas",
-      trustApproach = "bukti_jam_terbang",
+      trustApproach = "studi_kasus_nyata",
       sellingStyle = "soft_selling",
       wordDensity = "padat_kaya_kosakata",
       personalSpecs = "",
@@ -748,48 +755,45 @@ export async function POST(request) {
       batchKe,
       opsiSebelumnya,
       dataKinerja,
+      transkripMentahInput,
     } = body
 
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
 
-    // 1. TOMBOL "i Referensi" PADA PROFILING
     if (action === "suggest_profiling_field") {
       const promptSaran = `
-Pengguna sedang menyiapkan profil akun media sosialnya dan mengisi kolom "${fieldLabel}" (Kode: "${fieldKey}").
-Data jawaban pengguna dari kolom sebelumnya:
-${JSON.stringify(accumulatedProfile)}
-
-Berikan 4 contoh isian yang konkret, membumi, dan langsung siap dipakai.
-
+Pengguna sedang menyiapkan profil akun sosial medianya dan mengisi kolom "${fieldLabel}" (Kode: "${fieldKey}").
+Data jawaban sebelumnya: ${JSON.stringify(accumulatedProfile)}
+Berikan 4 contoh isian singkat, konkret, dan langsung siap dipakai.
 Keluarkan HANYA valid JSON:
 {
-  "insight_singkat": "1 kalimat alasan praktis kenapa contoh ini pas dengan profil akunmu.",
-  "pilihan_referensi": [
-    "Contoh konkret 1...",
-    "Contoh konkret 2...",
-    "Contoh konkret 3...",
-    "Contoh konkret 4..."
-  ]
+  "insight_singkat": "1 kalimat alasan praktis.",
+  "pilihan_referensi": ["Opsi 1", "Opsi 2", "Opsi 3", "Opsi 4"]
 }`
-      const hasil = await panggilTeksPintar(
+      const { parsed, usage } = await panggilTeksPintar(
         openRouterKey,
         geminiKey,
         promptSaran,
       )
-      return NextResponse.json(hasil)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
+      return NextResponse.json(parsed)
     }
 
-    // 2. SCAN SCREENSHOT PRODUK AFFILIATE
     if (action === "analyze_marketplace_screenshots") {
       const promptSS = `
-Baca gambar screenshot produk atau spesifikasi marketplace yang dilampirkan.
-1. "namaProduk": Salin nama produk dari gambar.
-2. "brand": Salin nama merek atau toko yang tertulis di gambar (jika tidak ada, tulis "-").
-3. "hargaPromo": Salin angka harga yang terlihat di gambar.
-4. "keunggulanSpesifikasi": Terjemahkan spesifikasi teknis yang tertulis di gambar menjadi pengalaman pemakaian fisik yang nyata dan meyakinkan calon pembeli.
-5. "masalahDipecahkan": Masalah atau kebutuhan pembeli yang langsung terjawab dengan produk ini.
-
+Baca gambar screenshot produk atau spesifikasi marketplace ini.
+1. "namaProduk": Nama produk dari gambar.
+2. "brand": Nama merek atau toko (jika tidak ada, tulis "-").
+3. "hargaPromo": Harga yang terlihat di gambar.
+4. "keunggulanSpesifikasi": Terjemahkan spesifikasi teknis di gambar menjadi pengalaman pemakaian fisik yang nyata.
+5. "masalahDipecahkan": Masalah pembeli yang langsung terjawab dengan produk ini.
 Keluarkan HANYA valid JSON:
 {
   "namaProduk": "...",
@@ -798,7 +802,6 @@ Keluarkan HANYA valid JSON:
   "keunggulanSpesifikasi": "...",
   "masalahDipecahkan": "..."
 }`
-
       const listImg = []
       if (productImageBase64) {
         listImg.push({
@@ -812,17 +815,22 @@ Keluarkan HANYA valid JSON:
           data: specImageBase64,
         })
       }
-
-      const hasil = await panggilMultimodalPintar({
+      const { parsed, usage } = await panggilMultimodalPintar({
         openRouterKey,
         geminiKey,
         promptText: promptSS,
         imagesList: listImg,
       })
-      return NextResponse.json(hasil)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
+      return NextResponse.json(parsed)
     }
 
-    // 3. TRANSKRIP SUARA MIKROFON
     if (action === "transkrip_suara_mic") {
       if (!audioBase64) {
         return NextResponse.json(
@@ -833,10 +841,8 @@ Keluarkan HANYA valid JSON:
       const promptAudio = `
 Dengarkan rekaman suara ini dan salin ucapannya kata demi kata menjadi teks Bahasa Indonesia yang rapi.
 Balas HANYA dalam format JSON:
-{
-  "teks": "..."
-}`
-      const hasil = await panggilMultimodalPintar({
+{ "teks": "..." }`
+      const { parsed, usage } = await panggilMultimodalPintar({
         openRouterKey,
         geminiKey,
         promptText: promptAudio,
@@ -845,45 +851,28 @@ Balas HANYA dalam format JSON:
           data: audioBase64,
         },
       })
-      return NextResponse.json(hasil)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
+      return NextResponse.json(parsed)
     }
 
-    // 4. EKSTRAK VIDEO + BEDAH KOMPETITOR
-    if (action === "rewrite_video") {
-      const instruksiPersona = susunInstruksiPersonaTerpisah(
-        personaProfile,
-        "lintas_produk",
-        detailInput || namaFileVideo,
-      )
-
-      const promptVideo = `
-Tugasmu:
-1. Perhatikan seluruh potongan gambar frame video (termasuk teks/subtitle di layar dan adegan visual) SERTA dengarkan audio (jika ada) untuk menyalin isi video ke dalam "transkripAsliVideo".
-2. Jika tidak ada suara ucapan, tuliskan narasi lengkap dari teks layar atau rangkaian adegan visual yang terlihat di video ke dalam "transkripAsliVideo" (jangan dikosongkan selama ada gambar frame yang terlihat).
-3. Jelaskan struktur video tersebut pada "bedahKompetitor" ("jenisHookAsli", "pemicuEmosi", "rahasiaRetensi").
-4. Tulis naskah baru yang orisinil dan padat berisi berdasarkan isi video tersebut menggunakan Voice DNA pengguna:
-${instruksiPersona}
-   Catatan tambahan pengguna: "${detailInput || "-"}"
-
+    // TAHAP 1 EKSTRAK VIDEO: HANYA TRANSKRIP SUARA ASLI / FRAME VIDEO
+    if (action === "transkrip_file_video") {
+      const promptTranskrip = `
+Dengarkan jalur audio dan perhatikan potongan frame video yang dilampirkan.
+Salin seluruh ucapan atau teks narasi di dalam video kata demi kata ke dalam "transkripAsliVideo".
+Hitung perkiraan jumlah katanya pada "jumlahKata".
 Keluarkan HANYA valid JSON:
 {
-  "unreadableError": false,
-  "errorReason": "",
   "transkripAsliVideo": "...",
-  "intiPesanVideo": "...",
-  "bedahKompetitor": {
-    "jenisHookAsli": "...",
-    "pemicuEmosi": "...",
-    "rahasiaRetensi": "..."
-  },
-  "segmen": [
-    { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:25)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:25 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:45 - 1:00)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
-  ]
+  "intiPesanVideo": "Judul singkat inti bahasan video...",
+  "jumlahKata": 120
 }`
-
       const listFrames = (framesBase64 || []).slice(0, 6).map((f) => ({
         mimeType: "image/jpeg",
         data: f,
@@ -893,7 +882,170 @@ Keluarkan HANYA valid JSON:
           ? { mimeType: mediaMimeType, data: mediaBase64 }
           : null
 
-      const hasilParsed = await panggilMultimodalPintar({
+      const { parsed, usage } = await panggilMultimodalPintar({
+        openRouterKey,
+        geminiKey,
+        promptText: promptTranskrip,
+        imagesList: listFrames,
+        audioItem: itemAudio,
+      })
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
+      return NextResponse.json(parsed)
+    }
+
+    // TAHAP 2 EKSTRAK VIDEO: TRANSFORMASI TRANSKRIP MENJADI NASKAH PERSONA + 2 VARIASI DRAFT
+    if (action === "rewrite_video") {
+      const instruksiPersona = susunInstruksiPersona(
+        personaProfile,
+        "lintas_produk",
+        detailInput || namaFileVideo,
+      )
+
+      if (transkripMentahInput && transkripMentahInput.trim()) {
+        const promptTransform = `
+Ubah transkrip video referensi berikut menjadi 2 variasi naskah siap pakai yang sesuai dengan Persona Kreator:
+${instruksiPersona}
+Transkrip Sumber: "${transkripMentahInput}"
+Catatan Tambahan: "${detailInput || "-"}"
+
+Keluarkan HANYA valid JSON:
+{
+  "transkripAsliVideo": "${transkripMentahInput.replace(/"/g, "'")}",
+  "intiPesanVideo": "...",
+  "bedahKompetitor": {
+    "jenisHookAsli": "...",
+    "pemicuEmosi": "...",
+    "rahasiaRetensi": "..."
+  },
+  "draftVariasi": [
+    {
+      "idDraft": "Draft #01",
+      "badgeFormat": "Hook Kontras / Anti-Gimmick",
+      "judul": "...",
+      "cuplikanHook": "...",
+      "estimasiDurasi": "45s",
+      "struktur": "PAPC (Problem-Agitate-Proof-CTA)",
+      "segmen": [
+        { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Agitasi Masalah (0:08 - 0:22)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Titik Balik & Solusi (0:22 - 0:38)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & CTA (0:38 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+      ]
+    },
+    {
+      "idDraft": "Draft #02",
+      "badgeFormat": "Format Carousel Slide Edukasi",
+      "judul": "...",
+      "cuplikanHook": "...",
+      "estimasiDurasi": "7 Slide Edukasi",
+      "struktur": "Poin-poin padat & realistis",
+      "segmen": [
+        { "idSegmen": "HOOK", "labelMini": "Slide 1 • Judul & Hook", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "BODY_STORY", "labelMini": "Slide 2-3 • Masalah Inti", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Slide 4-6 • Langkah Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "CTA", "labelMini": "Slide 7 • Kesimpulan & CTA", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+      ]
+    }
+  ],
+  "segmen": [
+    { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:22)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:22 - 0:38)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:38 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+  ]
+}`
+        const { parsed, usage } = await panggilTeksPintar(
+          openRouterKey,
+          geminiKey,
+          promptTransform,
+        )
+        if (
+          Array.isArray(parsed?.draftVariasi) &&
+          parsed.draftVariasi[0]?.segmen
+        ) {
+          parsed.segmen = parsed.draftVariasi[0].segmen
+        }
+        await catatTelemetriTokenKeSupabase({
+          userId,
+          namaUser,
+          action: "Ekstrak Audio ke Naskah",
+          promptTokens: usage?.prompt_tokens,
+          completionTokens: usage?.completion_tokens,
+          koinDipakai: 1,
+        })
+        return NextResponse.json(parsed)
+      }
+
+      const promptVideo = `
+Tugasmu:
+1. Perhatikan potongan frame video dan dengarkan audio untuk menyalin isi video ke dalam "transkripAsliVideo".
+2. Jelaskan struktur video pada "bedahKompetitor".
+3. Buat 2 variasi draf naskah baru ("draftVariasi") sesuai Persona Kreator:
+${instruksiPersona}
+Catatan: "${detailInput || "-"}"
+
+Keluarkan HANYA valid JSON:
+{
+  "transkripAsliVideo": "...",
+  "intiPesanVideo": "...",
+  "bedahKompetitor": {
+    "jenisHookAsli": "...",
+    "pemicuEmosi": "...",
+    "rahasiaRetensi": "..."
+  },
+  "draftVariasi": [
+    {
+      "idDraft": "Draft #01",
+      "badgeFormat": "Hook Kontras / Anti-Gimmick",
+      "judul": "...",
+      "cuplikanHook": "...",
+      "estimasiDurasi": "45s",
+      "struktur": "PAPC (Problem-Agitate-Proof-CTA)",
+      "segmen": [
+        { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:25)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:25 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:45 - 1:00)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+      ]
+    },
+    {
+      "idDraft": "Draft #02",
+      "badgeFormat": "Format Carousel Slide Edukasi",
+      "judul": "...",
+      "cuplikanHook": "...",
+      "estimasiDurasi": "7 Slide Edukasi",
+      "struktur": "Poin-poin padat & realistis",
+      "segmen": [
+        { "idSegmen": "HOOK", "labelMini": "Slide 1 • Judul & Hook", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "BODY_STORY", "labelMini": "Slide 2-3 • Masalah Inti", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Slide 4-6 • Langkah Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "CTA", "labelMini": "Slide 7 • Kesimpulan & CTA", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+      ]
+    }
+  ],
+  "segmen": [
+    { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:25)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:25 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
+    { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:45 - 1:00)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
+  ]
+}`
+      const listFrames = (framesBase64 || []).slice(0, 6).map((f) => ({
+        mimeType: "image/jpeg",
+        data: f,
+      }))
+      const itemAudio =
+        mediaBase64 && mediaMimeType
+          ? { mimeType: mediaMimeType, data: mediaBase64 }
+          : null
+
+      const { parsed, usage } = await panggilMultimodalPintar({
         openRouterKey,
         geminiKey,
         promptText: promptVideo,
@@ -901,10 +1053,17 @@ Keluarkan HANYA valid JSON:
         audioItem: itemAudio,
       })
 
-      return NextResponse.json(hasilParsed)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: `Ekstrak Audio ke Naskah • ${namaFileVideo || "video.mp4"}`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: 1,
+      })
+      return NextResponse.json(parsed)
     }
 
-    // 5. PROFILING AKUN (MENDUKUNG MULTI-PROFIL TERNAK AKUN)
     let promptFinal = ""
 
     if (action === "extract_persona_dna") {
@@ -917,320 +1076,176 @@ Keluarkan HANYA valid JSON:
 {
   "user_id": "${onboardingAnswers?.user_id || "usr_99281"}",
   "account_label": "${onboardingAnswers?.nama_akun || onboardingAnswers?.minat_utama || "Akun Utama"}",
+  "dna_badge": "DNA: ${onboardingAnswers?.gaya_kepribadian || "Satir-Realistis"} | Direct Tone | Level 4 Trust",
+  "niche_badge": "Niche: ${onboardingAnswers?.minat_utama || "Kreator"} | Target: ${onboardingAnswers?.target_segmen || "Audiens"}",
   "persona_summary": "Ringkasan jelas tentang karakter suara akun ini, jam terbang/spesifikasi dirinya, dan fokus bahasan utamanya.",
   "voice_dna": {
-    "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Aku"}",
-    "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Kamu"}",
+    "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Gue"}",
+    "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Temen-temen"}",
     "spoken_particles": ["sih", "tuh", "kan", "deh", "banget"],
-    "greeting_signature": ["Jujur ya,", "Soalnya gini,", "Coba perhatiin,"],
-    "favorite_transitions": ["Nah, masalahnya,", "Makanya,", "Terus kalau ditanya,"],
-    "delivery_style": "${onboardingAnswers?.gaya_kepribadian || "Mengalir natural, jelas, dan meyakinkan"}"
+    "delivery_style": "${onboardingAnswers?.gaya_kepribadian || "To-the-point, Tajam, Santai"}"
   },
   "niche_context": {
     "primary_niche": "${onboardingAnswers?.minat_utama || "Edukasi & Konten Harian"}",
     "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi"}",
     "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"}",
-    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Teori rumit tanpa langkah praktis"}",
+    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Gimmick motivasi tanpa langkah eksekusi nyata"}",
     "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"}",
     "segment_profile": "${onboardingAnswers?.target_segmen || "Penonton umum"}",
-    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Rugi waktu dan salah langkah"}",
+    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Bingung ide konten & sulit konsisten"}",
     "secret_desires": "${onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"}",
     "common_objections": "${onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"}"
   },
   "positioning_and_usp": {
     "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi"}",
     "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"}",
-    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Teori rumit tanpa langkah praktis"}",
+    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Gimmick motivasi tanpa langkah eksekusi nyata"}",
     "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"}"
   },
   "target_audience": {
     "segment_profile": "${onboardingAnswers?.target_segmen || "Penonton umum"}",
-    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Rugi waktu dan salah langkah"}",
+    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Bingung ide konten & sulit konsisten"}",
     "secret_desires": "${onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"}",
     "common_objections": "${onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"}"
   },
   "linguistic_matrix": {
-    "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Aku"}",
-    "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Kamu"}",
-    "greeting_signature": ["Jujur ya,", "Soalnya gini,"],
-    "favorite_transitions": ["Nah, masalahnya,", "Makanya,"],
-    "signature_vocabulary": ["sih", "tuh", "kan", "deh"],
-    "forbidden_words": [
-      "Pernahkah kamu merasa",
-      "Bayangkan jika",
-      "Di era digital",
-      "Solusi terbaik",
-      "bukan sekadar"
-    ],
-    "code_switching_level": "Natural"
+    "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Gue"}",
+    "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Temen-temen"}",
+    "signature_vocabulary": ["sih", "tuh", "kan", "deh"]
   }
 }`
-    }
-
-    // 6. GENERATOR 10 IDE MATERI (MURNI HASIL ANALISIS PROFIL AKUN YANG DIPILIH)
-    else if (action === "buat_10_ide_topik") {
-      const instruksiStrategi = susunInstruksiStrategiKonten({
-        contentPhase,
-        contentFormat,
-        viralTrigger,
-        trustApproach,
-        sellingStyle,
-        personalSpecs,
-        personaProfile,
-      })
-
-      const blokPersona = susunInstruksiPersonaTerpisah(
+    } else if (action === "buat_10_ide_topik") {
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
         "sesuai_niche",
         personaProfile?.niche_context?.primary_niche || "Bidang Profil Akun",
       )
-
       promptFinal = `
-Analisis secara mendalam Profil Akun Sosial Media kreator berikut (Bidang Utama, Spesifikasi Jam Terbang, Masalah Penonton, dan Harapan Penonton) untuk menghasilkan 10 rekomendasi ide materi yang 100% spesifik pada akun tersebut:
+Analisis Profil Akun Sosial Media kreator berikut dan buat 10 rekomendasi ide materi yang spesifik sesuai bidangnya:
 ${blokPersona}
-${instruksiStrategi}
-
-TUGAS UTAMA:
-Buatkan 10 ide materi konten yang spesifik, nyata, dan langsung menjawab masalah penonton dari profil akun di atas, dengan menggabungkan Format Konten (${KAMUS_FORMAT_KONTEN[contentFormat] || contentFormat}) dan Faktor Pemicu (${KAMUS_FAKTOR_VIRAL[viralTrigger] || viralTrigger}).
+Format: ${KAMUS_FORMAT_KONTEN[contentFormat] || contentFormat}
+Faktor Pemicu: ${KAMUS_FAKTOR_VIRAL[viralTrigger] || viralTrigger}
 
 Balas HANYA dalam format JSON:
 {
   "ideTopik": [
     {
       "judul": "Judul materi spesifik sesuai bidang akun ini...",
-      "nuansa": "Format & Faktor Pemicu...",
+      "nuansa": "Tingkat Minat: 94%",
       "ringkasan": "1 kalimat penjelasan poin utama yang akan dibahas..."
     }
   ]
 }`
-    }
-
-    // 7. ASESMEN TERPANDU TAHAP 1, 2, DAN 3
-    else if (action === "assessment_copilot") {
+    } else if (action === "assessment_copilot") {
       const faseAktif =
         stageInput?.contentPhase || contentPhase || "fase_1_viral"
       const formatAktif =
         stageInput?.contentFormat || contentFormat || "edukasi"
       const faktorViralAktif =
         stageInput?.viralTrigger || viralTrigger || "fakta_realitas"
-      const pendekatanTrustAktif =
-        stageInput?.trustApproach || trustApproach || "bukti_jam_terbang"
-      const gayaJualanAktif =
-        stageInput?.sellingStyle || sellingStyle || "soft_selling"
-      const spekPersonalAktif = stageInput?.personalSpecs || personalSpecs || ""
-      const modeKonteksAktif =
-        stageInput?.contextMode || contextMode || "sesuai_niche"
-
       const topikSaatIni =
         stageInput?.rawTopic ||
         stageInput?.coreIdea ||
         stageInput?.detailPromosi?.namaProduk ||
         "Topik Konten"
 
-      const blokPersona = susunInstruksiPersonaTerpisah(
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
-        modeKonteksAktif,
+        stageInput?.contextMode || contextMode,
         topikSaatIni,
       )
 
-      const blokStrategi = susunInstruksiStrategiKonten({
-        contentPhase: faseAktif,
-        contentFormat: formatAktif,
-        viralTrigger: faktorViralAktif,
-        trustApproach: pendekatanTrustAktif,
-        sellingStyle: gayaJualanAktif,
-        personalSpecs: spekPersonalAktif,
-        personaProfile,
-      })
-
-      const infoKonteks = stageInput?.detailPromosi
-        ? `DETAIL PRODUK / CAMPAIGN (${stageInput.jenisPromosi}):\n${JSON.stringify(stageInput.detailPromosi)}`
-        : `Topik Materi: "${stageInput?.rawTopic}"`
-
       const catatanHindariDuplikat =
         opsiSebelumnya && opsiSebelumnya.length > 0
-          ? `\nPENGGUNA MEMINTA OPSI BARU (SET KE-${batchKe || 2}): Berikan opsi yang berbeda dari daftar sebelumnya ini: ${JSON.stringify(opsiSebelumnya)}`
+          ? `\nPENGGUNA MEMINTA SET ARAHAN BARU (SET KE-${batchKe || 2}): Berikan opsi yang berbeda dari sebelumnya: ${JSON.stringify(opsiSebelumnya)}`
           : ""
 
-      if (stageNumber === 1) {
-        promptFinal = `
-Kamu adalah Produser & Mentor Konten Pendamping untuk "${namaUser || "Kreator"}".
+      promptFinal = `
+Kamu adalah Produser AI Hookya untuk "${namaUser || "Kreator"}".
 ${blokPersona}
-${blokStrategi}
-
-DATA MATERI TAHAP 0:
-- ${infoKonteks}
-- Target Durasi: "${stageInput?.targetPlatform}"
+Topik Materi: "${topikSaatIni}"
+Fase: "${faseAktif}" | Format: "${formatAktif}" | Pemicu Viral: "${faktorViralAktif}"
 ${catatanHindariDuplikat}
 
-TUGAS TAHAP 1 (3 OPSI SUDUT PANDANG TAJAM SESUAI FORMAT & FAKTOR VIRAL):
-1. Pada "co_pilot_message", berikan arahan singkat yang jelas tentang bagaimana membawakan topik ini.
-2. Rumuskan 1 kalimat inti materi pada "refined_core_idea".
-3. Berikan 3 pilihan sudut pandang ("angle_options") yang konkret dan mendalam.
-4. Pada "story_prompt_question", tanyakan 1 pertanyaan yang mudah dimengerti untuk menggali kisah, contoh kasus, atau pengalaman kreator.
+Susun paket asesmen terpandu lengkap (Sudut Pandang, 3 Rekomendasi Metafora/Ilustrasi, 3 Ide Fakta Pendukung, 6 Kategori Hook, dan 3 CTA) dalam satu respons JSON.
 
 Keluarkan HANYA valid JSON:
 {
-  "co_pilot_message": "...",
-  "refined_core_idea": "...",
+  "co_pilot_message": "Asesmen ini menggali bobot cerita otentik dari kepalamu. Textbox diutamakan agar narasi tidak seragam, sedangkan tombol opsi berfungsi sebagai pemicu referensi saat ide buntu.",
+  "refined_core_idea": "${topikSaatIni.replace(/"/g, "'")}",
   "angle_options": [
-    { "id": "angle_1", "type": "Realitas & Fakta Lapangan", "angle_text": "..." },
-    { "id": "angle_2", "type": "Pendekatan Utama Format", "angle_text": "..." },
-    { "id": "angle_3", "type": "Sudut Pandang Pemicu Diskusi", "angle_text": "..." }
+    { "id": "angle_1", "label": "Angle 1", "type": "Pengalaman Kegagalan Pribadi", "angle_text": "..." },
+    { "id": "angle_2", "label": "Angle 2", "type": "Pengamat Kritis / Anti-Gimmick", "angle_text": "..." },
+    { "id": "angle_3", "label": "Angle 3", "type": "Panduan Eksekusi Step-by-Step", "angle_text": "..." }
   ],
-  "story_prompt_question": "..."
-}`
-      } else if (stageNumber === 2) {
-        promptFinal = `
-Kamu adalah Produser Pendamping untuk "${namaUser || "Kreator"}".
-${blokPersona}
-${blokStrategi}
-
-DATA TAHAP 1:
-- Inti Materi: "${stageInput?.coreIdea}"
-- Sudut Pandang Terpilih: "${stageInput?.chosenAngle}"
-- Pengalaman / Detail dari Kreator: "${stageInput?.userStory || "(Belum diisi)"}"
-- Detail Produk/Campaign (jika ada): ${JSON.stringify(stageInput?.detailPromosi || {})}
-${catatanHindariDuplikat}
-
-TUGAS TAHAP 2 (REKOMENDASI ILUSTRASI, PONDASI FAKTA, & POIN ISI UTAMA):
-1. Tanggapi secara jelas di "co_pilot_message".
-2. Buat 3 pilihan perumpamaan atau ilustrasi kisah sehari-hari ("relatable_analogies") yang membuat materi ini langsung terbayang jelas.
-3. Buat 3 pilihan Pondasi Fakta / Alasan Logis ("reference_cards") yang mudah dipahami pengguna.
-4. Berikan 3 poin bahasan inti atau solusi ("suggested_solutions") yang kaya dan berbobot untuk mengisi tubuh naskah.
-
-Keluarkan HANYA valid JSON:
-{
-  "co_pilot_message": "...",
-  "relatable_analogies": ["Ilustrasi 1...", "Ilustrasi 2...", "Ilustrasi 3..."],
+  "relatable_analogies": [
+    { "judul": "Perumpamaan 1", "ringkasan": "Penjelasan singkat...", "teks": "Seperti..." },
+    { "judul": "Perumpamaan 2", "ringkasan": "Penjelasan singkat...", "teks": "Seperti..." },
+    { "judul": "Perumpamaan 3", "ringkasan": "Penjelasan singkat...", "teks": "Seperti..." }
+  ],
   "reference_cards": [
-    { "type": "Fakta & Alasan Logis", "title": "...", "summary": "..." },
-    { "type": "Kejadian Nyata di Lapangan", "title": "...", "summary": "..." },
-    { "type": "Bukti Hasil & Praktik Nyata", "title": "...", "summary": "..." }
+    { "type": "Fakta & Realita Lapangan", "title": "...", "summary": "..." },
+    { "type": "Kejadian Spesifik Audiens", "title": "...", "summary": "..." },
+    { "type": "Bukti Praktik Nyata", "title": "...", "summary": "..." }
   ],
-  "suggested_solutions": ["Poin Isi / Solusi 1...", "Poin Isi / Solusi 2...", "Poin Isi / Solusi 3..."]
-}`
-      } else if (stageNumber === 3) {
-        promptFinal = `
-Kamu adalah Master Copywriter & Public Speaker untuk "${namaUser || "Kreator"}".
-${blokPersona}
-${blokStrategi}
-
-DATA TAHAP 1 & 2:
-- Inti Materi: "${stageInput?.coreIdea}"
-- Sudut Pandang: "${stageInput?.chosenAngle}"
-- Ilustrasi/Cerita: "${stageInput?.personalStory || "(Opsional)"}"
-- Pondasi Fakta: ${JSON.stringify(stageInput?.injectedReference)}
-- Poin Isi/Solusi: ${JSON.stringify(stageInput?.actionableSolutions)}
-${catatanHindariDuplikat}
-
-TUGAS TAHAP 3 (6 KATEGORI KALIMAT PEMBUKA / HOOK & 3 KALIMAT PENUTUP / CTA):
-1. Berikan pengantar singkat di "co_pilot_message".
-2. Pilih 1 struktur alur terbaik ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION") beserta alasannya di "framework_reason".
-3. WAJIB buat 6 pilihan kalimat pembuka ("hook_options") yang kuat.
-4. Buat 3 pilihan kalimat penutup ("cta_options") yang kuat sesuai tujuan Fase (${faseAktif}).
-
-Keluarkan HANYA valid JSON:
-{
-  "co_pilot_message": "...",
+  "suggested_solutions": ["Langkah 1...", "Langkah 2...", "Langkah 3..."],
   "recommended_framework": "PAS_RELATABLE_BRIDGE",
-  "framework_reason": "...",
   "hook_options": [
-    { "category": "Negative / Warning Hook", "why_it_works": "Mengingatkan kesalahan fatal yang sering terjadi", "text": "..." },
-    { "category": "Positive Outcome Hook", "why_it_works": "Menawarkan hasil nyata yang diinginkan audiens", "text": "..." },
-    { "category": "Proof / Reality Hook", "why_it_works": "Membuka dengan fakta realitas atau bukti pengalaman", "text": "..." },
-    { "category": "Contrarian / Pro-Kontra Hook", "why_it_works": "Memancing diskusi dan menahan perhatian sejak kalimat pertama", "text": "..." },
-    { "category": "Relatable / Emotional Hook", "why_it_works": "Menyentuh situasi dan perasaan yang dekat dengan audiens", "text": "..." },
-    { "category": "Curiosity / Famous Case Hook", "why_it_works": "Membangkitkan rasa ingin tahu hingga akhir", "text": "..." }
+    { "id": "h1", "badge": "#1", "category": "Anti-Gimmick / Satir", "text": "..." },
+    { "id": "h2", "badge": "#2", "category": "Pertanyaan Menohok", "text": "..." },
+    { "id": "h3", "badge": "#3", "category": "Pernyataan Kontras", "text": "..." },
+    { "id": "h4", "badge": "#4", "category": "Pengakuan Kesalahan", "text": "..." },
+    { "id": "h5", "badge": "#5", "category": "Statistik Tak Lazim", "text": "..." },
+    { "id": "h6", "badge": "#6", "category": "Larangan Tegas", "text": "..." }
   ],
   "cta_options": [
-    { "category": "Pancing Interaksi & Komentar", "text": "..." },
-    { "category": "Simpan & Bagikan Manfaat", "text": "..." },
-    { "category": "Ajakan Bertindak / Penutup Kuat", "text": "..." }
+    { "category": "1. Interaksi Komentar Kata Kunci", "text": "..." },
+    { "category": "2. Akses Tautan di Profil / Bio", "text": "..." },
+    { "category": "3. Simpan & Bagikan ke Teman", "text": "..." }
   ]
 }`
-      }
-    }
-
-    // 8. PENYUSUN SKRIP AKHIR — FULL DURATION, CATATAN AKHIR USER & KRITIK/SARAN
-    else if (action === "assemble_humanized_script") {
+    } else if (action === "assemble_humanized_script") {
       const faseAktif =
         contentBrief?.content_phase || contentPhase || "fase_1_viral"
       const formatAktif =
         contentBrief?.content_format || contentFormat || "edukasi"
       const faktorViralAktif =
         contentBrief?.viral_trigger || viralTrigger || "fakta_realitas"
-      const pendekatanTrustAktif =
-        contentBrief?.trust_approach || trustApproach || "bukti_jam_terbang"
-      const gayaJualanAktif =
-        contentBrief?.selling_style || sellingStyle || "soft_selling"
       const kepadatanKataAktif =
         contentBrief?.word_density || wordDensity || "padat_kaya_kosakata"
-      const spekPersonalAktif =
-        contentBrief?.personal_specs || personalSpecs || ""
       const modeKonteksAktif =
         contentBrief?.context_mode || contextMode || "sesuai_niche"
       const catatanTambahan =
         catatanAkhirUser || contentBrief?.user_final_notes || ""
 
       const aturanDurasi = getAturanDurasiDanKepadatanRiil({
-        durasiStr: contentBrief?.target_platform || "60 Detik (1 Menit)",
+        durasiStr: contentBrief?.target_platform || "3 Menit",
         wordDensity: kepadatanKataAktif,
         contentFormat: formatAktif,
       })
 
-      const blokPersona = susunInstruksiPersonaTerpisah(
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
         modeKonteksAktif,
         contentBrief?.core_idea,
       )
 
-      const blokStrategi = susunInstruksiStrategiKonten({
-        contentPhase: faseAktif,
-        contentFormat: formatAktif,
-        viralTrigger: faktorViralAktif,
-        trustApproach: pendekatanTrustAktif,
-        sellingStyle: gayaJualanAktif,
-        personalSpecs: spekPersonalAktif,
-        personaProfile,
-      })
-
-      const isModeUGC =
-        Boolean(ugcConfig?.aktif) ||
-        formatAktif === "ugc" ||
-        (bentukKonten && bentukKonten.toLowerCase().includes("ugc"))
-
-      const daftarPemeran = Array.isArray(ugcConfig?.namaPemeran)
-        ? ugcConfig.namaPemeran.filter(Boolean).join(", ")
-        : "Pemeran 1, Pemeran 2"
-
-      const instruksiUGC =
-        isModeUGC && ugcConfig?.aktif
-          ? `\nFORMAT DIALOG UGC (${ugcConfig?.jumlahOrang || 2} ORANG: ${daftarPemeran}): Tulis percakapan saling menyahut yang hidup dan mendalam di setiap bagian.`
-          : `\nFORMAT PENYAMPAIAN LISAN: Gunakan sapaan khas kreator secara konsisten dan mengalir.`
-
-      const instruksiCatatanAkhir = catatanTambahan.trim()
-        ? `\n# INSTRUKSI KHUSUS / KOREKSI AKHIR DARI PENGGUNA (WAJIB DIIKUTI 100%):\n"${catatanTambahan.trim()}"\n`
-        : ""
-
       promptFinal = `
-Susun naskah skrip lengkap yang memenuhi target durasi bicara riil dan kepadatan kosakata berikut.
+Susun naskah skrip lengkap dengan struktur Story Beats yang memenuhi target durasi riil dan kepadatan kosakata berikut.
 ${blokPersona}
-${blokStrategi}
+Fase: ${faseAktif} (${KAMUS_PENDEKATAN_TRUST[trustApproach] || ""})
+Format: ${KAMUS_FORMAT_KONTEN[formatAktif] || formatAktif}
+Pemicu Viral: ${KAMUS_FAKTOR_VIRAL[faktorViralAktif] || faktorViralAktif}
+Rancangan Konten: ${JSON.stringify(contentBrief)}
+Bentuk Eksekusi Visual: "${bentukKonten}"
+${catatanTambahan ? `INSTRUKSI KOREKSI AKHIR PENGGUNA: "${catatanTambahan}"` : ""}
 
-RANCANGAN KONTEN TERKUNCI:
-${JSON.stringify(contentBrief)}
-${instruksiCatatanAkhir}
-BENTUK EKSEKUSI VISUAL: "${bentukKonten}"
-${instruksiUGC}
-
-# ATURAN MUTLAK DURASI RIIL & JUMLAH KATA (WAJIB DITAATI 100%):
+ATURAN DURASI RIIL & JUMLAH KATA:
 ${aturanDurasi.instruksiBabak}
-- Total target kata seluruh naskah: **${aturanDurasi.totalTargetWords}**.
-- Setiap bagian ("section") WAJIB memiliki minimal **${aturanDurasi.minWordsPerSection} kata** pada kolom "spokenText".
-- Berikan juga "kritikSaran" (2-3 kalimat kritik objektif terhadap titik lemah draf topik ini beserta saran praktis cara membawakannya agar lebih kuat di depan penonton).
+- Total target kata seluruh naskah: ${aturanDurasi.totalTargetWords}.
+- Setiap bagian ("section") WAJIB memiliki minimal ${aturanDurasi.minWordsPerSection} kata pada "spokenText".
 
-Keluarkan HANYA valid JSON dengan struktur berikut:
+Keluarkan HANYA valid JSON:
 {
   "targetDuration": "${aturanDurasi.targetDuration}",
   "flowStyle": "${aturanDurasi.flowStyle}",
@@ -1239,13 +1254,18 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
     {
       "partNumber": 1,
       "partTitle": "Pembuka (Hook)",
-      "estimatedSeconds": "0:00 - 0:10",
-      "visualCue": "...",
-      "spokenText": "Tulis naskah ucapan yang lengkap, bernas, kaya kosakata, dan memenuhi jumlah kata minimal bagian ini...",
-      "onScreenText": "Teks inti di layar..."
+      "estimatedSeconds": "0:00 - 0:18",
+      "cameraCue": "Medium close-up, tatapan mata tajam ke lensa, ekspresi skeptis lalu mengangguk lambat.",
+      "intonationCue": "Tempo cepat di 5 detik pertama, penekanan tegas pada kata kunci utama.",
+      "spokenText": "...",
+      "onScreenText": "..."
     }
   ],
-  "kritikSaran": "Kritik objektif dan saran pembawaan naskah ini...",
+  "kritikDetail": {
+    "kelebihan": "...",
+    "catatanPembawaan": "...",
+    "kecepatanBicara": "Jaga tempo bicara rata-rata di ~150-160 WPM untuk mempertahankan retensi short-form video."
+  },
   "uploadPackage": {
     "coverTitle": "...",
     "caption": "...",
@@ -1253,54 +1273,39 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
   }
 }`
 
-      const hasilMentah = await panggilTeksPintar(
+      const { parsed, usage } = await panggilTeksPintar(
         openRouterKey,
         geminiKey,
         promptFinal,
       )
-      const hasilNormal = normalisasiHasilSkripDinamis(
-        hasilMentah,
-        aturanDurasi,
-      )
+      const hasilNormal = normalisasiHasilSkripDinamis(parsed, aturanDurasi)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: "Hookya Synthesizer Prompting • Buat Skrip",
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: 1,
+      })
       return NextResponse.json(hasilNormal)
-    }
-
-    // 9. PENGUBAH DURASI & KEPADATAN SKRIP
-    else if (action === "ubah_durasi_skrip") {
+    } else if (action === "ubah_durasi_skrip") {
       const aturanDurasi = getAturanDurasiDanKepadatanRiil({
         durasiStr: durasiTargetBaru,
         wordDensity,
         contentFormat,
       })
-
-      const blokPersona = susunInstruksiPersonaTerpisah(
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
         contextMode,
         body.subyek,
       )
-      const blokStrategi = susunInstruksiStrategiKonten({
-        contentPhase,
-        contentFormat,
-        viralTrigger,
-        trustApproach,
-        sellingStyle,
-        personalSpecs,
-        personaProfile,
-      })
 
       promptFinal = `
-Tulis ulang dan sesuaikan panjang serta jumlah bagian dari naskah skrip berikut agar benar-benar memenuhi target durasi bicara riil: "${durasiTargetBaru}" (Total Target Kata: ${aturanDurasi.totalTargetWords}).
+Sesuaikan panjang dan jumlah bagian naskah berikut agar memenuhi target durasi baru: "${durasiTargetBaru}" (${aturanDurasi.totalTargetWords}).
 ${blokPersona}
-${blokStrategi}
-
-Topik Skrip: "${body.subyek || "Konten Video"}"
-Naskah Skrip Saat Ini:
-${JSON.stringify(skripSebelumnya)}
-
-# ATURAN EKSPANSI / PENYESUAIAN DURASI BARU:
+Topik: "${body.subyek || "Konten Video"}"
+Naskah Saat Ini: ${JSON.stringify(skripSebelumnya)}
 ${aturanDurasi.instruksiBabak}
-- Buat tepat ${aturanDurasi.totalSectionsDefault} bagian ("sections").
-- Setiap bagian WAJIB memiliki minimal ${aturanDurasi.minWordsPerSection} kata pada "spokenText" agar saat dibaca keras benar-benar mencapai durasi ${aturanDurasi.targetDuration}.
 
 Keluarkan HANYA valid JSON:
 {
@@ -1311,73 +1316,60 @@ Keluarkan HANYA valid JSON:
     {
       "partNumber": 1,
       "partTitle": "Pembuka (Hook)",
-      "estimatedSeconds": "0:00 - 0:12",
-      "visualCue": "...",
+      "estimatedSeconds": "0:00 - 0:15",
+      "cameraCue": "...",
+      "intonationCue": "...",
       "spokenText": "...",
       "onScreenText": "..."
     }
   ]
 }`
-
-      const hasilMentah = await panggilTeksPintar(
+      const { parsed, usage } = await panggilTeksPintar(
         openRouterKey,
         geminiKey,
         promptFinal,
       )
-      const hasilNormal = normalisasiHasilSkripDinamis(
-        hasilMentah,
-        aturanDurasi,
-      )
+      const hasilNormal = normalisasiHasilSkripDinamis(parsed, aturanDurasi)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: `Ubah Durasi (${aturanDurasi.targetDuration})`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
       return NextResponse.json(hasilNormal)
-    }
-
-    // 10. GENERATOR STOK KONTEN MASSAL (2X, 5X, 10X VARIASI SKRIP)
-    else if (action === "multiply_script_variations") {
+    } else if (action === "multiply_script_variations") {
       const jml = Math.min(10, Math.max(2, parseInt(jumlahMultiplier) || 2))
       const jumlahBeatInduk =
         Array.isArray(skripSebelumnya) && skripSebelumnya.length >= 3
           ? skripSebelumnya.length
           : 4
-
-      const blokPersona = susunInstruksiPersonaTerpisah(
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
         contextMode,
         body.subyek,
       )
-      const blokStrategi = susunInstruksiStrategiKonten({
-        contentPhase,
-        contentFormat,
-        viralTrigger,
-        trustApproach,
-        sellingStyle,
-        personalSpecs,
-        personaProfile,
-      })
 
       promptFinal = `
-Buat ${jml} variasi naskah skrip baru yang berbeda sudut pandang dan berbeda kalimat pembuka (Hook)-nya dari skrip induk berikut.
+Buat ${jml} sub-variasi naskah skrip baru dengan sudut pandang dan Hook berbeda dari skrip induk berikut.
 ${blokPersona}
-${blokStrategi}
-
 Topik Induk: "${body.subyek || "Konten Kreator"}"
-Skrip Induk Saat Ini (${jumlahBeatInduk} Bagian):
-${JSON.stringify(skripSebelumnya)}
-
-ATURAN:
-- Setiap variasi wajib terdiri dari ${jumlahBeatInduk} bagian ("sections") dengan panjang kalimat yang sama padatnya dengan skrip induk.
-- Setiap variasi wajib mengangkat sudut pandang atau pemicu perhatian yang berbeda.
+Skrip Induk: ${JSON.stringify(skripSebelumnya)}
 
 Keluarkan HANYA valid JSON:
 {
   "daftarVariasi": [
     {
-      "judulVariasi": "Variasi 1: [Sudut Pandang Spesifik]",
+      "kodeHuruf": "A",
+      "judulVariasi": "Variasi A: Sudut Pandang Kontras (Hook Kuat)",
+      "estimasiDetik": "45 detik",
       "sections": [
         {
           "partNumber": 1,
           "partTitle": "Pembuka (Hook)",
           "estimatedSeconds": "0:00 - 0:10",
-          "visualCue": "...",
+          "cameraCue": "...",
+          "intonationCue": "...",
           "spokenText": "...",
           "onScreenText": "..."
         }
@@ -1385,34 +1377,43 @@ Keluarkan HANYA valid JSON:
     }
   ]
 }`
-
-      const hasilMentah = await panggilTeksPintar(
+      const { parsed, usage } = await panggilTeksPintar(
         openRouterKey,
         geminiKey,
         promptFinal,
       )
-
-      if (Array.isArray(hasilMentah?.daftarVariasi)) {
-        hasilMentah.daftarVariasi = hasilMentah.daftarVariasi.map((v) => {
+      if (Array.isArray(parsed?.daftarVariasi)) {
+        parsed.daftarVariasi = parsed.daftarVariasi.map((v, idx) => {
           const norm = normalisasiHasilSkripDinamis(v, null)
+          const kode = String.fromCharCode(65 + idx)
           return {
             ...v,
-            judulVariasi: v.judulVariasi,
+            kodeHuruf: v.kodeHuruf || kode,
+            judulVariasi:
+              v.judulVariasi || `Variasi ${kode}: Sudut Pandang Baru`,
+            estimasiDetik: v.estimasiDetik || "45 detik",
             sections: norm.sections,
             segmen: norm.segmen,
           }
         })
       }
-      return NextResponse.json(hasilMentah)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: `Gandakan ${jml} Variasi Folder`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: parseInt(body?.koinDipakai) || 1,
+      })
+      return NextResponse.json(parsed)
     } else if (action === "regenerate_satu_kerangka") {
-      const blokPersona = susunInstruksiPersonaTerpisah(
+      const blokPersona = susunInstruksiPersona(
         personaProfile,
         contextMode,
         body.subyek,
       )
-
       promptFinal = `
-Tulis ulang SATU bagian naskah ini saja ("${segmenTarget?.partTitle || segmenTarget?.labelMini}") dengan variasi kalimat baru yang lebih kuat, kaya kosakata, dan mempertahankan kepadatan panjang katanya.
+Tulis ulang SATU bagian naskah ini saja ("${segmenTarget?.partTitle || segmenTarget?.labelMini}") dengan variasi kalimat baru yang tetap padat.
 ${blokPersona}
 Topik: "${body.subyek || "Konten Video"}"
 Bagian saat ini: ${JSON.stringify(segmenTarget)}
@@ -1421,6 +1422,8 @@ Keluarkan HANYA valid JSON:
 {
   "spokenText": "...",
   "onScreenText": "...",
+  "cameraCue": "...",
+  "intonationCue": "...",
   "visualCue": "...",
   "voiceover": "...",
   "teksLayar": "...",
@@ -1428,45 +1431,46 @@ Keluarkan HANYA valid JSON:
 }`
     } else if (action === "analyze_script_diff") {
       promptFinal = `
-Pelajari perubahan kata yang dilakukan pengguna antara draf awal dan hasil editannya untuk menyelaraskan Voice DNA pengguna:
+Pelajari perubahan kata yang dilakukan pengguna antara draf awal dan hasil editannya:
 - Draf Awal: ${JSON.stringify(aiDraft)}
 - Editan Pengguna: ${JSON.stringify(userEditedScript)}
 - Profil Saat Ini: ${JSON.stringify(personaProfile)}
-
 Keluarkan HANYA valid JSON:
 {
-  "learning_summary": ["Gaya kalimat dan pilihan kosakata dari revisimu telah disimpan ke profil akun ini."],
+  "learning_summary": ["Pilihan kosakata dari revisimu telah disimpan ke profil akun ini."],
   "updated_persona_profile": ${JSON.stringify(personaProfile)}
 }`
     } else if (action === "ubah_bentuk_konten") {
-      const jumlahBagianSaatIni = Array.isArray(skripSebelumnya)
-        ? skripSebelumnya.length
-        : 4
       promptFinal = `
-Sesuaikan ke-${jumlahBagianSaatIni} bagian naskah skrip berikut ke dalam format eksekusi visual baru: "${bentukKontenBaru}".
-Pertahankan jumlah bagian (${jumlahBagianSaatIni} bagian) dan pertahankan kepadatan jumlah kata di setiap bagiannya.
+Sesuaikan naskah skrip berikut ke dalam format eksekusi visual baru: "${bentukKontenBaru}".
 Skrip saat ini: ${JSON.stringify(skripSebelumnya)}
-
 Keluarkan HANYA valid JSON:
 {
   "sections": [
     {
       "partNumber": 1,
       "partTitle": "...",
-      "estimatedSeconds": "0:00 - 0:10",
-      "visualCue": "...",
+      "estimatedSeconds": "0:00 - 0:12",
+      "cameraCue": "...",
+      "intonationCue": "...",
       "spokenText": "...",
       "onScreenText": "..."
     }
   ]
 }`
-
-      const hasilMentah = await panggilTeksPintar(
+      const { parsed, usage } = await panggilTeksPintar(
         openRouterKey,
         geminiKey,
         promptFinal,
       )
-      const hasilNormal = normalisasiHasilSkripDinamis(hasilMentah, null)
+      const hasilNormal = normalisasiHasilSkripDinamis(parsed, null)
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: `Ubah Bentuk (${bentukKontenBaru})`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
       return NextResponse.json(hasilNormal)
     } else if (action === "evaluasi_kinerja_vt") {
       promptFinal = `
@@ -1476,22 +1480,28 @@ Balas HANYA dalam format JSON:
 { "evaluasiAI": "..." }`
     }
 
-    const hasilParsed = await panggilTeksPintar(
+    const { parsed, usage } = await panggilTeksPintar(
       openRouterKey,
       geminiKey,
       promptFinal,
     )
+    await catatTelemetriTokenKeSupabase({
+      userId,
+      namaUser,
+      action: action || "AI Request",
+      promptTokens: usage?.prompt_tokens,
+      completionTokens: usage?.completion_tokens,
+    })
 
-    return NextResponse.json(hasilParsed)
+    return NextResponse.json(parsed)
   } catch (err) {
     const koinKompensasi =
-      body?.action === "rewrite_video"
-        ? 2
-        : body?.action === "assemble_humanized_script"
-          ? 1
-          : body?.action === "multiply_script_variations"
-            ? parseInt(body?.koinDipakai) || 1
-            : 0
+      body?.action === "rewrite_video" ||
+      body?.action === "assemble_humanized_script"
+        ? 1
+        : body?.action === "multiply_script_variations"
+          ? parseInt(body?.koinDipakai) || 1
+          : 0
 
     const koinGanti = await catatErrorKeAdminDanRefund({
       userId: body?.userId,

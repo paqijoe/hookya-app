@@ -1,14 +1,22 @@
 "use client"
-import { useState, useEffect } from "react"
-import {
-  FlatIcon,
-  StoryVoiceInput,
-  SelectWithCustom,
-  AILoadingBox,
-} from "./SharedUI"
+import { useState, useEffect, useRef } from "react"
+import { FlatIcon, AILoadingBox } from "./SharedUI"
 
 const KALIMAT_DUMMY_LAMA =
   "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan."
+
+const SEPULUH_FORMAT_PRIORITAS = [
+  "1. Carousel Slide Edukasi",
+  "2. Talking Head Video Pendek",
+  "3. Infografik Komparasi",
+  "4. Screenshot Thread Breakdown",
+  "5. Studi Kasus Nyata",
+  "6. Point-of-View (POV) Naratif",
+  "7. Live Demo & Tutorial",
+  "8. Tanya Jawab (Q&A) Interaktif",
+  "9. Membongkar Mitos / Red Flag",
+  "10. Kurasi Alat & Framework Kerja",
+]
 
 export default function PersonaDNAView({
   userId,
@@ -18,19 +26,13 @@ export default function PersonaDNAView({
   onTriggerUpgradeVIP,
   profil,
   setProfil,
-  jadwalFleksibel,
-  setJadwalFleksibel,
-  jadwalCeklis,
-  setJadwalCeklis,
   rawWritingSamples,
   setRawWritingSamples,
   personaProfile,
   setPersonaProfile,
   bentukKonten,
   setBentukKonten,
-  deskripsiBentukSendiri,
-  setDeskripsiBentukSendiri,
-  SEPULUH_BENTUK_KONTEN,
+  SEPULUH_BENTUK_KONTEN = [],
   setModeTampilanSkrip,
   simpanPersonaKeSupabase,
   setActiveMenu,
@@ -45,7 +47,18 @@ export default function PersonaDNAView({
   const [namaAkunBaru, setNamaAkunBaru] = useState("")
   const [showFormTambahAkun, setShowFormTambahAkun] = useState(false)
 
-  // Urutan daftarAkunTernak: index 0 adalah akun pertama (tertua), index terakhir adalah yang terbaru dibuat
+  const [selectedFormats, setSelectedFormats] = useState([
+    "1. Carousel Slide Edukasi",
+    "2. Talking Head Video Pendek",
+    "4. Screenshot Thread Breakdown",
+    "5. Studi Kasus Nyata",
+    "8. Tanya Jawab (Q&A) Interaktif",
+    "9. Membongkar Mitos / Red Flag",
+  ])
+
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false)
+  const speechRecRef = useRef(null)
+
   const daftarAkunTernak = Array.isArray(profil.daftarAkunTernak)
     ? profil.daftarAkunTernak
     : []
@@ -57,7 +70,6 @@ export default function PersonaDNAView({
     }
   }, [rawWritingSamples, setRawWritingSamples])
 
-  // Jika user turun paket dan akun yang sedang aktif berada di urutan yang terblokir (index >= kuotaAkunMaksimal), otomatis pindahkan ke akun pertama (index 0)
   useEffect(() => {
     if (daftarAkunTernak.length > kuotaAkunMaksimal) {
       const idxAktif = daftarAkunTernak.findIndex((a) => a.id === idAkunAktif)
@@ -75,19 +87,25 @@ export default function PersonaDNAView({
   ) => {
     const idTarget = profilUpdate.idAkunAktif || "akun_utama"
     const labelTarget =
-      profilUpdate.labelAkunSosmed || profilUpdate.minatUtama || "Akun Utama"
+      profilUpdate.labelAkunSosmed ||
+      profilUpdate.username ||
+      profilUpdate.minatUtama ||
+      "@akun.utama"
 
     const itemAkunBaru = {
       id: idTarget,
       createdAtOrder: Date.now(),
-      labelAkun: labelTarget,
+      labelAkun: labelTarget.startsWith("@")
+        ? labelTarget
+        : `@${labelTarget.toLowerCase().replace(/\s+/g, ".")}`,
       nama: profilUpdate.nama || "Kreator",
-      usia: profilUpdate.usia || "28",
+      usia: profilUpdate.usia || "27",
       gender: profilUpdate.gender || "Laki-laki",
       selfPronounInput: profilUpdate.selfPronounInput || "Gue",
-      audiencePronounInput: profilUpdate.audiencePronounInput || "Lo / Kalian",
+      audiencePronounInput: profilUpdate.audiencePronounInput || "Temen-temen",
       peranSaatIni: profilUpdate.peranSaatIni || "",
-      kepribadianSosial: profilUpdate.kepribadianSosial || "",
+      kepribadianSosial:
+        profilUpdate.kepribadianSosial || "To-the-point, Tajam, Santai",
       minatUtama: profilUpdate.minatUtama || "",
       uspDiriInput: profilUpdate.uspDiriInput || "",
       opiniKontraInput: profilUpdate.opiniKontraInput || "",
@@ -105,7 +123,6 @@ export default function PersonaDNAView({
       ? profilUpdate.daftarAkunTernak
       : []
     const sudahAda = listLama.some((a) => a.id === idTarget)
-    // Pertahankan urutan pembuatan (akun baru ditaruh di belakang agar jika turun paket, akun terakhir yang terblokir)
     const listBaru = sudahAda
       ? listLama.map((a) =>
           a.id === idTarget
@@ -128,7 +145,7 @@ export default function PersonaDNAView({
           }),
         )
       } catch {
-        // Abaikan
+        // Ignore storage error
       }
     }
 
@@ -139,7 +156,7 @@ export default function PersonaDNAView({
     if (!akunObj) return
     if (indexUrutan >= kuotaAkunMaksimal) {
       showToast(
-        `Akun "${akunObj.labelAkun}" terkunci karena batas kuota paketmu saat ini (${kuotaAkunMaksimal} akun). Silakan upgrade paket untuk membuka kembali.`,
+        `Akun "${akunObj.labelAkun}" terkunci karena batas kuota paketmu saat ini (${kuotaAkunMaksimal} akun). Silakan upgrade paket.`,
       )
       setActiveMenu("topup")
       return
@@ -153,9 +170,10 @@ export default function PersonaDNAView({
       usia: akunObj.usia || profil.usia,
       gender: akunObj.gender || profil.gender,
       selfPronounInput: akunObj.selfPronounInput || "Gue",
-      audiencePronounInput: akunObj.audiencePronounInput || "Lo / Kalian",
+      audiencePronounInput: akunObj.audiencePronounInput || "Temen-temen",
       peranSaatIni: akunObj.peranSaatIni || "",
-      kepribadianSosial: akunObj.kepribadianSosial || "",
+      kepribadianSosial:
+        akunObj.kepribadianSosial || "To-the-point, Tajam, Santai",
       minatUtama: akunObj.minatUtama || "",
       uspDiriInput: akunObj.uspDiriInput || "",
       opiniKontraInput: akunObj.opiniKontraInput || "",
@@ -182,18 +200,21 @@ export default function PersonaDNAView({
     const jumlahSaatIni = Math.max(1, daftarAkunTernak.length)
     if (jumlahSaatIni >= kuotaAkunMaksimal) {
       alert(
-        `Kuota profil akun pada ${namaPaketAktif} maksimal ${kuotaAkunMaksimal} akun (5K=1 akun, 10-20K=2 akun, 25K=3 akun, 50K=5 akun, 90K=10 akun). Silakan upgrade paket untuk menambah profil akun baru.`,
+        `Kuota profil akun pada ${namaPaketAktif} maksimal ${kuotaAkunMaksimal} akun. Silakan upgrade paket untuk menambah profil akun baru.`,
       )
       setActiveMenu("topup")
       return
     }
 
     if (!namaAkunBaru.trim()) {
-      alert("Masukkan nama atau label akun sosial media terlebih dahulu.")
+      alert("Masukkan nama atau handle akun sosial media terlebih dahulu.")
       return
     }
     const idBaru = `akun_${Date.now().toString().slice(-5)}`
-    const labelBersih = namaAkunBaru.trim()
+    const rawLabel = namaAkunBaru.trim()
+    const labelBersih = rawLabel.startsWith("@")
+      ? rawLabel
+      : `@${rawLabel.toLowerCase().replace(/\s+/g, ".")}`
 
     const listTersimpan = sinkronkanKeDaftarAkun(
       profil,
@@ -207,15 +228,13 @@ export default function PersonaDNAView({
       createdAtOrder: Date.now() + 100,
       labelAkun: labelBersih,
       nama: profil.nama || "Kreator",
-      usia: profil.usia || "28",
+      usia: profil.usia || "27",
       gender: profil.gender || "Laki-laki",
-      selfPronounInput: "Aku",
-      audiencePronounInput: "Kamu / Teman-teman",
-      peranSaatIni:
-        "Praktisi Bisnis & Kreator yang Bicara dari Pengalaman Nyata",
-      kepribadianSosial:
-        "Santai, jujur, dan peduli seperti kakak senior di warung kopi",
-      minatUtama: labelBersih,
+      selfPronounInput: "Gue",
+      audiencePronounInput: "Temen-temen",
+      peranSaatIni: "",
+      kepribadianSosial: "To-the-point, Tajam, Santai",
+      minatUtama: "",
       uspDiriInput: "",
       opiniKontraInput: "",
       analogiKhasInput: "",
@@ -233,16 +252,12 @@ export default function PersonaDNAView({
       ...profil,
       idAkunAktif: idBaru,
       labelAkunSosmed: labelBersih,
-      selfPronounInput: "Aku",
-      audiencePronounInput: "Kamu / Teman-teman",
-      minatUtama: labelBersih,
+      minatUtama: "",
       uspDiriInput: "",
       opiniKontraInput: "",
       analogiKhasInput: "",
       targetSegmenInput: "",
       targetKetakutanInput: "",
-      targetImpianInput: "",
-      targetKeraguanInput: "",
       daftarAkunTernak: daftarUpdate,
     })
     setRawWritingSamples("")
@@ -253,19 +268,37 @@ export default function PersonaDNAView({
     )
   }
 
-  const handleHapusProfilAkun = (idHapus) => {
-    if (daftarAkunTernak.length <= 1) {
-      alert("Minimal harus ada 1 profil akun aktif.")
-      return
+  const applyPresetPersona = (preset) => {
+    if (preset === "Praktisi Teknis") {
+      setProfil((prev) => ({
+        ...prev,
+        kepribadianSosial: "To-the-point, Tajam, Santai",
+        selfPronounInput: "Gue",
+        audiencePronounInput: "Temen-temen",
+      }))
+    } else if (preset === "Santai & Blak-blakan") {
+      setProfil((prev) => ({
+        ...prev,
+        kepribadianSosial: "Satir, Realistis, Provokatif",
+        selfPronounInput: "Gue",
+        audiencePronounInput: "Lu",
+      }))
+    } else if (preset === "Storyteller Filosofis") {
+      setProfil((prev) => ({
+        ...prev,
+        kepribadianSosial: "Formal, Akademis, Terstruktur",
+        selfPronounInput: "Saya",
+        audiencePronounInput: "Rekan",
+      }))
+    } else if (preset === "Edukator Ramah") {
+      setProfil((prev) => ({
+        ...prev,
+        kepribadianSosial: "Hangat, Empatik, Mengayomi",
+        selfPronounInput: "Aku",
+        audiencePronounInput: "Kalian",
+      }))
     }
-    const sisa = daftarAkunTernak.filter((a) => a.id !== idHapus)
-    const akunPengganti = sisa[0]
-    setProfil((prev) => ({
-      ...prev,
-      daftarAkunTernak: sisa,
-    }))
-    handlePilihAkunTernak(akunPengganti, 0)
-    showToast("Profil akun dihapus.")
+    showToast(`Inspirasi persona "${preset}" diterapkan.`)
   }
 
   const handleMintaReferensiKolom = async (fieldKey, fieldLabel) => {
@@ -273,7 +306,6 @@ export default function PersonaDNAView({
       setActiveHelperKey(null)
       return
     }
-
     setActiveHelperKey(fieldKey)
     setLoadingHelperKey(fieldKey)
 
@@ -294,37 +326,25 @@ export default function PersonaDNAView({
             gender: profil.gender,
             sapaan_diri: profil.selfPronounInput,
             sapaan_audiens: profil.audiencePronounInput,
-            positioning_peran: profil.peranSaatIni,
-            karakter: profil.kepribadianSosial,
-            usp_keunikan: profil.uspDiriInput,
-            musuh_bersama: profil.opiniKontraInput,
-            minat_utama: profil.minatUtama,
-            analogi_favorit: profil.analogiKhasInput,
-            target_penonton: profil.targetSegmenInput,
-            ketakutan_penonton: profil.targetKetakutanInput,
-            impian_penonton: profil.targetImpianInput,
-            keraguan_penonton: profil.targetKeraguanInput,
+            bidang: profil.minatUtama,
+            kesan: profil.kepribadianSosial,
+            target: profil.targetSegmenInput,
+            masalah: profil.targetKetakutanInput,
           },
         }),
       })
-
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(
-          data.error || "Error sistem, silakan refresh atau hubungi admin.",
-        )
+      if (res.ok) {
+        setHelperResults((prev) => ({
+          ...prev,
+          [fieldKey]: {
+            insight: data.insight_singkat || "Pilih salah satu referensi:",
+            opsi: Array.isArray(data.pilihan_referensi)
+              ? data.pilihan_referensi
+              : [],
+          },
+        }))
       }
-
-      setHelperResults((prev) => ({
-        ...prev,
-        [fieldKey]: {
-          insight:
-            data.insight_singkat || "Pilih salah satu referensi di bawah:",
-          opsi: Array.isArray(data.pilihan_referensi)
-            ? data.pilihan_referensi
-            : [],
-        },
-      }))
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -332,83 +352,129 @@ export default function PersonaDNAView({
     }
   }
 
-  const renderLabelDenganInfo = (labelTeks, fieldKey, onPilihOpsi) => {
-    const sedangLoading = loadingHelperKey === fieldKey
+  const renderHeaderKolomReferensi = (label, fieldKey, onPilih) => {
     const sedangBuka = activeHelperKey === fieldKey
+    const sedangLoading = loadingHelperKey === fieldKey
     const dataRef = helperResults[fieldKey]
 
     return (
-      <div className="space-y-1.5 mb-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <label className="text-xs font-bold text-[#14141f] leading-snug">
-            {labelTeks}
+      <div className="mb-1.5 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-[#14141F]">
+            {label}
           </label>
           <button
             type="button"
-            onClick={() => handleMintaReferensiKolom(fieldKey, labelTeks)}
-            title="Lihat contoh referensi berdasarkan profil akunmu"
-            className={`cursor-pointer inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition shrink-0 border ${
-              sedangBuka
-                ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                : "bg-white text-slate-600 border-slate-300 hover:border-[#14141f] hover:text-[#14141f]"
-            }`}
+            onClick={() => handleMintaReferensiKolom(fieldKey, label)}
+            className="cursor-pointer text-[11px] font-semibold text-slate-600 hover:text-[#14141F] flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F3F4F6] border border-[#E2E8F0]"
           >
-            <span className="w-3.5 h-3.5 rounded-sm bg-black/10 flex items-center justify-center font-serif italic text-[10px]">
+            <span className="w-3.5 h-3.5 rounded-full border border-slate-400 flex items-center justify-center text-[9px] font-bold">
               i
             </span>
-            <span>{sedangLoading ? "Memuat..." : "Referensi"}</span>
+            <span>{sedangLoading ? "..." : "Referensi"}</span>
           </button>
         </div>
 
-        {sedangBuka && (
-          <div className="bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 space-y-2">
-            {sedangLoading ? (
-              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 py-1">
-                <FlatIcon name="refresh" className="w-3.5 h-3.5 animate-spin" />
-                <span>
-                  Menyusun referensi dari jawaban profil sebelumnya...
-                </span>
-              </div>
-            ) : dataRef ? (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-600">
-                    {dataRef.insight}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveHelperKey(null)}
-                    className="cursor-pointer text-[10px] font-bold text-slate-500 hover:text-[#14141f]"
-                  >
-                    Tutup
-                  </button>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
-                  {(dataRef.opsi || []).map((itemOpsi, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        onPilihOpsi(itemOpsi)
-                        showToast("Referensi diterapkan ke kolom.")
-                      }}
-                      className="cursor-pointer snap-start shrink-0 max-w-xs bg-white hover:bg-[#d4f34a] text-[#14141f] border border-slate-200 text-left px-3 py-2 rounded-lg text-[11px] font-medium transition leading-snug"
-                    >
-                      {itemOpsi}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : null}
+        {sedangBuka && dataRef && (
+          <div className="bg-[#F3F4F6] p-2.5 rounded-lg border border-[#E2E8F0] space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-slate-600">
+              <span>{dataRef.insight}</span>
+              <button
+                type="button"
+                onClick={() => setActiveHelperKey(null)}
+                className="cursor-pointer font-bold text-slate-500"
+              >
+                Tutup
+              </button>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {(dataRef.opsi || []).map((op, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    onPilih(op)
+                    setActiveHelperKey(null)
+                  }}
+                  className="cursor-pointer shrink-0 bg-white hover:bg-[#D4F34A] text-[#14141F] border border-[#E2E8F0] px-2.5 py-1.5 rounded-md text-[11px] font-medium text-left"
+                >
+                  {op}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
     )
   }
 
-  const handleAnalisisGayaBicara = async () => {
+  const handleToggleRekamSuaraSampel = () => {
+    if (!isPremiumUser) {
+      onTriggerUpgradeVIP()
+      return
+    }
+    if (isRecordingVoice) {
+      if (speechRecRef.current) {
+        try {
+          speechRecRef.current.stop()
+        } catch {
+          // Ignore
+        }
+      }
+      setIsRecordingVoice(false)
+      return
+    }
+
+    if (typeof window === "undefined") return
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRec) {
+      try {
+        const rec = new SpeechRec()
+        rec.lang = "id-ID"
+        rec.onstart = () => {
+          setIsRecordingVoice(true)
+          showToast("Silakan bicara sekarang...")
+        }
+        rec.onresult = (ev) => {
+          const t = ev.results?.[0]?.[0]?.transcript || ""
+          if (t) {
+            setRawWritingSamples(
+              rawWritingSamples ? `${rawWritingSamples} ${t}` : t,
+            )
+          }
+        }
+        rec.onend = () => setIsRecordingVoice(false)
+        rec.onerror = () => setIsRecordingVoice(false)
+        speechRecRef.current = rec
+        rec.start()
+      } catch {
+        setIsRecordingVoice(false)
+      }
+    } else {
+      showToast("Gunakan browser Chrome/Safari terbaru untuk fitur suara.")
+    }
+  }
+
+  const handleToggleFormatVisual = (namaFormat, idx) => {
+    const sudah = selectedFormats.includes(namaFormat)
+    const update = sudah
+      ? selectedFormats.filter((f) => f !== namaFormat)
+      : [...selectedFormats, namaFormat]
+    setSelectedFormats(update)
+
+    if (SEPULUH_BENTUK_KONTEN[idx]) {
+      setBentukKonten(SEPULUH_BENTUK_KONTEN[idx].nama)
+      if (setModeTampilanSkrip) {
+        setModeTampilanSkrip(SEPULUH_BENTUK_KONTEN[idx].modeDefault)
+      }
+    } else {
+      setBentukKonten(namaFormat)
+    }
+  }
+
+  const handleSimpanKonfigurasiProfil = async () => {
     setIsGenerating(true)
-    showToast("Memperbarui matriks profil akun dan gaya bicara...")
+    showToast("Menyimpan konfigurasi profil & menganalisis parameter DNA...")
 
     try {
       const res = await fetch("/api/ai", {
@@ -423,40 +489,22 @@ export default function PersonaDNAView({
               personaProfile?.user_id ||
               `usr_${Date.now().toString().slice(-5)}`,
             nama_akun:
-              profil.labelAkunSosmed || profil.minatUtama || "Akun Utama",
+              profil.labelAkunSosmed || profil.minatUtama || "@akun.utama",
             nama: profil.nama,
             usia: profil.usia,
             gender: profil.gender,
             peran_dan_otoritas: profil.peranSaatIni,
-            usp_diri:
-              profil.uspDiriInput ||
-              "Berbagi pengalaman praktik nyata yang langsung bisa diterapkan",
-            analogi_khas:
-              profil.analogiKhasInput || "Kehidupan harian, bisnis & olahraga",
+            usp_diri: profil.uspDiriInput,
+            analogi_khas: profil.analogiKhasInput,
             gaya_kepribadian: profil.kepribadianSosial,
             minat_utama: profil.minatUtama,
-            tempat_rekam: profil.lingkunganRekam,
-            waktu_luang: profil.waktuFree,
             sapaan_diri: profil.selfPronounInput,
             sapaan_audiens: profil.audiencePronounInput,
-            prinsip_utama: profil.prinsipUtamaInput,
             pandangan_kontra: profil.opiniKontraInput,
-            target_segmen:
-              profil.targetSegmenInput ||
-              "Anak muda, kreator pemula, atau pembeli online",
-            target_ketakutan:
-              profil.targetKetakutanInput ||
-              "Takut buang waktu, boncos uang, atau jalan di tempat",
-            target_impian:
-              profil.targetImpianInput ||
-              "Ingin hasil nyata yang praktis dan terbukti berhasil",
-            target_keraguan:
-              profil.targetKeraguanInput ||
-              "Bingung mulai dari mana dan takut gagal",
+            target_segmen: profil.targetSegmenInput,
+            target_ketakutan: profil.targetKetakutanInput,
           },
-          rawWritingSamples:
-            rawWritingSamples.trim() ||
-            "Santai, akrab, jujur, dan langsung ke inti pembahasan.",
+          rawWritingSamples: rawWritingSamples.trim(),
           customPrompts,
         }),
       })
@@ -480,7 +528,7 @@ export default function PersonaDNAView({
       }))
       setPersonaProfile(data)
       await simpanPersonaKeSupabase(data)
-      showToast("Profil akun dan matriks gaya bicara berhasil disimpan.")
+      showToast("Konfigurasi profil berhasil disimpan.")
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -488,288 +536,322 @@ export default function PersonaDNAView({
     }
   }
 
-  const jumlahAkunTerpakai = Math.max(1, daftarAkunTernak.length)
+  const jumlahAkunAktif = Math.min(
+    Math.max(1, daftarAkunTernak.length),
+    kuotaAkunMaksimal,
+  )
 
   return (
-    <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-8">
-      <div className="border-b border-slate-200 pb-5">
-        <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-          Profil Akun, Spesifikasi Diri, dan Gaya Bicara
-        </h2>
-        <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-          Kelola profil akun sosial mediamu. Kuota profil akun mengikuti paket
-          aktifmu saat ini (5K: 1 akun, 10K-20K: 2 akun, 25K: 3 akun, 50K: 5
-          akun, 90K: 10 akun). Bila turun paket, akun yang terakhir dibuat akan
-          terkunci otomatis.
-        </p>
-      </div>
-
-      {/* MANAJER MULTI-PROFIL DENGAN BATAS KUOTA PAKET & BLOKIR OTOMATIS SAAT TURUN PAKET */}
-      <section className="space-y-3 bg-[#f4f5f7] p-4 rounded-xl border border-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-              Daftar Profil Akun Sosial Media ({jumlahAkunTerpakai}/
+    <div className="w-full max-w-3xl mx-auto space-y-4 pb-8">
+      {/* 1. TOP MULTI-ACCOUNT MANAGER BAR (SESUAI SCREEN.PNG) */}
+      <section className="bg-[#F3F4F6] rounded-xl p-4 border border-[#E2E8F0]">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <FlatIcon
+              name="users"
+              className="w-4 h-4 text-[#14141F] shrink-0"
+            />
+            <span className="text-xs font-bold text-[#14141F] truncate">
+              Daftar Profil Akun Sosial Media ({jumlahAkunAktif}/
               {kuotaAkunMaksimal} Akun Aktif)
-            </h3>
-            <p className="text-xs text-slate-600">
-              Pilih profil akun yang ingin kamu gunakan. Rekomendasi ide di menu
-              Buat Skrip akan menyesuaikan profil akun yang aktif.
-            </p>
+            </span>
           </div>
-
           <button
             type="button"
             onClick={() => {
-              if (jumlahAkunTerpakai >= kuotaAkunMaksimal) {
+              if (daftarAkunTernak.length >= kuotaAkunMaksimal) {
                 alert(
-                  `Kuota profil akun kamu sudah penuh (${jumlahAkunTerpakai}/${kuotaAkunMaksimal} akun). Silakan upgrade paket untuk menambah akun baru.`,
+                  `Kuota profil akun kamu sudah penuh (${kuotaAkunMaksimal} akun). Silakan upgrade paket untuk menambah slot akun baru.`,
                 )
                 setActiveMenu("topup")
                 return
               }
               setShowFormTambahAkun(!showFormTambahAkun)
             }}
-            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg"
+            className="cursor-pointer shrink-0 bg-white border border-[#C8C5CC] text-xs font-semibold text-[#14141F] px-3 py-1.5 rounded-lg hover:bg-slate-50 transition flex items-center gap-1"
           >
-            {showFormTambahAkun
-              ? "Batal"
-              : jumlahAkunTerpakai >= kuotaAkunMaksimal
-                ? "Upgrade Kuota Akun"
-                : "+ Buat Profil Akun Baru"}
+            <FlatIcon name="plus" className="w-3.5 h-3.5" />
+            <span>{showFormTambahAkun ? "Batal" : "Buat Profil Baru"}</span>
           </button>
         </div>
 
         {showFormTambahAkun && (
-          <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row gap-2">
+          <div className="bg-white p-3 rounded-lg border border-[#E2E8F0] flex flex-col sm:flex-row gap-2 mb-3">
             <input
               type="text"
               value={namaAkunBaru}
               onChange={(e) => setNamaAkunBaru(e.target.value)}
-              placeholder="Nama/Niche Akun Baru (Contoh: Akun Kultum / Akun Affiliate Kuliner)"
-              className="flex-1 bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2 text-base sm:text-xs font-bold outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: @bisnis.satria atau @satria.spiritual"
+              className="flex-1 h-10 bg-[#F3F4F6] border border-[#E2E8F0] rounded-lg px-3 text-base sm:text-xs font-semibold outline-none focus:bg-white focus:border-[#14141F]"
             />
             <button
               type="button"
               onClick={handleBuatProfilAkunBaru}
-              className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold px-4 py-2 rounded-lg shrink-0"
+              className="cursor-pointer h-10 bg-[#D4F34A] text-[#14141F] text-xs font-bold px-4 rounded-lg shrink-0"
             >
-              Simpan & Isi Profil Ini
+              Simpan Profil Baru
             </button>
           </div>
         )}
 
-        {daftarAkunTernak.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {daftarAkunTernak.map((ak, idx) => {
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {daftarAkunTernak.length === 0 ? (
+            <button
+              type="button"
+              className="shrink-0 bg-[#D4F34A] text-[#14141F] font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 min-h-[44px]"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#14141F]" />
+              <span>
+                {profil.labelAkunSosmed ||
+                  `@${(profil.username || profil.nama || "kreator")
+                    .toLowerCase()
+                    .replace(/\s+/g, ".")}`}
+              </span>
+              <FlatIcon name="check" className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            daftarAkunTernak.map((ak, idx) => {
               const sedangAktif = ak.id === idAkunAktif
-              const terblokirKarenaTurunPaket = idx >= kuotaAkunMaksimal
+              const terkunci = idx >= kuotaAkunMaksimal
 
-              return (
-                <div
-                  key={ak.id}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition ${
-                    terblokirKarenaTurunPaket
-                      ? "bg-slate-200 text-slate-500 border-slate-300 opacity-75"
-                      : sedangAktif
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                  }`}
-                >
+              if (terkunci) {
+                return (
                   <button
+                    key={ak.id}
                     type="button"
                     onClick={() => handlePilihAkunTernak(ak, idx)}
-                    className="cursor-pointer font-bold text-left flex items-center gap-1.5"
+                    className="cursor-pointer shrink-0 bg-[#E1E2E4]/70 border border-dashed border-[#C8C5CC] text-slate-600 font-medium px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 min-h-[44px]"
                   >
-                    {terblokirKarenaTurunPaket && (
-                      <FlatIcon name="lock" className="w-3.5 h-3.5 shrink-0" />
-                    )}
-                    <div>
-                      <span
-                        className={
-                          sedangAktif && !terblokirKarenaTurunPaket
-                            ? "text-[#d4f34a]"
-                            : ""
-                        }
-                      >
-                        {ak.labelAkun}
-                      </span>
-                      <span className="block text-[10px] font-normal opacity-80">
-                        {terblokirKarenaTurunPaket
-                          ? "Terkunci (Upgrade Paket)"
-                          : `Sapaan: ${ak.selfPronounInput}/${ak.audiencePronounInput}`}
-                      </span>
-                    </div>
+                    <FlatIcon
+                      name="lock"
+                      className="w-3.5 h-3.5 text-slate-500"
+                    />
+                    <span>{ak.labelAkun} • Terkunci (Upgrade Paket)</span>
                   </button>
-                  {daftarAkunTernak.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleHapusProfilAkun(ak.id)}
-                      title="Hapus profil akun ini"
-                      className="cursor-pointer text-[10px] px-1.5 py-0.5 rounded-md bg-black/10 hover:bg-rose-600 hover:text-white"
-                    >
-                      Hapus
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+                )
+              }
 
-        <div>
-          <label className="block text-xs font-bold text-[#14141f] mb-1">
-            Label / Nama Profil Akun yang Sedang Diedit
-          </label>
-          <input
-            type="text"
-            value={profil.labelAkunSosmed || profil.minatUtama || ""}
-            onChange={(e) =>
-              setProfil({ ...profil, labelAkunSosmed: e.target.value })
-            }
-            placeholder="Contoh: Akun Utama Personal Branding / Akun Dakwah / Akun Jualan"
-            className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-base sm:text-xs font-bold outline-none focus:border-[#14141f]"
-          />
+              return (
+                <button
+                  key={ak.id}
+                  type="button"
+                  onClick={() => handlePilihAkunTernak(ak, idx)}
+                  className={`cursor-pointer shrink-0 px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 min-h-[44px] transition ${
+                    sedangAktif
+                      ? "bg-[#D4F34A] text-[#14141F] font-bold"
+                      : "bg-white text-[#14141F] border border-[#C8C5CC]/70 font-medium hover:border-[#14141F]"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      sedangAktif ? "bg-[#14141F]" : "bg-slate-300"
+                    }`}
+                  />
+                  <span>{ak.labelAkun}</span>
+                  {sedangAktif && (
+                    <FlatIcon name="check" className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )
+            })
+          )}
+
+          {daftarAkunTernak.length < kuotaAkunMaksimal && (
+            <div className="shrink-0 bg-[#E1E2E4]/50 border border-dashed border-[#C8C5CC] text-slate-500 font-medium px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 min-h-[44px]">
+              <FlatIcon name="lock" className="w-3.5 h-3.5" />
+              <span>Terkunci (Upgrade Paket)</span>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* SEKSI 1: GAYA NGOBROL & RENCANA PERSONAL BRANDING */}
-      <section className="space-y-4 pt-6 border-t border-slate-200">
-        <div>
-          <h3 className="text-sm font-bold text-[#14141f]">
-            1. Gaya Ngobrol & Rencana Personal Branding
-          </h3>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Bagian ini mengatur identitas sapaan, bidang yang kamu kuasai, serta
-            target penonton yang ingin kamu tarik lewat konten viral.
+      {/* 2. BLOCK 1: GAYA NGOBROL & RENCANA PERSONAL BRANDING */}
+      <section className="bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5">
+        <div className="border-b border-[#E2E8F0] pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <FlatIcon name="mic" className="w-5 h-5 text-[#14141F]" />
+            <h2 className="text-base font-bold text-[#14141F]">
+              Gaya Ngobrol & Rencana Personal Branding
+            </h2>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Sesuaikan persona dan cara komunikasi akun ini agar konsisten di
+            setiap konten.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* 3-Column Demographic Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div>
-            <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-              Nama Panggilan di Akun Ini
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Nama Panggilan
             </label>
             <input
               type="text"
               value={profil.nama}
               onChange={(e) => setProfil({ ...profil, nama: e.target.value })}
-              placeholder="Masukkan nama panggilanmu..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs font-bold outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Nama panggilan..."
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-              Usia (Tahun)
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Usia
             </label>
             <input
               type="number"
               inputMode="numeric"
               value={profil.usia || ""}
               onChange={(e) => setProfil({ ...profil, usia: e.target.value })}
-              placeholder="Contoh: 28"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs font-bold outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="27"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#14141f] mb-1.5">
+            <span className="block text-xs font-semibold text-[#14141F] mb-1.5">
               Gender
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {["Laki-laki", "Perempuan"].map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setProfil({ ...profil, gender: g })}
-                  className={`cursor-pointer py-2.5 px-3 rounded-lg text-xs font-bold border transition ${
-                    profil.gender === g
-                      ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                      : "bg-[#f4f5f7] text-slate-600 border-slate-200"
-                  }`}
-                >
-                  {g}
-                </button>
-              ))}
+            </span>
+            <div className="grid grid-cols-2 gap-1 h-11 p-1 bg-[#F3F4F6] border border-[#C8C5CC] rounded-lg">
+              {[
+                { label: "Pria", val: "Laki-laki" },
+                { label: "Wanita", val: "Perempuan" },
+              ].map((g) => {
+                const aktif =
+                  profil.gender === g.val || profil.gender === g.label
+                return (
+                  <button
+                    key={g.label}
+                    type="button"
+                    onClick={() => setProfil({ ...profil, gender: g.val })}
+                    className={`cursor-pointer text-xs rounded flex items-center justify-center transition ${
+                      aktif
+                        ? "bg-[#D4F34A] text-[#14141F] font-bold"
+                        : "text-[#14141F] font-medium"
+                    }`}
+                  >
+                    {g.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SelectWithCustom
-            label="Sebutan Diri Saat Bicara di Konten"
-            value={profil.selfPronounInput}
-            options={["Gue", "Aku", "Saya", "Kita", "Bunda / Ayah"]}
-            onChange={(val) => setProfil({ ...profil, selfPronounInput: val })}
-            placeholderCustom="Ketik sebutan dirimu sendiri..."
-          />
-
-          <SelectWithCustom
-            label="Sebutan untuk Penonton / Pendengar"
-            value={profil.audiencePronounInput}
-            options={[
-              "Lo / Kalian",
-              "Kamu / Teman-teman",
-              "Bro / Sis",
-              "Bunda / Moms",
-              "Bapak / Ibu / Jamaah",
-            ]}
-            onChange={(val) =>
-              setProfil({ ...profil, audiencePronounInput: val })
-            }
-            placeholderCustom="Ketik panggilan untuk penontonmu..."
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* 2-Column Persona Parameters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div>
-            {renderLabelDenganInfo(
-              "Bidang atau Topik yang Kamu Pahami di Akun Ini",
+            {renderHeaderKolomReferensi("Sebutan Diri", "selfPronoun", (v) =>
+              setProfil({ ...profil, selfPronounInput: v }),
+            )}
+            <div className="relative">
+              <select
+                value={profil.selfPronounInput || "Gue"}
+                onChange={(e) =>
+                  setProfil({ ...profil, selfPronounInput: e.target.value })
+                }
+                className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] appearance-none focus:outline-none focus:border-[#14141F]"
+              >
+                <option value="Gue">Gue</option>
+                <option value="Saya">Saya</option>
+                <option value="Aku">Aku</option>
+                <option value="Kita">Kita</option>
+                <option value="Bunda / Ayah">Bunda / Ayah</option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-3.5 text-slate-500">
+                <FlatIcon name="chevronDown" className="w-4 h-4" />
+              </span>
+            </div>
+          </div>
+
+          <div>
+            {renderHeaderKolomReferensi(
+              "Sebutan Penonton",
+              "audiencePronoun",
+              (v) => setProfil({ ...profil, audiencePronounInput: v }),
+            )}
+            <div className="relative">
+              <select
+                value={profil.audiencePronounInput || "Temen-temen"}
+                onChange={(e) =>
+                  setProfil({
+                    ...profil,
+                    audiencePronounInput: e.target.value,
+                  })
+                }
+                className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] appearance-none focus:outline-none focus:border-[#14141F]"
+              >
+                <option value="Temen-temen">Temen-temen</option>
+                <option value="Lu">Lu</option>
+                <option value="Kalian">Kalian</option>
+                <option value="Sobat">Sobat</option>
+                <option value="Rekan">Rekan</option>
+                <option value="Bunda / Moms">Bunda / Moms</option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-3.5 text-slate-500">
+                <FlatIcon name="chevronDown" className="w-4 h-4" />
+              </span>
+            </div>
+          </div>
+
+          <div>
+            {renderHeaderKolomReferensi(
+              "Bidang yang Dipahami",
               "minatUtama",
-              (val) => setProfil({ ...profil, minatUtama: val }),
+              (v) => setProfil({ ...profil, minatUtama: v }),
             )}
             <input
               type="text"
-              value={profil.minatUtama}
+              value={profil.minatUtama || ""}
               onChange={(e) =>
                 setProfil({ ...profil, minatUtama: e.target.value })
               }
-              placeholder="Contoh: Bisnis praktis, Keuangan, Motivasi & Kultum, Kuliner, Olahraga"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: SaaS & Productivity / Kuliner / Keuangan"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            {renderLabelDenganInfo(
-              "Kesan Personal Branding yang Ingin Dibangun",
+            {renderHeaderKolomReferensi(
+              "Kesan Personal Branding",
               "kepribadianSosial",
-              (val) => setProfil({ ...profil, kepribadianSosial: val }),
+              (v) => setProfil({ ...profil, kepribadianSosial: v }),
             )}
-            <SelectWithCustom
-              label=""
-              value={profil.kepribadianSosial}
-              options={[
-                "Santai, jujur, dan peduli seperti kakak senior di warung kopi",
-                "Berwibawa, tenang, dan menyentuh hati saat menyampaikan pesan",
-                "Teman ngobrol yang seru, ekspresif, dan suka berbagi cerita",
-                "Tegas, lugas, dan langsung membedah inti masalah",
-                "Pengamat yang kritis namun tetap santun dan solutif",
-              ]}
-              onChange={(val) =>
-                setProfil({ ...profil, kepribadianSosial: val })
-              }
-              placeholderCustom="Ketik kesan pembawaanmu sendiri..."
-            />
+            <div className="relative">
+              <select
+                value={
+                  profil.kepribadianSosial || "To-the-point, Tajam, Santai"
+                }
+                onChange={(e) =>
+                  setProfil({ ...profil, kepribadianSosial: e.target.value })
+                }
+                className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] appearance-none focus:outline-none focus:border-[#14141F]"
+              >
+                <option value="To-the-point, Tajam, Santai">
+                  To-the-point, Tajam, Santai
+                </option>
+                <option value="Formal, Akademis, Terstruktur">
+                  Formal, Akademis, Terstruktur
+                </option>
+                <option value="Hangat, Empatik, Mengayomi">
+                  Hangat, Empatik, Mengayomi
+                </option>
+                <option value="Satir, Realistis, Provokatif">
+                  Satir, Realistis, Provokatif
+                </option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-3.5 text-slate-500">
+                <FlatIcon name="chevronDown" className="w-4 h-4" />
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            {renderLabelDenganInfo(
-              "Siapa Target Penonton yang Ingin Ditarik?",
+            {renderHeaderKolomReferensi(
+              "Target Penonton",
               "targetSegmenInput",
-              (val) => setProfil({ ...profil, targetSegmenInput: val }),
+              (v) => setProfil({ ...profil, targetSegmenInput: v }),
             )}
             <input
               type="text"
@@ -777,16 +859,16 @@ export default function PersonaDNAView({
               onChange={(e) =>
                 setProfil({ ...profil, targetSegmenInput: e.target.value })
               }
-              placeholder="Contoh: Anak muda produktif, pelaku UMKM, atau ibu rumah tangga"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: Solopreneur & Content Creator pemula"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            {renderLabelDenganInfo(
-              "Masalah / Keresahan Terbesar Mereka",
+            {renderHeaderKolomReferensi(
+              "Masalah Utama Penonton",
               "targetKetakutanInput",
-              (val) => setProfil({ ...profil, targetKetakutanInput: val }),
+              (v) => setProfil({ ...profil, targetKetakutanInput: v }),
             )}
             <input
               type="text"
@@ -794,449 +876,239 @@ export default function PersonaDNAView({
               onChange={(e) =>
                 setProfil({ ...profil, targetKetakutanInput: e.target.value })
               }
-              placeholder="Contoh: Takut rugi modal, salah beli barang, atau hidup jalan di tempat"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: Bingung ide konten & sulit konsisten"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
+        </div>
 
-          <div>
-            {renderLabelDenganInfo(
-              "Harapan / Perubahan yang Mereka Cari",
-              "targetImpianInput",
-              (val) => setProfil({ ...profil, targetImpianInput: val }),
-            )}
-            <input
-              type="text"
-              value={profil.targetImpianInput || ""}
-              onChange={(e) =>
-                setProfil({ ...profil, targetImpianInput: e.target.value })
-              }
-              placeholder="Contoh: Solusi yang praktis, hemat, dan terbukti berhasil"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
-            />
+        {/* Pilih Inspirasi Persona Cepat */}
+        <div className="bg-[#F3F4F6] p-3 rounded-xl border border-[#E2E8F0]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <FlatIcon name="bolt" className="w-4 h-4 text-[#14141F]" />
+            <span className="text-xs font-semibold text-[#14141F]">
+              Pilih Inspirasi Persona Cepat:
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {[
+              "Praktisi Teknis",
+              "Santai & Blak-blakan",
+              "Storyteller Filosofis",
+              "Edukator Ramah",
+            ].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => applyPresetPersona(preset)}
+                className="cursor-pointer shrink-0 bg-white border border-[#C8C5CC] text-[#14141F] hover:border-[#14141F] px-3 py-1.5 rounded-lg text-xs font-medium active:bg-slate-100 transition"
+              >
+                {preset}
+              </button>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* SEKSI 2: SPESIFIKASI PERSONAL DIRI (AMUNISI FASE 2 BANGUN TRUST) */}
-      <section className="space-y-4 pt-6 border-t border-slate-200">
-        <div>
-          <h3 className="text-sm font-bold text-[#14141f]">
-            2. Spesifikasi Personal Diri (Amunisi Fase 2: Menciptakan Trust)
-          </h3>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Isi pengalaman nyata, jam terbang, dan prinsip jujurmu. Data ini
-            akan ditarik otomatis saat kamu membuat konten Fase 2 agar penonton
-            percaya penuh pada kredibilitasmu.
+      {/* 3. BLOCK 2: SPESIFIKASI PERSONAL DIRI (AMUNISI FASE 2 TRUST) & SAMPEL KALIMAT */}
+      <section className="bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5">
+        <div className="border-b border-[#E2E8F0] pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <FlatIcon name="shield" className="w-5 h-5 text-[#14141F]" />
+            <h2 className="text-base font-bold text-[#14141F]">
+              Spesifikasi Personal Diri (Amunisi Fase 2 Trust)
+            </h2>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Parameter pembangun kredibilitas dan keaslian konten agar tidak
+            terdengar generik.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-3 mb-4">
           <div>
-            {renderLabelDenganInfo(
-              "Pengalaman Nyata / Jam Terbangmu di Bidang Ini",
-              "uspDiriInput",
-              (val) => setProfil({ ...profil, uspDiriInput: val }),
-            )}
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Jam Terbang / Pengalaman Nyata
+            </label>
             <input
               type="text"
               value={profil.uspDiriInput || ""}
               onChange={(e) =>
                 setProfil({ ...profil, uspDiriInput: e.target.value })
               }
-              placeholder="Contoh: Sudah 3 tahun praktik langsung, mengurus produksi media & lari rutin"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: 5 tahun build tech startup & remote engineer"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            {renderLabelDenganInfo(
-              "Peranmu Saat Berbagi kepada Penonton",
-              "peranSaatIni",
-              (val) => setProfil({ ...profil, peranSaatIni: val }),
-            )}
-            <SelectWithCustom
-              label=""
-              value={profil.peranSaatIni}
-              options={[
-                "Praktisi Bisnis & Kreator yang Bicara dari Pengalaman Nyata",
-                "Teman Seperjuangan yang Suka Belajar & Eksperimen Bareng",
-                "Reviewer Jujur Tanpa Basa-basi (Apa Adanya)",
-                "Kakak Senior / Mentor Santai di Warung Kopi",
-                "Penceramah / Pembicara Publik yang Menyampaikan Pesan Kebaikan",
-                "Pebisnis Lokal / UMKM yang Paham Lapangan",
-              ]}
-              onChange={(val) => setProfil({ ...profil, peranSaatIni: val })}
-              placeholderCustom="Ketik peranmu sendiri..."
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Peran Saat Berbagi
+            </label>
+            <input
+              type="text"
+              value={profil.peranSaatIni || ""}
+              onChange={(e) =>
+                setProfil({ ...profil, peranSaatIni: e.target.value })
+              }
+              placeholder="Contoh: Praktisi yang berbagi kegagalan & validasi lapangan"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            {renderLabelDenganInfo(
-              "Hal yang Paling Sering Kamu Kritisi di Bidangmu",
-              "opiniKontraInput",
-              (val) => setProfil({ ...profil, opiniKontraInput: val }),
-            )}
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Hal yang Dikritisi (Gimmick / Anti-Tesis)
+            </label>
             <input
               type="text"
               value={profil.opiniKontraInput || ""}
               onChange={(e) =>
                 setProfil({ ...profil, opiniKontraInput: e.target.value })
               }
-              placeholder="Contoh: Kurang suka teori muluk tanpa hitungan dan langkah nyata"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: Gimmick motivasi tanpa langkah eksekusi nyata"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
 
           <div>
-            {renderLabelDenganInfo(
-              "Perumpamaan Harian yang Sering Kamu Gunakan",
-              "analogiKhasInput",
-              (val) => setProfil({ ...profil, analogiKhasInput: val }),
-            )}
+            <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
+              Perumpamaan Harian
+            </label>
             <input
               type="text"
               value={profil.analogiKhasInput || ""}
               onChange={(e) =>
                 setProfil({ ...profil, analogiKhasInput: e.target.value })
               }
-              placeholder="Contoh: Analogi latihan lari maraton, warung kopi, atau dagang harian"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+              placeholder="Contoh: Seperti bumbu masak cepat saji vs masakan rumahan autentik"
+              className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
             />
           </div>
+        </div>
 
-          <div>
-            {renderLabelDenganInfo(
-              "Alasan Penonton Biasanya Masih Ragu Memulai / Membeli",
-              "targetKeraguanInput",
-              (val) => setProfil({ ...profil, targetKeraguanInput: val }),
-            )}
-            <input
-              type="text"
-              value={profil.targetKeraguanInput || ""}
-              onChange={(e) =>
-                setProfil({ ...profil, targetKeraguanInput: e.target.value })
-              }
-              placeholder="Contoh: Merasa sibuk kerja atau takut hasilnya tidak sesuai"
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
-            />
+        {/* Sampel Kalimat Gaya Bicara dengan Tombol Hapus & Rekam Suara */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <label className="text-xs font-semibold text-[#14141F]">
+              Sampel Kalimat Gaya Bicaramu Sehari-hari
+            </label>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRawWritingSamples("")}
+                className="cursor-pointer text-xs font-semibold text-rose-600 px-2.5 py-1 border border-rose-300 rounded-lg hover:bg-rose-50 transition flex items-center gap-1"
+              >
+                <FlatIcon name="trash" className="w-3.5 h-3.5" />
+                <span>Hapus</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleRekamSuaraSampel}
+                className={`cursor-pointer px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 min-h-[32px] transition ${
+                  isRecordingVoice
+                    ? "bg-rose-600 text-white animate-pulse"
+                    : "bg-[#D4F34A] text-[#14141F]"
+                }`}
+              >
+                <FlatIcon name="mic" className="w-3.5 h-3.5" />
+                <span>{isRecordingVoice ? "Merekam..." : "Rekam Suara"}</span>
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            rows={3}
+            value={rawWritingSamples}
+            onChange={(e) => setRawWritingSamples(e.target.value)}
+            placeholder="Ketik atau rekam 2-3 kalimat sesuai cara ngobrol aslimu sehari-hari..."
+            className="w-full p-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F] leading-relaxed"
+          />
+        </div>
+
+        {/* Kartu Analisis Parameter Otomatis Hookya */}
+        <div className="bg-[#F3F4F6] border border-[#E2E8F0] rounded-xl p-3 mb-4 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-[#14141F] font-bold">
+            <FlatIcon name="dna" className="w-4 h-4 text-[#14141F]" />
+            <span>Analisis Parameter Otomatis Hookya</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#D4F34A] text-[#14141F] text-[11px] font-bold">
+              <FlatIcon name="lock" className="w-3 h-3" />
+              <span>
+                {personaProfile?.dna_badge ||
+                  `DNA: ${profil.kepribadianSosial || "Satir-Realistis"} | Direct Tone | Level 4 Trust`}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E1E2E4] text-[#14141F] text-[11px] font-semibold">
+              <span>
+                {personaProfile?.niche_badge ||
+                  `Niche: ${profil.minatUtama || "Kreator"} | Target: ${profil.targetSegmenInput || "Audiens"}`}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* 10 Format Eksekusi Visual Prioritas */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-[#14141F]">
+              10 Format Eksekusi Visual Prioritas
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {selectedFormats.length} Terpilih
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {SEPULUH_FORMAT_PRIORITAS.map((fmt, idx) => {
+              const dipilih =
+                selectedFormats.includes(fmt) || bentukKonten === fmt
+              return (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => handleToggleFormatVisual(fmt, idx)}
+                  className={`cursor-pointer p-2.5 rounded-lg border flex items-center justify-between text-left text-xs min-h-[44px] transition ${
+                    dipilih
+                      ? "bg-[#D4F34A] text-[#14141F] border-[#D4F34A] font-bold"
+                      : "bg-white text-[#14141F] border-[#C8C5CC]/70 font-medium hover:border-[#14141F]"
+                  }`}
+                >
+                  <span>{fmt}</span>
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+                      dipilih
+                        ? "border-[#14141F] bg-[#14141F] text-[#D4F34A]"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {dipilih && <FlatIcon name="check" className="w-3 h-3" />}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* SEKSI 3: SAMPEL KALIMAT LISAN & ANALISIS */}
-      <section className="space-y-4 pt-6 border-t border-slate-200">
-        {renderLabelDenganInfo(
-          "3. Sampel Kalimat Gaya Bicaramu Sehari-hari",
-          "rawWritingSamples",
-          (val) => setRawWritingSamples(val),
-        )}
-        <p className="text-xs text-slate-600">
-          Tuliskan 2 sampai 3 kalimat sesuai cara bicaramu di akun ini. Sistem
-          akan mengunci pilihan kata, sapaan, dan ritme kalimatmu.
-        </p>
-
-        {isPremiumUser ? (
-          <StoryVoiceInput
-            rows={3}
-            value={
-              rawWritingSamples === KALIMAT_DUMMY_LAMA ? "" : rawWritingSamples
-            }
-            onChange={setRawWritingSamples}
-            placeholder="Ketik atau rekam contoh kalimat gaya bicaramu di sini..."
-            onNotify={showToast}
-          />
-        ) : (
-          <div className="relative">
-            <textarea
-              rows={3}
-              value={
-                rawWritingSamples === KALIMAT_DUMMY_LAMA
-                  ? ""
-                  : rawWritingSamples
-              }
-              onChange={(e) => setRawWritingSamples(e.target.value)}
-              placeholder="Ketik contoh kalimat gaya bicaramu di sini..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-28 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none"
-            />
-            <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
-              {rawWritingSamples && rawWritingSamples.trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setRawWritingSamples("")}
-                  className="cursor-pointer px-2 py-1.5 rounded-md bg-white border border-slate-200 text-[11px] font-bold text-slate-600"
-                >
-                  Hapus
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onTriggerUpgradeVIP}
-                title="Fitur Mikrofon khusus Paket VIP (Rp20.000+)"
-                className="cursor-pointer px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
-              >
-                <FlatIcon name="lock" className="w-3.5 h-3.5" />
-                <span>Mic VIP</span>
-              </button>
-            </div>
-          </div>
-        )}
-
+      {/* BOTTOM STICKY ACTION BAR */}
+      <div className="sticky bottom-20 z-20 pt-2">
         {isGenerating ? (
           <AILoadingBox
-            label="Menyimpan profil akun dan memperbarui matriks gaya bicara..."
-            onRefresh={handleAnalisisGayaBicara}
+            label="Menyimpan konfigurasi profil & memperbarui DNA..."
+            onRefresh={handleSimpanKonfigurasiProfil}
           />
         ) : (
           <button
             type="button"
-            onClick={handleAnalisisGayaBicara}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-3.5 rounded-lg hover:opacity-95 transition"
+            onClick={handleSimpanKonfigurasiProfil}
+            className="cursor-pointer w-full h-12 bg-[#D4F34A] text-[#14141F] text-sm font-bold rounded-lg flex items-center justify-center gap-2 shadow-sm border border-[#14141F]/15 active:scale-[0.99] transition"
           >
-            Simpan Akun Ini & Perbarui Matriks Gaya Bicara
+            <FlatIcon name="bookmark" className="w-4 h-4" />
+            <span>Simpan Konfigurasi Profil</span>
           </button>
         )}
-
-        <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
-          <div className="text-xs font-bold text-[#4d6b14]">
-            Ringkasan Profil Akun Aktif:{" "}
-            {profil.labelAkunSosmed || profil.minatUtama || "Akun Utama"}
-          </div>
-          <p className="text-xs sm:text-sm font-bold text-[#14141f] leading-relaxed">
-            {personaProfile?.persona_summary}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#14141f]">
-                Spesifikasi Diri (Trust)
-              </div>
-              <div className="text-slate-600">
-                Peran:{" "}
-                <strong className="text-[#14141f]">
-                  {personaProfile?.positioning_and_usp?.authority_role ||
-                    profil.peranSaatIni}
-                </strong>
-              </div>
-              <div className="text-slate-600">
-                Jam Terbang:{" "}
-                <span>
-                  {personaProfile?.positioning_and_usp?.unique_selling_point ||
-                    profil.uspDiriInput ||
-                    "Praktik nyata"}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#5b4bc4]">Target Penonton</div>
-              <div className="text-slate-600">
-                Masalah:{" "}
-                <strong className="text-[#14141f]">
-                  {personaProfile?.target_audience?.deepest_pain_points ||
-                    profil.targetKetakutanInput ||
-                    "Belum diisi"}
-                </strong>
-              </div>
-              <div className="text-slate-600">
-                Harapan:{" "}
-                <span>
-                  {personaProfile?.target_audience?.secret_desires ||
-                    profil.targetImpianInput ||
-                    "Belum diisi"}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-1">
-              <div className="font-bold text-[#4d6b14]">Gaya Bahasa</div>
-              <div className="text-slate-600">
-                Sapaan:{" "}
-                <strong className="text-[#14141f]">
-                  {personaProfile?.linguistic_matrix?.self_pronoun ||
-                    profil.selfPronounInput}{" "}
-                  /{" "}
-                  {personaProfile?.linguistic_matrix?.audience_pronoun ||
-                    profil.audiencePronounInput}
-                </strong>
-              </div>
-              <div className="text-slate-600">
-                Partikel Khas:{" "}
-                <strong className="text-[#14141f]">
-                  {(
-                    personaProfile?.linguistic_matrix?.signature_vocabulary ||
-                    []
-                  ).join(", ")}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SEKSI 4: FORMAT VISUAL & WAKTU LUANG */}
-      <section className="space-y-4 pt-6 border-t border-slate-200">
-        <h3 className="text-sm font-bold text-[#14141f]">
-          4. Format Eksekusi Visual & Jadwal Produksi
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {SEPULUH_BENTUK_KONTEN.map((item) => {
-            const terpilih = bentukKonten === item.nama
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setBentukKonten(item.nama)
-                  setModeTampilanSkrip(item.modeDefault)
-                }}
-                className={`cursor-pointer p-3.5 rounded-xl text-left border transition flex items-center justify-between gap-3 ${
-                  terpilih
-                    ? "bg-[#14141f] text-white border-[#14141f]"
-                    : "bg-[#f4f5f7] text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                }`}
-              >
-                <div>
-                  <div
-                    className={`text-xs sm:text-sm font-bold ${
-                      terpilih ? "text-[#d4f34a]" : "text-[#14141f]"
-                    }`}
-                  >
-                    {item.nama}
-                  </div>
-                  <div
-                    className={`text-xs mt-1 leading-relaxed ${
-                      terpilih ? "text-slate-300" : "text-slate-600"
-                    }`}
-                  >
-                    {item.ket}
-                  </div>
-                </div>
-                {terpilih && (
-                  <FlatIcon
-                    name="check"
-                    className="w-4 h-4 text-[#d4f34a] shrink-0"
-                  />
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <label className="text-xs font-bold text-[#14141f]">
-              Jadwal Waktu Luang Harian
-            </label>
-            <label className="cursor-pointer inline-flex items-center gap-2 bg-[#f2fce2] text-[#14141f] px-3 py-1.5 rounded-lg text-xs font-bold border border-[#4d6b14]/20">
-              <input
-                type="checkbox"
-                checked={jadwalFleksibel}
-                onChange={(e) => setJadwalFleksibel(e.target.checked)}
-                className="w-4 h-4 accent-[#14141f]"
-              />
-              <span>Waktu Fleksibel</span>
-            </label>
-          </div>
-
-          {!jadwalFleksibel && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {[
-                { key: "pagi", label: "Pagi" },
-                { key: "siang", label: "Siang" },
-                { key: "sore", label: "Sore" },
-                { key: "malam", label: "Malam" },
-              ].map((w) => {
-                const slot = jadwalCeklis[w.key]
-                return (
-                  <div
-                    key={w.key}
-                    className={`p-3 rounded-lg border transition flex flex-wrap items-center justify-between gap-2 ${
-                      slot.aktif
-                        ? "bg-white border-[#14141f]"
-                        : "bg-[#f4f5f7] border-slate-200 opacity-75"
-                    }`}
-                  >
-                    <label className="cursor-pointer flex items-center gap-2 text-xs font-bold">
-                      <input
-                        type="checkbox"
-                        checked={slot.aktif}
-                        onChange={(e) =>
-                          setJadwalCeklis({
-                            ...jadwalCeklis,
-                            [w.key]: { ...slot, aktif: e.target.checked },
-                          })
-                        }
-                        className="w-4 h-4 accent-[#14141f]"
-                      />
-                      <span>{w.label}</span>
-                    </label>
-
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <input
-                        type="text"
-                        value={slot.mulai}
-                        onChange={(e) =>
-                          setJadwalCeklis({
-                            ...jadwalCeklis,
-                            [w.key]: {
-                              ...slot,
-                              aktif: true,
-                              mulai: e.target.value,
-                            },
-                          })
-                        }
-                        placeholder="08:00"
-                        className="w-16 bg-[#f4f5f7] border border-slate-200 rounded-md px-2 py-1 text-center font-bold text-base sm:text-xs"
-                      />
-                      <span>-</span>
-                      <input
-                        type="text"
-                        value={slot.selesai}
-                        onChange={(e) =>
-                          setJadwalCeklis({
-                            ...jadwalCeklis,
-                            [w.key]: {
-                              ...slot,
-                              aktif: true,
-                              selesai: e.target.value,
-                            },
-                          })
-                        }
-                        placeholder="10:00"
-                        className="w-16 bg-[#f4f5f7] border border-slate-200 rounded-md px-2 py-1 text-center font-bold text-base sm:text-xs"
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <button
-        type="button"
-        onClick={async () => {
-          const listAkunTerbaru = sinkronkanKeDaftarAkun(
-            profil,
-            personaProfile,
-            rawWritingSamples,
-            bentukKonten,
-          )
-          setProfil((prev) => ({
-            ...prev,
-            daftarAkunTernak: listAkunTerbaru,
-          }))
-          await simpanPersonaKeSupabase(personaProfile)
-          setActiveMenu("produksi")
-          showToast("Profil akun disimpan. Silakan mulai membuat skrip.")
-        }}
-        className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-sm py-3.5 rounded-lg hover:opacity-95 transition"
-      >
-        Simpan Profil Akun & Buat Skrip
-      </button>
+      </div>
     </div>
   )
 }

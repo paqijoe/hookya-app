@@ -1,98 +1,163 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { supabase } from "../lib/supabase"
-import { FlatIcon } from "./SharedUI"
+import { FlatIcon, HookyaLogo, hitungKuotaAkunDariPaket } from "./SharedUI"
 
-function hitungSisaHariUser(expiredAtStr) {
+function hitungSisaHari(expiredAtStr) {
   if (!expiredAtStr) return 30
-  const target = new Date(expiredAtStr).getTime()
-  const sekarang = Date.now()
-  const selisih = Math.ceil((target - sekarang) / (1000 * 60 * 60 * 24))
+  const selisih = Math.ceil(
+    (new Date(expiredAtStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  )
   return Math.max(0, selisih)
-}
-
-function formatNomorWA(nomor) {
-  const bersih = (nomor || "").replace(/\D/g, "")
-  if (!bersih) return ""
-  if (bersih.startsWith("08")) return "62" + bersih.slice(1)
-  if (bersih.startsWith("8")) return "62" + bersih
-  return bersih
 }
 
 export default function DeveloperDashboardView({
   onSwitchToUserView,
-  semuaUserDB,
-  daftarTransaksi,
-  koleksiSkripTersimpan,
+  semuaUserDB = [],
+  daftarTransaksi = [],
   pengaturanPayment,
   setPengaturanPayment,
   pinAdminResmi,
   setPinAdminResmi,
-  daftarVoucher,
+  daftarVoucher = [],
   setDaftarVoucher,
-  customPrompts,
-  setCustomPrompts,
   updateKoinDatabase,
   handleApproveTransaksiAdmin,
   simpanPengaturanDevKeDB,
   muatUlangDataSupabase,
   showToast,
 }) {
-  const [devTab, setDevTab] = useState("transaksi")
-  const [daftarErrorLog, setDaftarErrorLog] = useState([])
-  const [daftarUsulan, setDaftarUsulan] = useState([])
-  const [balasanInput, setBalasanInput] = useState({})
-  const [previewBuktiImg, setPreviewBuktiImg] = useState(null)
-  const [sedangSimpanConfig, setSedangSimpanConfig] = useState(false)
+  const [activeNav, setActiveNav] = useState("telemetri")
+  const [searchTokenUser, setSearchTokenUser] = useState("")
+  const [searchDbUser, setSearchDbUser] = useState("")
+  const [filterUserTab, setFilterUserTab] = useState("all")
+  const [zoomBuktiUrl, setZoomBuktiUrl] = useState(null)
+  const [showPassMap, setShowPassMap] = useState({})
+  const [kodeVoucherBaru, setKodeVoucherBaru] = useState("")
+  const [koinVoucherBaru, setKoinVoucherBaru] = useState(20)
 
-  const [filterUserMode, setFilterUserMode] = useState("semua")
-  const [cariUserQuery, setCariUserQuery] = useState("")
-  const [filterTrxMode, setFilterTrxMode] = useState("semua")
+  const telemetriAgregat = useMemo(() => {
+    const trxLunas = daftarTransaksi.filter((t) => t.status === "lunas")
+    const trxPending = daftarTransaksi.filter((t) => t.status === "pending")
 
-  const [voucherBaru, setVoucherBaru] = useState({
-    kode: "",
-    koin: "20",
-    kuota: "25",
-  })
+    const totalUangMasuk = trxLunas.reduce(
+      (acc, t) =>
+        acc + (Number(t.nominal_bayar) || Number(t.nominal_asli) || 0),
+      0,
+    )
 
-  const [editingUserId, setEditingUserId] = useState(null)
-  const [editUserForm, setEditUserForm] = useState({
-    email: "",
-    password: "",
-  })
+    let totalPromptTokens = 0
+    let totalCompletionTokens = 0
+    let totalBiayaApi = 0
+    const semuaLogAktivitas = []
 
-  const muatErrorDanUsulan = async () => {
-    try {
-      const { data: errRows } = await supabase
-        .from("error_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50)
-      if (errRows) setDaftarErrorLog(errRows)
+    const peringkatUser = semuaUserDB.map((u) => {
+      const tel = u.profil_dna?.telemetry || {}
+      const inTok = Number(tel.promptTokens) || 0
+      const outTok = Number(tel.completionTokens) || 0
+      const totTok = Number(tel.totalTokens) || inTok + outTok
+      const biayaRp =
+        Number(tel.totalCostRp) || Math.round((totTok / 1000) * 47.9)
+      const reqCount = Number(tel.totalRequests) || 0
+      const regenCount = Number(tel.regenRequests) || 0
 
-      const { data: fbRows } = await supabase
-        .from("feedbacks")
-        .select("*")
-        .order("created_at", { ascending: false })
-      if (fbRows) setDaftarUsulan(fbRows)
-    } catch {
-      // Abaikan
+      totalPromptTokens += inTok
+      totalCompletionTokens += outTok
+      totalBiayaApi += biayaRp
+
+      if (Array.isArray(tel.recentLogs)) {
+        tel.recentLogs.forEach((lg) => {
+          semuaLogAktivitas.push({
+            ...lg,
+            username: u.username || u.nama || "user",
+          })
+        })
+      }
+
+      const trxUserLunas = trxLunas
+        .filter((t) => t.user_id === u.id)
+        .reduce(
+          (s, t) =>
+            s + (Number(t.nominal_bayar) || Number(t.nominal_asli) || 0),
+          0,
+        )
+
+      const nilaiPaketDasar = trxUserLunas || (u.is_premium ? 25000 : 10000)
+      const marginPersen =
+        nilaiPaketDasar > 0
+          ? Math.round(((nilaiPaketDasar - biayaRp) / nilaiPaketDasar) * 100)
+          : 75
+
+      const paketLabel =
+        u.profil_dna?.paketAktif ||
+        (u.is_premium ? "Paket 25K VIP" : "Paket 10K")
+      const kuotaSlot = hitungKuotaAkunDariPaket(
+        paketLabel,
+        nilaiPaketDasar,
+        u.role === "admin",
+      )
+
+      return {
+        ...u,
+        paketLabel,
+        kuotaSlot,
+        reqCount,
+        inTok,
+        outTok,
+        totTok,
+        biayaRp,
+        regenCount,
+        marginPersen: Math.max(-20, Math.min(99, marginPersen)),
+        sisaHari: hitungSisaHari(u.expired_at || u.profil_dna?.expired_at),
+      }
+    })
+
+    peringkatUser.sort((a, b) => b.totTok - a.totTok)
+    semuaLogAktivitas.sort(
+      (a, b) =>
+        new Date(b.timestamp || 0).getTime() -
+        new Date(a.timestamp || 0).getTime(),
+    )
+
+    const labaBersih = totalUangMasuk - totalBiayaApi
+    const marginTotal =
+      totalUangMasuk > 0
+        ? ((labaBersih / totalUangMasuk) * 100).toFixed(1)
+        : "85.0"
+
+    const akunH3Hangus = peringkatUser.filter(
+      (u) => u.sisaHari > 0 && u.sisaHari <= 3,
+    )
+    const akunSudahHangus = peringkatUser.filter((u) => u.sisaHari === 0)
+    const akunVIP = peringkatUser.filter((u) => u.is_premium)
+
+    return {
+      totalUangMasuk,
+      jumlahTrxLunas: trxLunas.length,
+      trxPending,
+      totalPromptTokens,
+      totalCompletionTokens,
+      totalTokensGabungan: totalPromptTokens + totalCompletionTokens,
+      totalBiayaApi,
+      labaBersih,
+      marginTotal,
+      peringkatUser,
+      akunH3Hangus,
+      akunSudahHangus,
+      akunVIP,
+      semuaLogAktivitas: semuaLogAktivitas.slice(0, 15),
     }
-  }
+  }, [semuaUserDB, daftarTransaksi])
 
-  useEffect(() => {
-    muatErrorDanUsulan()
-  }, [])
-
-  const handleUploadGambarQRISAdmin = (e) => {
+  const handleUploadQRISAdmin = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
       const img = new Image()
-      img.onload = async () => {
+      img.onload = () => {
         const canvas = document.createElement("canvas")
-        const maxDim = 650
+        const maxDim = 600
         let w = img.width
         let h = img.height
         if (w > maxDim || h > maxDim) {
@@ -108,1147 +173,1066 @@ export default function DeveloperDashboardView({
         canvas.height = h
         const ctx = canvas.getContext("2d")
         ctx.drawImage(img, 0, 0, w, h)
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.82)
-
-        const paymentTerbaru = {
-          ...pengaturanPayment,
-          qrisImageUrl: dataUrl,
-        }
-        setPengaturanPayment(paymentTerbaru)
-        await simpanPengaturanDevKeDB(paymentTerbaru)
+        const dataUrl = canvas.toDataURL("image/png", 0.9)
+        const updated = { ...pengaturanPayment, qrisImageUrl: dataUrl }
+        setPengaturanPayment(updated)
+        simpanPengaturanDevKeDB(updated)
       }
       img.src = ev.target.result
     }
     reader.readAsDataURL(file)
   }
 
-  const handleBersihkanErrorLogs = async () => {
-    try {
-      await supabase
-        .from("error_logs")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000")
-      setDaftarErrorLog([])
-      showToast("Seluruh notifikasi error telah dibersihkan.")
-    } catch {
-      setDaftarErrorLog([])
-    }
+  const handleTolakTransaksi = async (trx) => {
+    await supabase
+      .from("transactions")
+      .update({ status: "ditolak" })
+      .eq("id", trx.id)
+    if (muatUlangDataSupabase) await muatUlangDataSupabase()
+    showToast(`Invoice #${trx.invoice_id} ditolak.`)
   }
 
-  const handleTanggapiUsulan = async (fb, statusBaru) => {
-    const teksBalasan = balasanInput[fb.id] ?? fb.balasan_dev ?? ""
-    try {
-      await supabase
-        .from("feedbacks")
-        .update({ status: statusBaru, balasan_dev: teksBalasan })
-        .eq("id", fb.id)
-
-      setDaftarUsulan((prev) =>
-        prev.map((item) =>
-          item.id === fb.id
-            ? { ...item, status: statusBaru, balasan_dev: teksBalasan }
-            : item,
-        ),
-      )
-      showToast("Status usulan berhasil diperbarui.")
-    } catch (err) {
-      showToast("Gagal memperbarui usulan: " + err.message)
-    }
-  }
-
-  const handleSimpanEmailPasswordUser = async (uId) => {
-    try {
-      const updatePayload = {}
-      if (editUserForm.email.trim()) {
-        updatePayload.email = editUserForm.email.trim().toLowerCase()
-      }
-      if (editUserForm.password.trim()) {
-        updatePayload.password_hash = editUserForm.password.trim()
-      }
-      await supabase.from("users").update(updatePayload).eq("id", uId)
-      setEditingUserId(null)
-      await muatUlangDataSupabase()
-      showToast("Email dan Password akun berhasil diperbarui.")
-    } catch (err) {
-      showToast("Gagal memperbarui akun: " + err.message)
-    }
-  }
-
-  const kirimWAPengingatHangus = (u, sisaHari) => {
-    const noWA = formatNomorWA(u.whatsapp || u.profil_dna?.whatsapp)
-    if (!noWA) {
-      alert("Pengguna ini belum mencantumkan nomor WhatsApp.")
-      return
-    }
-    const pesan =
-      sisaHari > 0
-        ? `Halo Kak *${u.nama}*.\n\nKami dari *Hookya.site* menginformasikan bahwa masa aktif paket kamu tersisa *${sisaHari} hari lagi*.\n\nSaat ini kamu masih memiliki sisa *${u.koin || 0} Koin*. Silakan perpanjang paket mulai Rp5.000 sebelum masa aktif berakhir agar sisa *${u.koin || 0} Koin* kamu tidak hangus dan masa aktifnya langsung ditambah 30 hari.\n\nAkses di sini: https://hookya.site`
-        : `Halo Kak *${u.nama}*.\n\nMasa aktif paket *Hookya.site* kamu saat ini sudah berakhir. Silakan aktifkan kembali paket koinmu di https://hookya.site`
-
-    window.open(
-      `https://wa.me/${noWA}?text=${encodeURIComponent(pesan)}`,
-      "_blank",
-    )
-  }
-
-  const handleToggleVIPUser = async (u) => {
-    const statusBaru = !Boolean(u.is_premium || u.profil_dna?.is_premium)
-    try {
-      await supabase
-        .from("users")
-        .update({
-          is_premium: statusBaru,
-          profil_dna: { ...(u.profil_dna || {}), is_premium: statusBaru },
-        })
-        .eq("id", u.id)
-      await muatUlangDataSupabase()
-      showToast(
-        `Status akun ${u.nama} diubah menjadi ${
-          statusBaru ? "Member VIP (>= 20rb)" : "Member Standar"
-        }.`,
-      )
-    } catch (err) {
-      showToast("Gagal mengubah status VIP: " + err.message)
-    }
-  }
-
-  const handleTambah30HariUser = async (u) => {
-    const sisaHari = hitungSisaHariUser(
-      u.expired_at || u.profil_dna?.expired_at,
-    )
-    const totalHariBaru = sisaHari + 30
-    const tglBaru = new Date(
+  const handlePerpanjang30HariUser = async (u) => {
+    const sisaLama = hitungSisaHari(u.expired_at || u.profil_dna?.expired_at)
+    const totalHariBaru = sisaLama + 30
+    const expBaru = new Date(
       Date.now() + totalHariBaru * 24 * 60 * 60 * 1000,
     ).toISOString()
 
-    try {
-      await supabase
-        .from("users")
-        .update({
-          expired_at: tglBaru,
-          profil_dna: { ...(u.profil_dna || {}), expired_at: tglBaru },
-        })
-        .eq("id", u.id)
-      await muatUlangDataSupabase()
-      showToast(
-        `Masa aktif ${u.nama} diakumulasikan menjadi ${totalHariBaru} hari.`,
-      )
-    } catch (err) {
-      showToast("Gagal menambah masa aktif: " + err.message)
-    }
+    await supabase
+      .from("users")
+      .update({
+        expired_at: expBaru,
+        profil_dna: {
+          ...(u.profil_dna || {}),
+          expired_at: expBaru,
+        },
+      })
+      .eq("id", u.id)
+
+    if (muatUlangDataSupabase) await muatUlangDataSupabase()
+    showToast(`Masa aktif ${u.nama} ditambah +30 hari.`)
   }
 
-  const totalOmzetLunas = daftarTransaksi
-    .filter((t) => t.status === "lunas")
-    .reduce((acc, cur) => acc + (parseInt(cur.nominal_bayar) || 0), 0)
+  const handleExportCSV = () => {
+    const header =
+      "Nama,Username,Email,WhatsApp,Paket,SisaKoin,SisaHari,TotalToken,BiayaAPI\n"
+    const rows = telemetriAgregat.peringkatUser
+      .map(
+        (u) =>
+          `"${u.nama || ""}","${u.username || ""}","${u.email || ""}","${
+            u.whatsapp || u.profil_dna?.whatsapp || ""
+          }","${u.paketLabel}",${u.koin || 0},${u.sisaHari},${u.totTok},${
+            u.biayaRp
+          }`,
+      )
+      .join("\n")
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `hookya_users_${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
-  const jumlahTransaksiPending = daftarTransaksi.filter(
-    (t) => t.status === "pending",
-  ).length
+  const daftarLeaderboardTerfilter = telemetriAgregat.peringkatUser.filter(
+    (u) => {
+      if (!searchTokenUser.trim()) return true
+      const q = searchTokenUser.toLowerCase()
+      return (
+        (u.nama || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.username || "").toLowerCase().includes(q)
+      )
+    },
+  )
 
-  const daftarUserH3Hangus = semuaUserDB.filter((u) => {
-    const sisa = hitungSisaHariUser(u.expired_at || u.profil_dna?.expired_at)
-    return sisa >= 1 && sisa <= 3
-  })
+  const daftarUserDatabaseTerfilter = telemetriAgregat.peringkatUser.filter(
+    (u) => {
+      if (filterUserTab === "h3" && !(u.sisaHari > 0 && u.sisaHari <= 3))
+        return false
+      if (filterUserTab === "expired" && u.sisaHari !== 0) return false
+      if (filterUserTab === "vip" && !u.is_premium) return false
+      if (!searchDbUser.trim()) return true
+      const q = searchDbUser.toLowerCase()
+      return (
+        (u.nama || "").toLowerCase().includes(q) ||
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.whatsapp || u.profil_dna?.whatsapp || "").toLowerCase().includes(q)
+      )
+    },
+  )
 
-  const daftarUserTerfilter = semuaUserDB.filter((u) => {
-    const sisa = hitungSisaHariUser(u.expired_at || u.profil_dna?.expired_at)
-    const isVIP = Boolean(u.is_premium || u.profil_dna?.is_premium)
-
-    if (filterUserMode === "h3_hangus" && !(sisa >= 1 && sisa <= 3))
-      return false
-    if (filterUserMode === "sudah_hangus" && sisa > 0) return false
-    if (filterUserMode === "vip" && !isVIP) return false
-
-    if (cariUserQuery.trim()) {
-      const q = cariUserQuery.toLowerCase()
-      const cocokNama = u.nama?.toLowerCase().includes(q)
-      const cocokEmail = (u.email || u.profil_dna?.kontak || "")
-        .toLowerCase()
-        .includes(q)
-      const cocokWA = (u.whatsapp || u.profil_dna?.whatsapp || "").includes(q)
-      return cocokNama || cocokEmail || cocokWA
-    }
-    return true
-  })
-
-  const daftarTransaksiTerfilter = daftarTransaksi.filter((t) => {
-    if (filterTrxMode === "pending") return t.status === "pending"
-    if (filterTrxMode === "lunas") return t.status === "lunas"
-    return true
-  })
+  const formatTokenSingkat = (n) => {
+    const angka = Number(n) || 0
+    if (angka >= 1000000) return `${(angka / 1000000).toFixed(2)}M`
+    if (angka >= 1000) return `${(angka / 1000).toFixed(1)}K`
+    return String(angka)
+  }
 
   return (
-    <div className="min-h-screen bg-[#14141f] text-white flex flex-col font-sans antialiased overflow-x-hidden">
-      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] border-b border-white/10 px-4 sm:px-8 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#d4f34a] flex items-center justify-center text-[#14141f] font-bold text-base shrink-0">
-            H
-          </div>
-          <div>
-            <span className="font-bold text-sm sm:text-base text-white block leading-none">
-              Hookya Developer Console
-            </span>
-            <span className="text-[11px] text-[#d4f34a] hidden sm:inline">
-              Manajemen Pengguna, Verifikasi Bukti QRIS & Monitor Sistem
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {daftarErrorLog.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setDevTab("error_logs")}
-              className="cursor-pointer bg-rose-600 text-white px-3 py-1.5 rounded-full text-[11px] font-bold animate-pulse"
-            >
-              {daftarErrorLog.length} Notif Error AI
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onSwitchToUserView}
-            className="cursor-pointer flex items-center gap-2 bg-[#d4f34a] text-[#14141f] px-3.5 py-2 rounded-full text-xs font-bold shadow-md hover:opacity-95 transition shrink-0"
-          >
-            <FlatIcon name="user" className="w-4 h-4" />
-            <span>Ke Dashboard User</span>
-          </button>
-        </div>
-      </header>
-
-      <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 pt-20 sm:pt-24 space-y-6">
-        {daftarErrorLog.length > 0 && devTab !== "error_logs" && (
-          <div className="bg-rose-500/20 border border-rose-400/40 text-white p-4 rounded-3xl flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div>
-              <strong className="text-rose-300 block">
-                Notifikasi Admin: Terdapat {daftarErrorLog.length} Laporan
-                Kendala AI dari Pengguna
-              </strong>
-              <span>
-                Kendala terbaru pada fitur{" "}
-                <strong>{daftarErrorLog[0]?.fitur}</strong> oleh{" "}
-                <strong>{daftarErrorLog[0]?.nama_user}</strong>:{" "}
-                <em className="text-rose-200">
-                  "{daftarErrorLog[0]?.pesan_error}"
-                </em>
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDevTab("error_logs")}
-              className="cursor-pointer bg-white text-[#14141f] font-bold px-3.5 py-2 rounded-xl shrink-0"
-            >
-              Buka Log Error
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2 bg-white/5 p-2 rounded-2xl border border-white/10">
-          {[
-            {
-              id: "transaksi",
-              label: `ACC Pembayaran & QRIS (${jumlahTransaksiPending} Pending)`,
-            },
-            {
-              id: "users",
-              label: `Kelola User & H-3 Hangus (${daftarUserH3Hangus.length})`,
-            },
-            { id: "overview", label: "Ringkasan & PIN Dev" },
-            {
-              id: "error_logs",
-              label: `Notifikasi Error AI (${daftarErrorLog.length})`,
-            },
-            {
-              id: "usulan",
-              label: `Usulan & Komplain (${daftarUsulan.length})`,
-            },
-            { id: "voucher", label: "Generator Voucher" },
-            { id: "prompt", label: "Studio Prompt AI" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setDevTab(t.id)}
-              className={`cursor-pointer px-3.5 py-2 rounded-xl text-xs font-bold transition ${
-                devTab === t.id
-                  ? "bg-[#d4f34a] text-[#14141f]"
-                  : "text-slate-300 hover:bg-white/10"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="bg-white text-[#14141f] rounded-4xl p-5 sm:p-8 shadow-xl space-y-6">
-          {/* TAB 1: PENGATURAN QRIS STATIS + WA ADMIN & ACC PEMBAYARAN */}
-          {devTab === "transaksi" && (
-            <div className="space-y-6">
-              <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold">
-                    Pengaturan QRIS Statis & Nomor WhatsApp Admin
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Gambar QRIS dan Nomor WA Admin di bawah ini tampil di
-                    halaman Pendaftaran Akun Baru maupun Top-Up Koin.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPengaturanPayment({
-                        ...pengaturanPayment,
-                        modePembayaranAktif: "qris_manual",
-                        modeVerifikasi: "manual_admin",
-                      })
-                    }
-                    className={`cursor-pointer p-4 rounded-2xl border text-left transition ${
-                      (pengaturanPayment.modePembayaranAktif ||
-                        "qris_manual") === "qris_manual"
-                        ? "bg-[#d4f34a] text-[#14141f] border-[#14141f]"
-                        : "bg-white text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      Skema 2 (Aktif): QRIS Statis Manual + Upload Bukti + ACC
-                      WA Admin
-                    </div>
-                    <p className="text-[11px] mt-0.5 opacity-85">
-                      User scan QRIS statis, upload bukti transfer, kirim WA ke
-                      Admin, lalu Admin klik ACC untuk mengirim WA berisi
-                      Username, Password & Koin.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPengaturanPayment({
-                        ...pengaturanPayment,
-                        modePembayaranAktif: "duitku_gateway",
-                      })
-                    }
-                    className={`cursor-pointer p-4 rounded-2xl border text-left transition ${
-                      pengaturanPayment.modePembayaranAktif === "duitku_gateway"
-                        ? "bg-[#d4f34a] text-[#14141f] border-[#14141f]"
-                        : "bg-white text-slate-700 border-slate-200"
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold">
-                      Skema 1: Payment Gateway Otomatis (Duitku)
-                    </div>
-                    <p className="text-[11px] mt-0.5 opacity-85">
-                      Aktifkan skema ini ketika akun Payment Gateway Duitku
-                      sudah disetujui.
-                    </p>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-3 border-t border-slate-200 items-center">
-                  <div className="sm:col-span-8 space-y-3">
-                    <div>
-                      <label className="block text-xs font-bold mb-1">
-                        Nomor WhatsApp Admin (Penerima Konfirmasi Pendaftaran &
-                        Top-Up):
-                      </label>
-                      <input
-                        type="tel"
-                        value={pengaturanPayment.noWaAdmin || ""}
-                        onChange={(e) =>
-                          setPengaturanPayment({
-                            ...pengaturanPayment,
-                            noWaAdmin: e.target.value.replace(/\D/g, ""),
-                          })
-                        }
-                        placeholder="Contoh: 081234567890 atau 6281234567890"
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs font-bold outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold mb-1">
-                        Keterangan Nama Merchant / Rekening di Bawah QRIS:
-                      </label>
-                      <input
-                        type="text"
-                        value={pengaturanPayment.infoRekening || ""}
-                        onChange={(e) =>
-                          setPengaturanPayment({
-                            ...pengaturanPayment,
-                            infoRekening: e.target.value,
-                          })
-                        }
-                        placeholder="Contoh: QRIS Resmi Hookya a.n Faqih"
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-xs outline-none"
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <label className="cursor-pointer bg-[#14141f] text-[#d4f34a] rounded-xl px-4 py-2.5 text-xs font-bold inline-flex items-center gap-2">
-                        <FlatIcon name="upload" className="w-4 h-4" />
-                        <span>Upload / Ganti Gambar QRIS Statis</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleUploadGambarQRISAdmin}
-                          className="hidden"
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        disabled={sedangSimpanConfig}
-                        onClick={async () => {
-                          setSedangSimpanConfig(true)
-                          await simpanPengaturanDevKeDB(pengaturanPayment)
-                          setSedangSimpanConfig(false)
-                        }}
-                        className="cursor-pointer bg-[#f2fce2] text-[#4d6b14] border border-[#4d6b14]/30 rounded-xl px-4 py-2.5 text-xs font-bold"
-                      >
-                        {sedangSimpanConfig
-                          ? "Menyimpan..."
-                          : "Simpan Nomor WA & QRIS Sekarang"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-4 bg-white p-3.5 rounded-2xl border border-slate-200 text-center space-y-1.5">
-                    <span className="text-[10px] font-bold text-slate-500 block">
-                      PRATINJAU QRIS TERSIMPAN:
-                    </span>
-                    {pengaturanPayment.qrisImageUrl ? (
-                      <img
-                        src={pengaturanPayment.qrisImageUrl}
-                        alt="Pratinjau QRIS"
-                        className="w-36 h-36 mx-auto object-contain rounded-xl border border-slate-200 p-1"
-                      />
-                    ) : (
-                      <div className="w-36 h-36 mx-auto rounded-xl bg-[#f4f5f7] flex flex-col items-center justify-center text-[11px] text-slate-400 p-2">
-                        <FlatIcon name="qr" className="w-10 h-10 mb-1" />
-                        <span>Belum ada gambar QRIS</span>
-                      </div>
-                    )}
-                    <span className="text-[10px] font-bold text-[#4d6b14] block">
-                      WA Admin: {pengaturanPayment.noWaAdmin || "Belum diisi"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* DAFTAR TRANSAKSI */}
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      {
-                        id: "semua",
-                        label: `Semua Transaksi (${daftarTransaksi.length})`,
-                      },
-                      {
-                        id: "pending",
-                        label: `Menunggu ACC (${jumlahTransaksiPending})`,
-                      },
-                      { id: "lunas", label: "Sudah Di-ACC (Lunas)" },
-                    ].map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setFilterTrxMode(f.id)}
-                        className={`cursor-pointer px-3.5 py-2 rounded-xl text-xs font-bold ${
-                          filterTrxMode === f.id
-                            ? "bg-[#14141f] text-[#d4f34a]"
-                            : "bg-[#f4f5f7] text-slate-600"
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => muatUlangDataSupabase()}
-                    className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
-                  >
-                    Refresh Bukti Masuk
-                  </button>
-                </div>
-
-                {daftarTransaksiTerfilter.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-8 text-center">
-                    Belum ada transaksi pada filter ini.
-                  </p>
-                ) : (
-                  daftarTransaksiTerfilter.map((trx) => {
-                    let infoReg = null
-                    try {
-                      if (trx.catatan_user) {
-                        infoReg = JSON.parse(trx.catatan_user)
-                      }
-                    } catch {
-                      infoReg = null
-                    }
-
-                    return (
-                      <div
-                        key={trx.id}
-                        className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs"
-                      >
-                        <div className="flex items-center gap-3.5">
-                          {trx.bukti_bayar ? (
-                            <img
-                              src={trx.bukti_bayar}
-                              alt="Bukti Transfer"
-                              onClick={() =>
-                                setPreviewBuktiImg(trx.bukti_bayar)
-                              }
-                              className="cursor-pointer w-16 h-16 rounded-xl object-cover border-2 border-[#14141f] shrink-0 hover:scale-105 transition"
-                              title="Klik untuk memperbesar foto bukti transfer"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 text-center p-1 shrink-0">
-                              Tanpa Foto
-                            </div>
-                          )}
-
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <strong className="font-bold text-sm">
-                                {trx.invoice_id} • {trx.nama_user} (
-                                {trx.nama_paket} +{trx.jumlah_koin} Koin)
-                              </strong>
-                              {infoReg?.tipe === "PENDAFTARAN_BARU" && (
-                                <span className="bg-[#14141f] text-[#d4f34a] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                  PENDAFTARAN BARU
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="text-slate-600">
-                              Nominal Transfer:{" "}
-                              <strong className="text-[#14141f]">
-                                Rp
-                                {Number(trx.nominal_bayar).toLocaleString(
-                                  "id-ID",
-                                )}
-                              </strong>{" "}
-                              • {trx.metode_bayar}
-                            </div>
-
-                            {infoReg && (
-                              <div className="text-[11px] text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 inline-block">
-                                Username: <strong>{infoReg.username}</strong> •
-                                Pass: <strong>{infoReg.password}</strong> • WA:{" "}
-                                <strong>{infoReg.whatsapp}</strong>
-                              </div>
-                            )}
-
-                            {trx.bukti_bayar && (
-                              <div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setPreviewBuktiImg(trx.bukti_bayar)
-                                  }
-                                  className="cursor-pointer text-[11px] font-bold text-[#5b4bc4] underline"
-                                >
-                                  Lihat Foto Bukti Pembayaran Ukuran Penuh
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {trx.status === "pending" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleApproveTransaksiAdmin(trx)}
-                              className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-xl shadow-xs"
-                            >
-                              ACC Pembayaran & Kirim Info Login ke WA User
-                            </button>
-                          ) : (
-                            <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3.5 py-1.5 rounded-full">
-                              Sudah Di-ACC (Lunas)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: KELOLA USER & FILTER H-3 HANGUS */}
-          {devTab === "users" && (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Database Pengguna & Filter Sisa Masa Aktif
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Filter pengguna yang masa aktifnya tersisa 1 sampai 3 hari
-                    lalu klik tombol WA untuk mengirim pesan pengingat
-                    perpanjangan paket.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => muatUlangDataSupabase()}
-                  className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
-                >
-                  Refresh Data User
-                </button>
-              </div>
-
-              <div className="bg-[#f4f5f7] p-3.5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    {
-                      id: "semua",
-                      label: `Semua User (${semuaUserDB.length})`,
-                    },
-                    {
-                      id: "h3_hangus",
-                      label: `H-3 Koin Hangus (${daftarUserH3Hangus.length})`,
-                    },
-                    { id: "sudah_hangus", label: "Sudah Hangus (0 Hari)" },
-                    { id: "vip", label: "Member VIP (>= 20rb)" },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setFilterUserMode(f.id)}
-                      className={`cursor-pointer px-3 py-2 rounded-xl text-xs font-bold transition ${
-                        filterUserMode === f.id
-                          ? "bg-[#14141f] text-[#d4f34a]"
-                          : "bg-white text-slate-600 border border-slate-200"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  type="text"
-                  value={cariUserQuery}
-                  onChange={(e) => setCariUserQuery(e.target.value)}
-                  placeholder="Cari nama, Gmail, atau No WA..."
-                  className="bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-base sm:text-xs outline-none sm:w-64"
-                />
-              </div>
-
-              {daftarUserTerfilter.map((u) => {
-                const emailSaatIni =
-                  u.email || u.profil_dna?.kontak || "Belum diatur"
-                const passwordSaatIni =
-                  u.password_hash || u.profil_dna?.pin || "12345678"
-                const sisaHari = hitungSisaHariUser(
-                  u.expired_at || u.profil_dna?.expired_at,
-                )
-                const isVIP = Boolean(
-                  u.is_premium ||
-                  u.profil_dna?.is_premium ||
-                  u.role === "admin",
-                )
-
-                return (
-                  <div
-                    key={u.id}
-                    className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 space-y-3 text-xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-sm text-[#14141f]">
-                            {u.nama} (@
-                            {u.username ||
-                              u.profil_dna?.username ||
-                              u.nama?.toLowerCase()}
-                            )
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isVIP
-                                ? "bg-[#14141f] text-[#d4f34a]"
-                                : "bg-slate-200 text-slate-700"
-                            }`}
-                          >
-                            {isVIP ? "VIP (Fitur Lengkap)" : "Standar (< 20rb)"}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                              sisaHari === 0
-                                ? "bg-rose-100 text-rose-700"
-                                : sisaHari <= 3
-                                  ? "bg-amber-200 text-[#14141f]"
-                                  : "bg-[#f2fce2] text-[#4d6b14]"
-                            }`}
-                          >
-                            {sisaHari === 0
-                              ? "Paket Hangus (0 Hari)"
-                              : `Aktif ${sisaHari} Hari Lagi`}
-                          </span>
-                        </div>
-
-                        <div className="text-slate-600">
-                          Gmail: <strong>{emailSaatIni}</strong> • Password:{" "}
-                          <strong>{passwordSaatIni}</strong> • WA:{" "}
-                          <strong>
-                            {u.whatsapp || u.profil_dna?.whatsapp || "-"}
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => kirimWAPengingatHangus(u, sisaHari)}
-                          className="cursor-pointer bg-[#f2fce2] hover:bg-[#d4f34a] text-[#14141f] border border-[#4d6b14]/30 font-bold px-3 py-1.5 rounded-xl"
-                        >
-                          WA Pengingat
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleVIPUser(u)}
-                          className="cursor-pointer bg-white border border-slate-300 font-bold px-2.5 py-1.5 rounded-xl"
-                        >
-                          {isVIP ? "Cabut VIP" : "Jadikan VIP"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleTambah30HariUser(u)}
-                          className="cursor-pointer bg-white border border-slate-300 font-bold px-2.5 py-1.5 rounded-xl"
-                        >
-                          +30 Hari
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingUserId(
-                              editingUserId === u.id ? null : u.id,
-                            )
-                            setEditUserForm({
-                              email: u.email || u.profil_dna?.kontak || "",
-                              password:
-                                u.password_hash || u.profil_dna?.pin || "",
-                            })
-                          }}
-                          className="cursor-pointer bg-white border border-slate-300 font-bold px-2.5 py-1.5 rounded-xl"
-                        >
-                          Edit Akun
-                        </button>
-
-                        <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl font-bold">
-                          {u.koin} Koin
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateKoinDatabase((u.koin || 0) + 20, u.id)
-                          }
-                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-xl"
-                        >
-                          +20 Koin
-                        </button>
-                      </div>
-                    </div>
-
-                    {editingUserId === u.id && (
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <input
-                          type="email"
-                          value={editUserForm.email}
-                          onChange={(e) =>
-                            setEditUserForm({
-                              ...editUserForm,
-                              email: e.target.value,
-                            })
-                          }
-                          placeholder="Email Gmail baru..."
-                          className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={editUserForm.password}
-                          onChange={(e) =>
-                            setEditUserForm({
-                              ...editUserForm,
-                              password: e.target.value,
-                            })
-                          }
-                          placeholder="Password baru (min 8 karakter)..."
-                          className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSimpanEmailPasswordUser(u.id)}
-                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold py-2 rounded-xl"
-                        >
-                          Simpan Perubahan
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* TAB 3: RINGKASAN & PIN DEVELOPER */}
-          {devTab === "overview" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-bold">
-                Ringkasan Operasional & Keamanan PIN Developer
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-[#14141f] text-white">
-                  <span className="text-xs text-slate-300">
-                    Total Omzet Lunas
-                  </span>
-                  <div className="text-2xl font-bold text-[#d4f34a] mt-1">
-                    Rp{totalOmzetLunas.toLocaleString("id-ID")}
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#fff0e6] border border-[#d97736]/30">
-                  <span className="text-xs font-bold text-[#d97736]">
-                    User H-3 Koin Hangus
-                  </span>
-                  <div className="text-2xl font-bold text-[#14141f] mt-1">
-                    {daftarUserH3Hangus.length} User
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#f4f5f7] border border-slate-200">
-                  <span className="text-xs text-slate-500">
-                    Total Skrip Tersimpan
-                  </span>
-                  <div className="text-2xl font-bold mt-1">
-                    {koleksiSkripTersimpan.length} Skrip
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-[#f2fce2] border border-[#4d6b14]/30 space-y-1.5">
-                  <label className="text-xs font-bold text-[#4d6b14] block">
-                    Ubah PIN Akses Developer:
-                  </label>
-                  <input
-                    type="text"
-                    value={pinAdminResmi}
-                    onChange={(e) => setPinAdminResmi(e.target.value)}
-                    placeholder="Contoh: 123456"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-base sm:text-sm font-bold text-[#14141f] outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: NOTIFIKASI ERROR AI */}
-          {devTab === "error_logs" && (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Log Kendala Sistem AI & Pengembalian Koin
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Rincian error teknis dicatat di halaman ini untuk pengecekan
-                    Admin.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={muatErrorDanUsulan}
-                    className="cursor-pointer bg-[#f4f5f7] px-3.5 py-2 rounded-xl text-xs font-bold"
-                  >
-                    Refresh Log
-                  </button>
-                  {daftarErrorLog.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleBersihkanErrorLogs}
-                      className="cursor-pointer bg-rose-100 text-rose-700 px-3.5 py-2 rounded-xl text-xs font-bold"
-                    >
-                      Bersihkan Semua Log
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {daftarErrorLog.length === 0 ? (
-                <p className="text-xs text-slate-500 py-8 text-center">
-                  Tidak ada laporan error sistem saat ini.
-                </p>
-              ) : (
-                daftarErrorLog.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="space-y-1 max-w-2xl">
-                      <div className="font-bold">
-                        User: {log.nama_user} • Fitur: {log.fitur}
-                      </div>
-                      <p className="text-rose-700 font-mono text-[11px]">
-                        Detail Teknis: {log.pesan_error}
-                      </p>
-                    </div>
-                    <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-3 py-1.5 rounded-xl">
-                      +{log.koin_diganti || 0} Koin Dikembalikan
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* TAB 5: USULAN & KOMPLAIN USER */}
-          {devTab === "usulan" && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold">
-                Kotak Masuk Usulan Pengembangan & Komplain Pengguna
-              </h2>
-              {daftarUsulan.map((fb) => (
-                <div
-                  key={fb.id}
-                  className="p-4 rounded-2xl bg-[#f4f5f7] border border-slate-200 space-y-3 text-xs"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#14141f] text-[#d4f34a] mr-2">
-                        {fb.kategori}
-                      </span>
-                      <strong>{fb.nama_user}</strong> ({fb.email_user || "-"})
-                    </div>
-                    <span className="text-[11px] text-slate-500">
-                      Status: <strong>{fb.status}</strong>
-                    </span>
-                  </div>
-                  <p className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-[#14141f]">
-                    {fb.pesan}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      value={
-                        balasanInput[fb.id] !== undefined
-                          ? balasanInput[fb.id]
-                          : fb.balasan_dev || ""
-                      }
-                      onChange={(e) =>
-                        setBalasanInput({
-                          ...balasanInput,
-                          [fb.id]: e.target.value,
-                        })
-                      }
-                      placeholder="Tulis balasan developer..."
-                      className="flex-1 bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-base sm:text-xs outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleTanggapiUsulan(fb, "ditindaklanjuti")
-                      }
-                      className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2 rounded-xl shrink-0"
-                    >
-                      Simpan Balasan
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* TAB 6: GENERATOR VOUCHER */}
-          {devTab === "voucher" && (
-            <div className="space-y-4">
-              <div className="bg-[#f4f5f7] p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  value={voucherBaru.kode}
-                  onChange={(e) =>
-                    setVoucherBaru({
-                      ...voucherBaru,
-                      kode: e.target.value.toUpperCase(),
-                    })
-                  }
-                  placeholder="Kode Voucher"
-                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs font-bold uppercase"
-                />
-                <input
-                  type="number"
-                  value={voucherBaru.koin}
-                  onChange={(e) =>
-                    setVoucherBaru({ ...voucherBaru, koin: e.target.value })
-                  }
-                  placeholder="Jumlah Koin"
-                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs font-bold"
-                />
-                <input
-                  type="number"
-                  value={voucherBaru.kuota}
-                  onChange={(e) =>
-                    setVoucherBaru({ ...voucherBaru, kuota: e.target.value })
-                  }
-                  placeholder="Kuota"
-                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs font-bold"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!voucherBaru.kode.trim()) return
-                    setDaftarVoucher([
-                      {
-                        kode: voucherBaru.kode.trim().toUpperCase(),
-                        koin: parseInt(voucherBaru.koin) || 20,
-                        kuota: parseInt(voucherBaru.kuota) || 25,
-                        terpakai: 0,
-                      },
-                      ...daftarVoucher,
-                    ])
-                    setVoucherBaru({ kode: "", koin: "20", kuota: "25" })
-                    showToast("Voucher ditambahkan.")
-                  }}
-                  className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
-                >
-                  + Buat Voucher
-                </button>
-              </div>
-
-              {daftarVoucher.map((v, i) => (
-                <div
-                  key={i}
-                  className="p-3.5 rounded-2xl bg-[#f4f5f7] border border-slate-200 flex items-center justify-between text-xs"
-                >
-                  <span>
-                    <strong>{v.kode}</strong> (+{v.koin} Koin • Terpakai{" "}
-                    {v.terpakai}/{v.kuota})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDaftarVoucher(
-                        daftarVoucher.filter((_, idx) => idx !== i),
-                      )
-                    }
-                    className="cursor-pointer text-rose-600 font-bold"
-                  >
-                    Hapus
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* TAB 7: STUDIO PROMPT AI */}
-          {devTab === "prompt" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold mb-1">
-                  1. Instruksi Sistem Analisis Gaya Bicara:
-                </label>
-                <textarea
-                  rows={2}
-                  value={customPrompts.persona_engine}
-                  onChange={(e) =>
-                    setCustomPrompts({
-                      ...customPrompts,
-                      persona_engine: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3 text-base sm:text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">
-                  2. Instruksi Sistem Diskusi Tahap 1-3:
-                </label>
-                <textarea
-                  rows={2}
-                  value={customPrompts.assessment_copilot}
-                  onChange={(e) =>
-                    setCustomPrompts({
-                      ...customPrompts,
-                      assessment_copilot: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3 text-base sm:text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">
-                  3. Instruksi Sistem Penyusun Skrip & UGC:
-                </label>
-                <textarea
-                  rows={2}
-                  value={customPrompts.script_humanizer}
-                  onChange={(e) =>
-                    setCustomPrompts({
-                      ...customPrompts,
-                      script_humanizer: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3 text-base sm:text-xs"
-                />
-              </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={sedangSimpanConfig}
-            onClick={async () => {
-              setSedangSimpanConfig(true)
-              await simpanPengaturanDevKeDB(pengaturanPayment)
-              setSedangSimpanConfig(false)
-            }}
-            className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs py-4 rounded-2xl"
-          >
-            {sedangSimpanConfig
-              ? "Menyimpan ke Database..."
-              : "Simpan Seluruh Pengaturan Manajerial, QRIS Statis & WA Admin ke Database"}
-          </button>
-        </div>
-      </div>
-
-      {previewBuktiImg && (
+    <div className="min-h-screen bg-[#F8F9FB] text-[#191C1E] font-sans antialiased">
+      {zoomBuktiUrl && (
         <div
-          onClick={() => setPreviewBuktiImg(null)}
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setZoomBuktiUrl(null)}
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
         >
-          <div className="bg-white p-4 rounded-3xl max-w-md w-full space-y-3 text-center">
-            <div className="text-xs font-bold text-[#14141f]">
-              Foto Bukti Pembayaran User
-            </div>
+          <div className="bg-white p-3 rounded-2xl max-w-md w-full space-y-2">
             <img
-              src={previewBuktiImg}
-              alt="Bukti Penuh"
-              className="w-full max-h-[70vh] object-contain rounded-2xl border border-slate-200"
+              src={zoomBuktiUrl}
+              alt="Bukti Transfer"
+              className="w-full max-h-[75vh] object-contain rounded-xl"
             />
             <button
               type="button"
-              onClick={() => setPreviewBuktiImg(null)}
-              className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-3 rounded-xl"
+              onClick={() => setZoomBuktiUrl(null)}
+              className="cursor-pointer w-full py-2.5 bg-[#1B1B26] text-[#D1F047] rounded-lg text-xs font-bold"
             >
               Tutup Pratinjau
             </button>
           </div>
         </div>
       )}
+
+      {/* TOP HEADER BAR */}
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-[#E7E8EA] px-4 sm:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <HookyaLogo />
+          <span className="px-2 py-0.5 rounded bg-[#D1F047] text-[#181E00] text-xs font-bold uppercase tracking-wider">
+            Developer Console
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onSwitchToUserView}
+            className="cursor-pointer h-9 px-3.5 rounded-lg bg-[#1B1B26] text-[#D1F047] text-xs font-bold flex items-center gap-1.5"
+          >
+            <FlatIcon name="arrowLeft" className="w-4 h-4" />
+            <span>Ke Aplikasi User</span>
+          </button>
+          <div className="w-8 h-8 rounded-full bg-[#D1F047] text-[#181E00] font-bold text-xs flex items-center justify-center">
+            OP
+          </div>
+        </div>
+      </header>
+
+      {/* LEFT SIDEBAR (DESKTOP) */}
+      <aside className="hidden lg:flex fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-[#E7E8EA] z-30 flex-col justify-between p-4">
+        <div className="space-y-4">
+          <div>
+            <div className="px-2 pb-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Operasional Inti
+            </div>
+            <nav className="flex flex-col gap-1 text-xs font-semibold">
+              {[
+                {
+                  id: "telemetri",
+                  label: "Telemetri Finansial",
+                  href: "#sec-telemetri",
+                },
+                { id: "token", label: "Token Audit", href: "#sec-token" },
+                {
+                  id: "qris",
+                  label: "Verifikasi QRIS",
+                  href: "#sec-verifikasi",
+                },
+                { id: "users", label: "Database User", href: "#sec-users" },
+                {
+                  id: "logs",
+                  label: "System Logs & Voucher",
+                  href: "#sec-logs",
+                },
+              ].map((m) => (
+                <a
+                  key={m.id}
+                  href={m.href}
+                  onClick={() => setActiveNav(m.id)}
+                  className={`px-3 py-2.5 rounded-lg transition flex items-center justify-between ${
+                    activeNav === m.id
+                      ? "bg-[#E7E8EA] text-[#191C1E] font-bold"
+                      : "text-slate-600 hover:bg-[#F3F4F6]"
+                  }`}
+                >
+                  <span>{m.label}</span>
+                </a>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-lg bg-[#EDEFF0] border border-[#E1E2E4] text-[11px] space-y-1">
+          <div className="flex justify-between text-slate-600">
+            <span>Status Mesin AI</span>
+            <strong className="text-[#191C1E]">Online</strong>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Total User</span>
+            <strong className="text-[#191C1E]">
+              {semuaUserDB.length} Akun
+            </strong>
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <div className="lg:pl-60 pt-16">
+        <main className="w-full px-4 sm:px-6 py-6 space-y-8 max-w-7xl mx-auto">
+          {/* Operational Subheader Banner */}
+          <div className="bg-[#1B1B26] text-white p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-lg bg-[#D1F047] text-[#181E00] flex items-center justify-center shrink-0">
+                <FlatIcon name="shield" className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+                    Console Master Pengendali Operasional
+                  </h1>
+                  <span className="px-2 py-0.5 rounded bg-[#D1F047]/20 text-[#D1F047] border border-[#D1F047]/30 text-[10px] font-bold uppercase">
+                    Superadmin Root
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Audit Keuangan, Alokasi Token LLM, Validasi Gerbang QRIS &
+                  Automasi Siklus Pengguna
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => muatUlangDataSupabase && muatUlangDataSupabase()}
+              className="cursor-pointer h-9 px-3.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1.5 transition"
+            >
+              <FlatIcon name="refresh" className="w-4 h-4" />
+              <span>Segarkan Data</span>
+            </button>
+          </div>
+
+          {/* SECTION 1: Financial & Token Telemetry Summary Cards */}
+          <section id="sec-telemetri" className="space-y-3">
+            <div>
+              <h2 className="text-lg font-bold text-[#191C1E]">
+                Telemetri Finansial & Konsumsi Token
+              </h2>
+              <p className="text-xs text-slate-500">
+                Ikhtisar likuiditas kas operasional, beban komputasi AI, dan
+                margin keuntungan bersih berjalan
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Total Uang Masuk */}
+              <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-slate-500 uppercase font-bold">
+                    Total Uang Masuk (Lunas)
+                  </span>
+                  <span className="w-8 h-8 rounded-lg bg-[#D1F047]/40 text-[#181E00] flex items-center justify-center">
+                    <FlatIcon name="coin" className="w-4 h-4" />
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#191C1E]">
+                    Rp {telemetriAgregat.totalUangMasuk.toLocaleString("id-ID")}
+                  </div>
+                </div>
+                <div className="mt-4 pt-2.5 border-t border-[#EDEFF0] text-[11px] text-slate-500">
+                  Dari{" "}
+                  <strong className="text-[#191C1E]">
+                    {telemetriAgregat.jumlahTrxLunas} transaksi
+                  </strong>{" "}
+                  pendaftaran & top-up koin
+                </div>
+              </div>
+
+              {/* Card 2: Total Pengeluaran Token API */}
+              <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-slate-500 uppercase font-bold">
+                    Total Pengeluaran Token API
+                  </span>
+                  <span className="w-8 h-8 rounded-lg bg-[#EDEFF0] text-slate-700 flex items-center justify-center">
+                    <FlatIcon name="code" className="w-4 h-4" />
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#191C1E]">
+                    Rp {telemetriAgregat.totalBiayaApi.toLocaleString("id-ID")}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    <strong className="font-mono text-[#191C1E]">
+                      {formatTokenSingkat(telemetriAgregat.totalTokensGabungan)}
+                    </strong>{" "}
+                    total prompt + completion
+                  </div>
+                </div>
+                <div className="mt-4 pt-2.5 border-t border-[#EDEFF0] text-[11px] text-slate-500">
+                  Rata-rata <strong className="text-[#191C1E]">Rp 47,9</strong>{" "}
+                  per 1K token model gabungan
+                </div>
+              </div>
+
+              {/* Card 3: Estimasi Laba Bersih & Margin */}
+              <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-slate-500 uppercase font-bold">
+                    Estimasi Laba Bersih & Margin
+                  </span>
+                  <span className="w-8 h-8 rounded-lg bg-[#D1F047] text-[#181E00] flex items-center justify-center">
+                    <FlatIcon name="chart" className="w-4 h-4" />
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#191C1E]">
+                    Rp {telemetriAgregat.labaBersih.toLocaleString("id-ID")}
+                  </div>
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#D1F047]/40 text-[#181E00] text-[11px] font-bold">
+                    Margin Bersih: {telemetriAgregat.marginTotal}%
+                  </span>
+                </div>
+                <div className="mt-4 pt-2.5 border-t border-[#EDEFF0] text-[11px] text-slate-500">
+                  Uang masuk dikurangi pengeluaran token API
+                </div>
+              </div>
+
+              {/* Card 4: Tindakan Prioritas Admin */}
+              <div className="bg-white p-5 rounded-xl border-2 border-[#D1F047] flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-slate-500 uppercase font-bold">
+                    Tindakan Prioritas Admin
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-[#F3F4F6] px-3 py-1.5 rounded-lg border border-[#E7E8EA] text-xs">
+                    <span>Bukti QRIS Pending</span>
+                    <strong className="font-mono text-rose-600">
+                      {telemetriAgregat.trxPending.length} Verifikasi
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between bg-[#F3F4F6] px-3 py-1.5 rounded-lg border border-[#E7E8EA] text-xs">
+                    <span>Koin H-3 Hangus</span>
+                    <strong className="font-mono text-[#191C1E]">
+                      {telemetriAgregat.akunH3Hangus.length} Akun
+                    </strong>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-[#EDEFF0] text-right">
+                  <a
+                    href="#sec-verifikasi"
+                    className="text-xs font-bold text-[#191C1E] hover:underline"
+                  >
+                    Buka Antrean Kerja
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION 2: Token Audit & User Leaderboard Table */}
+          <section
+            id="sec-token"
+            className="bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4"
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#EDEFF0]">
+              <div>
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  Peringkat & Audit Konsumsi Token API per User
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Lacak profil penggunaan AI, biaya riil model backend per akun,
+                  dan deteksi regenerasi berlebih
+                </p>
+              </div>
+              <div className="relative w-full md:w-64">
+                <input
+                  type="text"
+                  value={searchTokenUser}
+                  onChange={(e) => setSearchTokenUser(e.target.value)}
+                  placeholder="Cari nama, email, atau username..."
+                  className="w-full h-10 px-3.5 rounded-lg border border-[#E7E8EA] text-xs bg-white focus:border-[#191C1E] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-[#E7E8EA] text-[11px] text-slate-500 uppercase bg-[#F3F4F6]/60">
+                    <th className="py-3 px-3">Peringkat</th>
+                    <th className="py-3 px-3">Pengguna & Identitas</th>
+                    <th className="py-3 px-3">Paket Aktif & Slot</th>
+                    <th className="py-3 px-3 text-right">Sisa Koin</th>
+                    <th className="py-3 px-3 text-right">Permintaan AI</th>
+                    <th className="py-3 px-3">Total Token (In / Out)</th>
+                    <th className="py-3 px-3 text-right">Biaya API Riil</th>
+                    <th className="py-3 px-3 text-center">Status Margin</th>
+                    <th className="py-3 px-3 text-center">Aksi Pengelola</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EDEFF0]">
+                  {daftarLeaderboardTerfilter.map((u, idx) => {
+                    const boros = u.marginPersen < 40 || u.regenCount > 25
+                    return (
+                      <tr
+                        key={u.id}
+                        className="hover:bg-[#F3F4F6]/50 transition-colors"
+                      >
+                        <td className="py-3.5 px-3 font-mono font-bold text-center">
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] ${
+                              idx === 0
+                                ? "bg-[#D1F047] text-[#181E00]"
+                                : "bg-[#EDEFF0] text-[#191C1E]"
+                            }`}
+                          >
+                            #{idx + 1}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold text-[#191C1E]">
+                            {u.nama}
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono">
+                            {u.email || u.profil_dna?.kontak}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="inline-block px-2 py-0.5 rounded bg-[#EDEFF0] text-[#191C1E] font-semibold">
+                            {u.paketLabel}
+                          </span>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {u.kuotaSlot} Slot Terdaftar
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-mono font-bold">
+                          {u.koin || 0} Koin
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-mono">
+                          {u.reqCount} Req
+                        </td>
+                        <td className="py-3.5 px-3 font-mono">
+                          <div className="font-bold">
+                            {formatTokenSingkat(u.totTok)} Token
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {formatTokenSingkat(u.inTok)} In /{" "}
+                            {formatTokenSingkat(u.outTok)} Out
+                          </div>
+                        </td>
+                        <td
+                          className={`py-3.5 px-3 text-right font-mono font-bold ${
+                            boros ? "text-rose-600" : "text-[#191C1E]"
+                          }`}
+                        >
+                          Rp {u.biayaRp.toLocaleString("id-ID")}
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-md text-[11px] font-bold ${
+                              boros
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-[#D1F047]/40 text-[#181E00]"
+                            }`}
+                          >
+                            {boros
+                              ? "Boros Regenerate"
+                              : `Sehat (Margin ${u.marginPersen}%)`}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const jml = prompt(
+                                `Ubah jumlah koin untuk ${u.nama}:`,
+                                String(u.koin || 0),
+                              )
+                              if (jml !== null) {
+                                updateKoinDatabase(parseInt(jml) || 0, u.id)
+                                showToast(`Koin ${u.nama} diperbarui.`)
+                              }
+                            }}
+                            className="cursor-pointer h-8 px-3 rounded-md bg-[#1B1B26] text-[#D1F047] font-bold text-[11px]"
+                          >
+                            Atur Koin
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* SECTION 3: Konfigurasi QRIS Statis & Antrean Verifikasi Bukti QRIS */}
+          <section
+            id="sec-verifikasi"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+          >
+            {/* Left Column: Konfigurasi QRIS Statis (5 cols) */}
+            <div className="lg:col-span-5 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
+              <div className="pb-3 border-b border-[#EDEFF0]">
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  Konfigurasi QRIS Statis
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Kanal penerimaan otomatis gateway merchant Hookya
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#191C1E] mb-1">
+                    Nomor WhatsApp Admin Finansial
+                  </label>
+                  <input
+                    type="text"
+                    value={pengaturanPayment.noWaAdmin || ""}
+                    onChange={(e) =>
+                      setPengaturanPayment({
+                        ...pengaturanPayment,
+                        noWaAdmin: e.target.value,
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-lg border border-[#E7E8EA] text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#191C1E] mb-1">
+                    Nama Merchant Terdaftar (NMID)
+                  </label>
+                  <input
+                    type="text"
+                    value={pengaturanPayment.namaMerchant || ""}
+                    onChange={(e) =>
+                      setPengaturanPayment({
+                        ...pengaturanPayment,
+                        namaMerchant: e.target.value,
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-lg border border-[#E7E8EA] text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#191C1E] mb-1">
+                    Info Rekening / Nomor NMID Resmi
+                  </label>
+                  <input
+                    type="text"
+                    value={pengaturanPayment.infoRekening || ""}
+                    onChange={(e) =>
+                      setPengaturanPayment({
+                        ...pengaturanPayment,
+                        infoRekening: e.target.value,
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-lg border border-[#E7E8EA] text-xs font-mono"
+                  />
+                </div>
+
+                <div className="p-3.5 rounded-lg border border-dashed border-slate-300 bg-[#F3F4F6] flex items-center gap-3.5">
+                  <div className="w-20 h-20 bg-white p-1.5 rounded-lg border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                    {pengaturanPayment.qrisImageUrl ? (
+                      <img
+                        src={pengaturanPayment.qrisImageUrl}
+                        alt="QRIS"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <FlatIcon
+                        name="qr"
+                        className="w-12 h-12 text-[#191C1E]"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="text-xs font-bold truncate">
+                      Gambar QRIS Statis Merchant
+                    </div>
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-[#191C1E] underline">
+                      <FlatIcon name="upload" className="w-3.5 h-3.5" />
+                      <span>Ganti File Gambar QRIS</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadQRISAdmin}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => simpanPengaturanDevKeDB(pengaturanPayment)}
+                  className="cursor-pointer w-full h-11 rounded-lg bg-[#D1F047] text-[#181E00] text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <FlatIcon name="check" className="w-4 h-4" />
+                  <span>Simpan & Terapkan QRIS</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Antrean Verifikasi Bukti QRIS (7 cols) */}
+            <div className="lg:col-span-7 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EDEFF0]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-[#191C1E]">
+                      Antrean Verifikasi Bukti QRIS
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-bold">
+                      {telemetriAgregat.trxPending.length} Pending
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Konfirmasi bukti transfer masuk dan trigger otomatis alokasi
+                    koin + login WA
+                  </p>
+                </div>
+              </div>
+
+              {telemetriAgregat.trxPending.length === 0 ? (
+                <p className="text-xs text-slate-500 py-8 text-center">
+                  Tidak ada antrean bukti pembayaran QRIS yang menunggu
+                  verifikasi.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                  {telemetriAgregat.trxPending.map((trx) => (
+                    <div
+                      key={trx.id}
+                      className="p-4 rounded-xl border border-[#E7E8EA] bg-white space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-xs">
+                              #{trx.invoice_id}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold">
+                              Menunggu Review
+                            </span>
+                          </div>
+                          <div className="text-sm font-bold mt-1">
+                            {trx.nama_user}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {trx.nama_paket} (+{trx.jumlah_koin} Koin)
+                          </div>
+                        </div>
+
+                        <div className="text-left sm:text-right">
+                          <div className="text-xl font-bold text-[#191C1E]">
+                            Rp{" "}
+                            {Number(
+                              trx.nominal_bayar || trx.nominal_asli || 0,
+                            ).toLocaleString("id-ID")}
+                          </div>
+                          <div className="text-[11px] text-[#3F4C00] font-semibold">
+                            Kode Unik:{" "}
+                            {String(trx.nominal_bayar || "").slice(-3)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#EDEFF0]">
+                        {trx.bukti_bayar ? (
+                          <button
+                            type="button"
+                            onClick={() => setZoomBuktiUrl(trx.bukti_bayar)}
+                            className="cursor-pointer flex items-center gap-2 text-xs font-bold text-[#191C1E] hover:underline"
+                          >
+                            <img
+                              src={trx.bukti_bayar}
+                              alt="Bukti"
+                              className="w-11 h-11 rounded-lg object-cover border border-slate-300"
+                            />
+                            <span>Zoom Bukti Transfer</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            Tanpa lampiran gambar
+                          </span>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleTolakTransaksi(trx)}
+                            className="cursor-pointer h-9 px-3 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold"
+                          >
+                            Tolak
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveTransaksiAdmin(trx)}
+                            className="cursor-pointer h-9 px-3.5 rounded-lg bg-[#1B1B26] text-[#D1F047] text-xs font-bold flex items-center gap-1.5"
+                          >
+                            <FlatIcon name="check" className="w-3.5 h-3.5" />
+                            <span>ACC & Kirim Info Login WA</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* SECTION 4: Kelola Database Pengguna & Filter H-3 Hangus */}
+          <section
+            id="sec-users"
+            className="bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDEFF0]">
+              <div>
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  Database Pengguna & Manajemen Masa Aktif Koin
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Pantau akun aktif, kredensial sandi, akun sosmed terhubung,
+                  dan mitigasi koin hangus
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="cursor-pointer h-9 px-3.5 rounded-lg border border-[#E7E8EA] bg-white hover:bg-[#F3F4F6] text-xs font-bold flex items-center gap-1.5 self-start"
+              >
+                <FlatIcon name="upload" className="w-3.5 h-3.5 rotate-180" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {[
+                  {
+                    id: "all",
+                    label: `Semua User (${semuaUserDB.length})`,
+                  },
+                  {
+                    id: "h3",
+                    label: `H-3 Koin Hangus (${telemetriAgregat.akunH3Hangus.length})`,
+                  },
+                  {
+                    id: "expired",
+                    label: `Sudah Hangus (${telemetriAgregat.akunSudahHangus.length})`,
+                  },
+                  {
+                    id: "vip",
+                    label: `Member VIP (${telemetriAgregat.akunVIP.length})`,
+                  },
+                ].map((tb) => (
+                  <button
+                    key={tb.id}
+                    type="button"
+                    onClick={() => setFilterUserTab(tb.id)}
+                    className={`cursor-pointer px-3 py-2 rounded-lg text-xs font-bold shrink-0 transition ${
+                      filterUserTab === tb.id
+                        ? "bg-[#1B1B26] text-[#D1F047]"
+                        : "bg-[#F3F4F6] text-slate-600 hover:text-[#191C1E]"
+                    }`}
+                  >
+                    {tb.label}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="text"
+                value={searchDbUser}
+                onChange={(e) => setSearchDbUser(e.target.value)}
+                placeholder="Filter WhatsApp, nama, @username..."
+                className="w-full md:w-64 h-10 px-3.5 rounded-lg border border-[#E7E8EA] text-xs bg-white focus:outline-none focus:border-[#191C1E]"
+              />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-[#E7E8EA] text-[11px] text-slate-500 uppercase bg-[#F3F4F6]/60">
+                    <th className="py-3 px-3">Pengguna & Kontak</th>
+                    <th className="py-3 px-3">Kredensial Sandi</th>
+                    <th className="py-3 px-3">Sosmed Terkoneksi</th>
+                    <th className="py-3 px-3">Sisa Koin & Rollover</th>
+                    <th className="py-3 px-3 text-center">
+                      Tindakan Prioritas
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EDEFF0]">
+                  {daftarUserDatabaseTerfilter.map((u) => {
+                    const listAkunSosmed = Array.isArray(
+                      u.profil_dna?.daftarAkunTernak,
+                    )
+                      ? u.profil_dna.daftarAkunTernak
+                      : []
+                    const jmlAkun = Math.max(1, listAkunSosmed.length)
+                    const waUser = u.whatsapp || u.profil_dna?.whatsapp || "-"
+                    const sandiAsli =
+                      u.password_hash || u.profil_dna?.pin || "12345678"
+                    const tampilSandi = Boolean(showPassMap[u.id])
+
+                    return (
+                      <tr key={u.id} className="hover:bg-[#F3F4F6]/50">
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold text-[#191C1E]">
+                            {u.nama}
+                          </div>
+                          <div className="font-mono text-[11px] text-slate-500">
+                            @{u.username || "user"} • {waUser}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs">
+                              {tampilSandi ? sandiAsli : "••••••••"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowPassMap((p) => ({
+                                  ...p,
+                                  [u.id]: !p[u.id],
+                                }))
+                              }
+                              className="cursor-pointer px-2 py-1 rounded border border-[#E7E8EA] text-[10px] font-bold bg-white"
+                            >
+                              {tampilSandi ? "Tutup" : "Lihat"}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold">
+                            {jmlAkun}/{u.kuotaSlot} Akun Aktif
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono truncate max-w-[180px]">
+                            {listAkunSosmed
+                              .map((a) => a.labelAkun)
+                              .join(", ") || `@${u.username || "utama"}`}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-sm">
+                              {u.koin || 0} Koin
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                u.sisaHari <= 3
+                                  ? "bg-[#D1F047] text-[#181E00]"
+                                  : "bg-[#EDEFF0] text-slate-600"
+                              }`}
+                            >
+                              {u.sisaHari === 0
+                                ? "Sudah Hangus"
+                                : `Aktif ${u.sisaHari} Hari`}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const bersih = waUser.replace(/\D/g, "")
+                                if (!bersih) return
+                                const noWa = bersih.startsWith("08")
+                                  ? "62" + bersih.slice(1)
+                                  : bersih
+                                const pesan = encodeURIComponent(
+                                  `Halo Kak *${u.nama}*, sisa *${
+                                    u.koin || 0
+                                  } Koin* Hookya kamu memiliki masa aktif *${
+                                    u.sisaHari
+                                  } hari lagi*. Yuk perpanjang paket sebelum masa aktif berakhir agar sisa koinmu otomatis diakumulasi (Rollover +30 Hari) di https://hookya.site`,
+                                )
+                                window.open(
+                                  `https://wa.me/${noWa}?text=${pesan}`,
+                                  "_blank",
+                                )
+                              }}
+                              className="cursor-pointer h-8 px-2.5 rounded-lg bg-[#1B1B26] text-[#D1F047] text-[11px] font-bold"
+                            >
+                              WA Pengingat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePerpanjang30HariUser(u)}
+                              className="cursor-pointer h-8 px-2.5 rounded-lg border border-[#E7E8EA] bg-white hover:border-[#191C1E] text-[11px] font-bold"
+                            >
+                              +30 Hari
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* SECTION 5: Live Activity Log & Pengaturan Voucher / PIN */}
+          <section
+            id="sec-logs"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+          >
+            {/* Left: Log Aktivitas Pengguna Real-Time (7 cols) */}
+            <div className="lg:col-span-7 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EDEFF0]">
+                <div>
+                  <h2 className="text-lg font-bold text-[#191C1E]">
+                    Log Aktivitas Pengguna Real-Time
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Aliran eksekusi prompt AI, ekstraksi audio & pemakaian token
+                  </p>
+                </div>
+              </div>
+
+              {telemetriAgregat.semuaLogAktivitas.length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">
+                  Belum ada aktivitas panggilan AI yang tercatat hari ini.
+                </p>
+              ) : (
+                <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
+                  {telemetriAgregat.semuaLogAktivitas.map((lg, i) => (
+                    <div
+                      key={lg.id || i}
+                      className="p-3 rounded-lg bg-[#F3F4F6] border border-[#E7E8EA] flex items-start justify-between gap-2 text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-[#191C1E]">
+                            @{lg.username}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            {lg.waktu}
+                          </span>
+                        </div>
+                        <div className="font-semibold text-[#191C1E] mt-0.5">
+                          {lg.action}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                          {Number(lg.tokens || 0).toLocaleString("id-ID")} Token
+                          terpakai (Biaya: Rp {lg.costRp || 48})
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-[#D1F047]/40 text-[#181E00] text-[10px] font-bold shrink-0">
+                        Sukses
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Kelola Voucher & PIN Admin (5 cols) */}
+            <div className="lg:col-span-5 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
+              <div className="pb-3 border-b border-[#EDEFF0]">
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  Kelola Voucher Promo & PIN Console
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Buat kode voucher koin gratis dan atur PIN akses Developer
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={kodeVoucherBaru}
+                  onChange={(e) =>
+                    setKodeVoucherBaru(e.target.value.toUpperCase())
+                  }
+                  placeholder="KODE VOUCHER..."
+                  className="flex-1 h-10 px-3 rounded-lg border border-[#E7E8EA] text-xs font-mono uppercase"
+                />
+                <input
+                  type="number"
+                  value={koinVoucherBaru}
+                  onChange={(e) => setKoinVoucherBaru(e.target.value)}
+                  className="w-20 h-10 px-2.5 rounded-lg border border-[#E7E8EA] text-xs font-bold text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!kodeVoucherBaru.trim()) return
+                    const vBaru = [
+                      ...daftarVoucher,
+                      {
+                        kode: kodeVoucherBaru.trim().toUpperCase(),
+                        koin: parseInt(koinVoucherBaru) || 20,
+                        kuota: 100,
+                        terpakai: 0,
+                      },
+                    ]
+                    setDaftarVoucher(vBaru)
+                    setKodeVoucherBaru("")
+                    simpanPengaturanDevKeDB(pengaturanPayment)
+                  }}
+                  className="cursor-pointer h-10 px-3.5 rounded-lg bg-[#1B1B26] text-[#D1F047] text-xs font-bold shrink-0"
+                >
+                  + Voucher
+                </button>
+              </div>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {daftarVoucher.map((v, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg bg-[#F3F4F6] border border-[#E7E8EA] flex items-center justify-between text-xs"
+                  >
+                    <span className="font-mono font-bold">
+                      {v.kode} (+{v.koin} Koin)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDaftarVoucher(
+                          daftarVoucher.filter((_, i) => i !== idx),
+                        )
+                      }
+                      className="cursor-pointer text-rose-600 font-bold text-[11px]"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-[#EDEFF0] flex items-center gap-2">
+                <input
+                  type="text"
+                  value={pinAdminResmi}
+                  onChange={(e) => setPinAdminResmi(e.target.value)}
+                  placeholder="PIN Admin..."
+                  className="flex-1 h-10 px-3 rounded-lg border border-[#E7E8EA] text-xs font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => simpanPengaturanDevKeDB(pengaturanPayment)}
+                  className="cursor-pointer h-10 px-4 rounded-lg bg-[#D1F047] text-[#181E00] text-xs font-bold"
+                >
+                  Simpan PIN
+                </button>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   )
 }
