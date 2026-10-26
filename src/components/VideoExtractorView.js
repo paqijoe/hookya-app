@@ -2,7 +2,7 @@
 import { useState } from "react"
 import { FlatIcon, StoryVoiceInput, AILoadingBox } from "./SharedUI"
 
-function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
+function ekstrakFrameVideoStabil(file, jumlahFrame = 6) {
   return new Promise((resolve) => {
     let selesai = false
     const finish = (res) => {
@@ -11,7 +11,7 @@ function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
         resolve(res)
       }
     }
-    const timer = setTimeout(() => finish([]), 4000)
+    const timer = setTimeout(() => finish([]), 7000)
 
     try {
       const video = document.createElement("video")
@@ -19,36 +19,37 @@ function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
       const ctx = canvas.getContext("2d")
       const url = URL.createObjectURL(file)
 
-      video.preload = "auto"
-      video.src = url
+      video.preload = "metadata"
       video.muted = true
       video.playsInline = true
+      video.setAttribute("playsinline", "")
+      video.src = url
 
       const frames = []
-      video.onloadeddata = async () => {
+      video.onloadedmetadata = async () => {
         try {
-          const durasi = Math.min(video.duration || 5, 45)
-          const lebar = 420
+          const durasi = Math.min(Math.max(video.duration || 6, 2), 60)
+          const lebar = 480
           const tinggi =
             Math.round((video.videoHeight / (video.videoWidth || 1)) * lebar) ||
-            260
+            320
           canvas.width = lebar
           canvas.height = tinggi
 
           for (let i = 1; i <= jumlahFrame; i++) {
             const t = (durasi / (jumlahFrame + 1)) * i
             await new Promise((r) => {
-              const tSeek = setTimeout(r, 450)
+              const tSeek = setTimeout(r, 700)
               video.onseeked = () => {
                 clearTimeout(tSeek)
                 try {
                   ctx.drawImage(video, 0, 0, lebar, tinggi)
                   const base64 = canvas
-                    .toDataURL("image/jpeg", 0.55)
+                    .toDataURL("image/jpeg", 0.65)
                     .split(",")[1]
                   if (base64) frames.push(base64)
                 } catch {
-                  // Abaikan gagal baca frame tunggal
+                  // Abaikan gagal frame tunggal
                 }
                 r()
               }
@@ -66,6 +67,7 @@ function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
         URL.revokeObjectURL(url)
         finish([])
       }
+      video.load()
     } catch {
       clearTimeout(timer)
       finish([])
@@ -75,7 +77,7 @@ function ekstrakFrameVideoStabil(file, jumlahFrame = 5) {
 
 async function ekstrakAudioRinganAman(file) {
   return new Promise(async (resolve) => {
-    const timer = setTimeout(() => resolve(null), 4000)
+    const timer = setTimeout(() => resolve(null), 6000)
     try {
       const arrayBuffer = await file.arrayBuffer()
       const AudioCtx = window.AudioContext || window.webkitAudioContext
@@ -88,8 +90,8 @@ async function ekstrakAudioRinganAman(file) {
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
       audioCtx.close()
 
-      const targetSampleRate = 6000
-      const maxSeconds = Math.min(audioBuffer.duration, 35)
+      const targetSampleRate = 8000
+      const maxSeconds = Math.min(audioBuffer.duration, 40)
       const numSamples = Math.floor(maxSeconds * targetSampleRate)
 
       const offlineCtx = new OfflineAudioContext(
@@ -183,7 +185,6 @@ export default function VideoExtractorView({
   const [regenCount, setRegenCount] = useState(0)
   const [errorRewriteAI, setErrorRewriteAI] = useState("")
   const [hasilRewriteVideo, setHasilRewriteVideo] = useState(null)
-  const [modeTampilanRewrite, setModeTampilanRewrite] = useState("voiceover")
 
   const simpanHasilVideoKeArsip = async (pesan) => {
     if (!hasilRewriteVideo) return
@@ -244,13 +245,20 @@ export default function VideoExtractorView({
       let audioData = null
       let framesData = []
 
-      if (file.type.startsWith("video/")) {
-        framesData = await ekstrakFrameVideoStabil(file, 5)
+      if (
+        file.type.startsWith("video/") ||
+        file.name.match(/\.(mp4|mov|webm|mkv)$/i)
+      ) {
+        framesData = await ekstrakFrameVideoStabil(file, 6)
       }
 
       audioData = await ekstrakAudioRinganAman(file)
 
-      if (!audioData && file.size <= 2.4 * 1024 * 1024) {
+      if (
+        !audioData &&
+        framesData.length === 0 &&
+        file.size <= 4 * 1024 * 1024
+      ) {
         const base64Raw = await new Promise((res) => {
           const reader = new FileReader()
           reader.onload = () =>
@@ -261,7 +269,7 @@ export default function VideoExtractorView({
         if (base64Raw) {
           audioData = {
             base64: base64Raw,
-            mimeType: file.type || "video/mp4",
+            mimeType: file.type || "audio/wav",
           }
         }
       }
@@ -411,14 +419,10 @@ export default function VideoExtractorView({
   }
 
   return (
-    <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6 w-full max-w-full overflow-hidden">
-      <div className="border-b border-slate-100 pb-4 flex flex-wrap items-center justify-between gap-2">
+    <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-6 w-full max-w-full overflow-hidden">
+      <div className="border-b border-slate-200 pb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2.5 py-0.5 rounded">
-            EKSTRAKTOR VIDEO & ANALISIS STRUKTUR{" "}
-            {!isPremiumUser && "(KHUSUS PAKET VIP Rp20.000+)"}
-          </span>
-          <h2 className="text-lg sm:text-xl font-bold text-[#14141f] mt-1">
+          <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
             Salin Teks Asli Video, Bedah Struktur & Susun Skrip Baru
           </h2>
           <p className="text-xs font-normal text-slate-600 mt-0.5">
@@ -432,7 +436,7 @@ export default function VideoExtractorView({
           <button
             type="button"
             onClick={onTriggerUpgradeVIP}
-            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-xl"
+            className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-lg"
           >
             Upgrade Paket VIP (Rp20.000+)
           </button>
@@ -446,9 +450,9 @@ export default function VideoExtractorView({
             onTriggerUpgradeVIP()
           }
         }}
-        className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-2 transition"
+        className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-2 transition"
       >
-        <div className="w-11 h-11 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-xs font-bold">
+        <div className="w-10 h-10 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-xs font-bold">
           {isPremiumUser ? (
             <FlatIcon name="upload" className="w-5 h-5" />
           ) : (
@@ -479,7 +483,7 @@ export default function VideoExtractorView({
 
       <div>
         <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-          Topikmu Sendiri / Arah Penulisan Ulang (Opsional):
+          Topikmu Sendiri / Arah Penulisan Ulang (Opsional)
         </label>
         {isPremiumUser ? (
           <StoryVoiceInput
@@ -502,7 +506,7 @@ export default function VideoExtractorView({
               })
             }
             placeholder="Contoh: Gunakan struktur video ini untuk membahas produk atau topik saya..."
-            className="w-full bg-[#f4f5f7] border border-slate-200 rounded-2xl p-3.5 text-base sm:text-xs outline-none"
+            className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3.5 text-base sm:text-xs outline-none"
           />
         )}
       </div>
@@ -517,7 +521,7 @@ export default function VideoExtractorView({
           type="button"
           disabled={sumberVideo.sedangEkstrakFile}
           onClick={handleEkstrakVideoSekarang}
-          className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+          className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-3.5 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <span>
             {isPremiumUser
@@ -528,20 +532,20 @@ export default function VideoExtractorView({
       )}
 
       {errorRewriteAI && (
-        <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-900 leading-relaxed">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-900 leading-relaxed">
           {errorRewriteAI}
         </div>
       )}
 
       {!isGenerating && hasilRewriteVideo && (
-        <div className="space-y-6 pt-4 border-t border-slate-100">
+        <div className="space-y-6 pt-4 border-t border-slate-200">
           {hasilRewriteVideo.bedahKompetitor && (
-            <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-5 rounded-3xl space-y-2.5">
-              <span className="text-[10px] font-bold uppercase bg-[#14141f] text-[#d4f34a] px-2.5 py-0.5 rounded">
-                ANALISIS STRUKTUR VIDEO SUMBER
-              </span>
+            <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-5 rounded-xl space-y-2.5">
+              <div className="text-xs font-bold text-[#14141f]">
+                Analisis Struktur Video Sumber
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                   <strong className="block text-[#5b4bc4]">
                     Jenis Kalimat Pembuka:
                   </strong>
@@ -549,7 +553,7 @@ export default function VideoExtractorView({
                     {hasilRewriteVideo.bedahKompetitor.jenisHookAsli}
                   </span>
                 </div>
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                   <strong className="block text-[#5b4bc4]">
                     Fokus Masalah Penonton:
                   </strong>
@@ -557,7 +561,7 @@ export default function VideoExtractorView({
                     {hasilRewriteVideo.bedahKompetitor.pemicuEmosi}
                   </span>
                 </div>
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200">
+                <div className="bg-white p-3.5 rounded-lg border border-slate-200">
                   <strong className="block text-[#5b4bc4]">
                     Alur Penjelasan:
                   </strong>
@@ -569,10 +573,10 @@ export default function VideoExtractorView({
             </div>
           )}
 
-          <div className="bg-[#f4f5f7] p-5 rounded-3xl border border-slate-200 space-y-2">
+          <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#14141f]">
-                1. Teks Asli di Dalam Video:
+                1. Teks Asli di Dalam Video
               </span>
               <button
                 type="button"
@@ -585,67 +589,38 @@ export default function VideoExtractorView({
                   )
                 }}
                 title="Salin Teks Asli & Simpan ke Arsip"
-                className="cursor-pointer bg-white border border-slate-300 w-9 h-9 rounded-xl flex items-center justify-center"
+                className="cursor-pointer bg-white border border-slate-300 w-8 h-8 rounded-lg flex items-center justify-center"
               >
                 <FlatIcon name="copy" className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs sm:text-sm font-normal text-[#14141f] leading-relaxed whitespace-pre-line bg-white p-4 rounded-2xl border border-slate-200">
+            <p className="text-xs sm:text-sm font-normal text-[#14141f] leading-relaxed whitespace-pre-line bg-white p-4 rounded-lg border border-slate-200">
               {hasilRewriteVideo.transkripAsliVideo}
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-[#14141f]">
-                  2. Naskah Baru Sesuai Gaya Bicaramu
-                </h3>
-                <p className="text-xs font-normal text-slate-600">
-                  Klik ikon putar pada salah satu bagian di bawah untuk menulis
-                  ulang bagian tersebut.
-                </p>
-              </div>
-
-              <div className="inline-flex bg-[#f4f5f7] p-1 rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setModeTampilanRewrite("voiceover")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold ${
-                    modeTampilanRewrite === "voiceover"
-                      ? "bg-[#14141f] text-[#d4f34a]"
-                      : "text-slate-600"
-                  }`}
-                >
-                  Naskah Ngomong
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModeTampilanRewrite("teks")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold ${
-                    modeTampilanRewrite === "teks"
-                      ? "bg-[#14141f] text-[#d4f34a]"
-                      : "text-slate-600"
-                  }`}
-                >
-                  Teks di Layar
-                </button>
-              </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#14141f]">
+                2. Naskah Baru Sesuai Gaya Bicaramu
+              </h3>
+              <p className="text-xs font-normal text-slate-600">
+                Klik ikon putar pada salah satu bagian di bawah untuk menulis
+                ulang bagian tersebut.
+              </p>
             </div>
 
             <div className="space-y-3.5">
               {(hasilRewriteVideo.segmen || []).map((seg, idx) => {
-                const teksAktif =
-                  modeTampilanRewrite === "teks" ? seg.teksLayar : seg.voiceover
                 const sedangRegenIni = regeneratingIndex === idx
 
                 return (
                   <div
                     key={idx}
-                    className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white space-y-3"
+                    className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-white space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md">
+                      <span className="text-xs font-bold text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200">
                         {seg.labelMini}
                       </span>
                       <span className="text-[11px] text-slate-500">
@@ -656,27 +631,23 @@ export default function VideoExtractorView({
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                      <div className="lg:col-span-7 bg-[#d4f34a]/30 border border-[#14141f]/15 rounded-2xl p-4 flex items-start justify-between gap-3">
-                        <div className="flex-1 space-y-1.5">
+                      <div className="lg:col-span-7 bg-[#f4f5f7] border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
+                        <div className="flex-1">
                           <textarea
                             rows={3}
-                            value={teksAktif}
+                            value={seg.voiceover}
                             onChange={(e) => {
                               const valBaru = e.target.value
                               const listUpdate = hasilRewriteVideo.segmen.map(
                                 (s, i) =>
-                                  i === idx
-                                    ? modeTampilanRewrite === "teks"
-                                      ? { ...s, teksLayar: valBaru }
-                                      : { ...s, voiceover: valBaru }
-                                    : s,
+                                  i === idx ? { ...s, voiceover: valBaru } : s,
                               )
                               setHasilRewriteVideo({
                                 ...hasilRewriteVideo,
                                 segmen: listUpdate,
                               })
                             }}
-                            className="w-full bg-white/90 border border-slate-300 rounded-xl p-2.5 text-base sm:text-sm font-normal text-[#14141f] leading-relaxed outline-none"
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-base sm:text-sm font-normal text-[#14141f] leading-relaxed outline-none"
                           />
                         </div>
 
@@ -686,7 +657,7 @@ export default function VideoExtractorView({
                             handleRegenerateSatuKerangkaVideo(idx, "skrip")
                           }
                           title="Tulis ulang bagian ini"
-                          className="cursor-pointer w-9 h-9 rounded-xl bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
+                          className="cursor-pointer w-8 h-8 rounded-lg bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
                         >
                           <FlatIcon
                             name="refresh"
@@ -697,12 +668,12 @@ export default function VideoExtractorView({
                         </button>
                       </div>
 
-                      <div className="lg:col-span-5 bg-[#f4f5f7] rounded-2xl p-4 flex items-start justify-between gap-3">
-                        <div className="space-y-1">
+                      <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
+                        <div className="space-y-1 flex-1">
                           <span className="text-xs font-bold text-[#14141f] block">
                             Arahan Adegan Visual
                           </span>
-                          <p className="text-xs font-normal text-slate-700 leading-relaxed">
+                          <p className="text-xs font-normal text-slate-600 leading-relaxed">
                             {seg.visual}
                           </p>
                         </div>
@@ -713,7 +684,7 @@ export default function VideoExtractorView({
                             handleRegenerateSatuKerangkaVideo(idx, "visual")
                           }
                           title="Tulis ulang visual bagian ini"
-                          className="cursor-pointer w-9 h-9 rounded-xl bg-white hover:bg-[#14141f] text-slate-700 hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
+                          className="cursor-pointer w-8 h-8 rounded-lg bg-[#f4f5f7] hover:bg-[#14141f] text-slate-700 hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
                         >
                           <FlatIcon
                             name="refresh"
@@ -734,7 +705,7 @@ export default function VideoExtractorView({
               onClick={() =>
                 simpanHasilVideoKeArsip("Skrip disimpan ke menu Arsip.")
               }
-              className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs sm:text-sm py-4 rounded-2xl"
+              className="cursor-pointer w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs sm:text-sm py-3.5 rounded-lg"
             >
               Simpan ke Arsip Skrip Saya
             </button>

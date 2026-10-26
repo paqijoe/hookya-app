@@ -13,6 +13,8 @@ const KALIMAT_DUMMY_LAMA =
 export default function PersonaDNAView({
   userId,
   isPremiumUser = true,
+  kuotaAkunMaksimal = 2,
+  namaPaketAktif = "Paket 10K",
   onTriggerUpgradeVIP,
   profil,
   setProfil,
@@ -40,10 +42,10 @@ export default function PersonaDNAView({
   const [loadingHelperKey, setLoadingHelperKey] = useState(null)
   const [helperResults, setHelperResults] = useState({})
 
-  // State Multi-Profil untuk Kebutuhan Ternak Akun Sosial Media
   const [namaAkunBaru, setNamaAkunBaru] = useState("")
   const [showFormTambahAkun, setShowFormTambahAkun] = useState(false)
 
+  // Urutan daftarAkunTernak: index 0 adalah akun pertama (tertua), index terakhir adalah yang terbaru dibuat
   const daftarAkunTernak = Array.isArray(profil.daftarAkunTernak)
     ? profil.daftarAkunTernak
     : []
@@ -55,7 +57,16 @@ export default function PersonaDNAView({
     }
   }, [rawWritingSamples, setRawWritingSamples])
 
-  // Simpan snapshot profil aktif ke dalam daftarAkunTernak & localStorage agar bisa diakses di ScriptProducerView
+  // Jika user turun paket dan akun yang sedang aktif berada di urutan yang terblokir (index >= kuotaAkunMaksimal), otomatis pindahkan ke akun pertama (index 0)
+  useEffect(() => {
+    if (daftarAkunTernak.length > kuotaAkunMaksimal) {
+      const idxAktif = daftarAkunTernak.findIndex((a) => a.id === idAkunAktif)
+      if (idxAktif >= kuotaAkunMaksimal && daftarAkunTernak[0]) {
+        handlePilihAkunTernak(daftarAkunTernak[0], 0)
+      }
+    }
+  }, [kuotaAkunMaksimal, daftarAkunTernak.length])
+
   const sinkronkanKeDaftarAkun = (
     profilUpdate,
     personaUpdate,
@@ -68,6 +79,7 @@ export default function PersonaDNAView({
 
     const itemAkunBaru = {
       id: idTarget,
+      createdAtOrder: Date.now(),
       labelAkun: labelTarget,
       nama: profilUpdate.nama || "Kreator",
       usia: profilUpdate.usia || "28",
@@ -93,9 +105,17 @@ export default function PersonaDNAView({
       ? profilUpdate.daftarAkunTernak
       : []
     const sudahAda = listLama.some((a) => a.id === idTarget)
+    // Pertahankan urutan pembuatan (akun baru ditaruh di belakang agar jika turun paket, akun terakhir yang terblokir)
     const listBaru = sudahAda
-      ? listLama.map((a) => (a.id === idTarget ? itemAkunBaru : a))
-      : [itemAkunBaru, ...listLama]
+      ? listLama.map((a) =>
+          a.id === idTarget
+            ? {
+                ...itemAkunBaru,
+                createdAtOrder: a.createdAtOrder || Date.now(),
+              }
+            : a,
+        )
+      : [...listLama, itemAkunBaru]
 
     if (typeof window !== "undefined") {
       try {
@@ -103,6 +123,7 @@ export default function PersonaDNAView({
           `hookya_ternak_akun_${userId || "guest"}`,
           JSON.stringify({
             idAkunAktif: idTarget,
+            kuotaAkunMaksimal,
             daftarAkun: listBaru,
           }),
         )
@@ -114,9 +135,16 @@ export default function PersonaDNAView({
     return listBaru
   }
 
-  // Fungsi Pilih / Ganti Profil Akun Sosial Media
-  const handlePilihAkunTernak = (akunObj) => {
+  const handlePilihAkunTernak = (akunObj, indexUrutan = 0) => {
     if (!akunObj) return
+    if (indexUrutan >= kuotaAkunMaksimal) {
+      showToast(
+        `Akun "${akunObj.labelAkun}" terkunci karena batas kuota paketmu saat ini (${kuotaAkunMaksimal} akun). Silakan upgrade paket untuk membuka kembali.`,
+      )
+      setActiveMenu("topup")
+      return
+    }
+
     const profilBaru = {
       ...profil,
       idAkunAktif: akunObj.id,
@@ -150,8 +178,16 @@ export default function PersonaDNAView({
     showToast(`Berpindah ke profil akun: ${akunObj.labelAkun}`)
   }
 
-  // Fungsi Tambah Profil Akun Baru untuk Ternak Akun
   const handleBuatProfilAkunBaru = () => {
+    const jumlahSaatIni = Math.max(1, daftarAkunTernak.length)
+    if (jumlahSaatIni >= kuotaAkunMaksimal) {
+      alert(
+        `Kuota profil akun pada ${namaPaketAktif} maksimal ${kuotaAkunMaksimal} akun (5K=1 akun, 10-20K=2 akun, 25K=3 akun, 50K=5 akun, 90K=10 akun). Silakan upgrade paket untuk menambah profil akun baru.`,
+      )
+      setActiveMenu("topup")
+      return
+    }
+
     if (!namaAkunBaru.trim()) {
       alert("Masukkan nama atau label akun sosial media terlebih dahulu.")
       return
@@ -159,7 +195,6 @@ export default function PersonaDNAView({
     const idBaru = `akun_${Date.now().toString().slice(-5)}`
     const labelBersih = namaAkunBaru.trim()
 
-    // Simpan dulu akun yang sedang aktif sebelum mengosongkan form untuk akun baru
     const listTersimpan = sinkronkanKeDaftarAkun(
       profil,
       personaProfile,
@@ -169,6 +204,7 @@ export default function PersonaDNAView({
 
     const akunKosong = {
       id: idBaru,
+      createdAtOrder: Date.now() + 100,
       labelAkun: labelBersih,
       nama: profil.nama || "Kreator",
       usia: profil.usia || "28",
@@ -213,7 +249,7 @@ export default function PersonaDNAView({
     setNamaAkunBaru("")
     setShowFormTambahAkun(false)
     showToast(
-      `Profil akun "${labelBersih}" dibuat. Silakan lengkapi data di bawah lalu klik Perbarui Matriks.`,
+      `Profil akun "${labelBersih}" dibuat (${daftarUpdate.length}/${kuotaAkunMaksimal} akun).`,
     )
   }
 
@@ -228,7 +264,7 @@ export default function PersonaDNAView({
       ...prev,
       daftarAkunTernak: sisa,
     }))
-    handlePilihAkunTernak(akunPengganti)
+    handlePilihAkunTernak(akunPengganti, 0)
     showToast("Profil akun dihapus.")
   }
 
@@ -452,40 +488,55 @@ export default function PersonaDNAView({
     }
   }
 
+  const jumlahAkunTerpakai = Math.max(1, daftarAkunTernak.length)
+
   return (
     <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-8">
-      {/* HEADER HALAMAN TANPA EYEBROW BADGE */}
       <div className="border-b border-slate-200 pb-5">
         <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
           Profil Akun, Spesifikasi Diri, dan Gaya Bicara
         </h2>
         <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-          Kelola satu atau beberapa profil akun sosial media sekaligus (Ternak
-          Akun). Setiap profil menyimpan gaya sapaan, bidang bahasan, dan
-          spesifikasi pengalaman dirinya masing-masing. Klik tombol{" "}
-          <strong>i Referensi</strong> di samping label kolom untuk melihat
-          rekomendasi isian.
+          Kelola profil akun sosial mediamu. Kuota profil akun mengikuti paket
+          aktifmu saat ini (5K: 1 akun, 10K-20K: 2 akun, 25K: 3 akun, 50K: 5
+          akun, 90K: 10 akun). Bila turun paket, akun yang terakhir dibuat akan
+          terkunci otomatis.
         </p>
       </div>
 
-      {/* MANAJER MULTI-PROFIL UNTUK TERNAK AKUN SOSIAL MEDIA */}
+      {/* MANAJER MULTI-PROFIL DENGAN BATAS KUOTA PAKET & BLOKIR OTOMATIS SAAT TURUN PAKET */}
       <section className="space-y-3 bg-[#f4f5f7] p-4 rounded-xl border border-slate-200">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-              Daftar Profil Akun Sosial Media (Mode Ternak Akun)
+              Daftar Profil Akun Sosial Media ({jumlahAkunTerpakai}/
+              {kuotaAkunMaksimal} Akun Aktif)
             </h3>
             <p className="text-xs text-slate-600">
-              Pilih profil akun yang ingin kamu gunakan atau buat profil baru
-              untuk topik/akun yang berbeda.
+              Pilih profil akun yang ingin kamu gunakan. Rekomendasi ide di menu
+              Buat Skrip akan menyesuaikan profil akun yang aktif.
             </p>
           </div>
+
           <button
             type="button"
-            onClick={() => setShowFormTambahAkun(!showFormTambahAkun)}
+            onClick={() => {
+              if (jumlahAkunTerpakai >= kuotaAkunMaksimal) {
+                alert(
+                  `Kuota profil akun kamu sudah penuh (${jumlahAkunTerpakai}/${kuotaAkunMaksimal} akun). Silakan upgrade paket untuk menambah akun baru.`,
+                )
+                setActiveMenu("topup")
+                return
+              }
+              setShowFormTambahAkun(!showFormTambahAkun)
+            }}
             className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg"
           >
-            {showFormTambahAkun ? "Batal" : "+ Buat Profil Akun Baru"}
+            {showFormTambahAkun
+              ? "Batal"
+              : jumlahAkunTerpakai >= kuotaAkunMaksimal
+                ? "Upgrade Kuota Akun"
+                : "+ Buat Profil Akun Baru"}
           </button>
         </div>
 
@@ -495,7 +546,7 @@ export default function PersonaDNAView({
               type="text"
               value={namaAkunBaru}
               onChange={(e) => setNamaAkunBaru(e.target.value)}
-              placeholder="Nama/Niche Akun Baru (Contoh: Akun Kultum & Motivasi / Akun Affiliate Kuliner)"
+              placeholder="Nama/Niche Akun Baru (Contoh: Akun Kultum / Akun Affiliate Kuliner)"
               className="flex-1 bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2 text-base sm:text-xs font-bold outline-none focus:bg-white focus:border-[#14141f]"
             />
             <button
@@ -510,28 +561,45 @@ export default function PersonaDNAView({
 
         {daftarAkunTernak.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
-            {daftarAkunTernak.map((ak) => {
+            {daftarAkunTernak.map((ak, idx) => {
               const sedangAktif = ak.id === idAkunAktif
+              const terblokirKarenaTurunPaket = idx >= kuotaAkunMaksimal
+
               return (
                 <div
                   key={ak.id}
                   className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition ${
-                    sedangAktif
-                      ? "bg-[#14141f] text-white border-[#14141f]"
-                      : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
+                    terblokirKarenaTurunPaket
+                      ? "bg-slate-200 text-slate-500 border-slate-300 opacity-75"
+                      : sedangAktif
+                        ? "bg-[#14141f] text-white border-[#14141f]"
+                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
                   }`}
                 >
                   <button
                     type="button"
-                    onClick={() => handlePilihAkunTernak(ak)}
-                    className="cursor-pointer font-bold text-left"
+                    onClick={() => handlePilihAkunTernak(ak, idx)}
+                    className="cursor-pointer font-bold text-left flex items-center gap-1.5"
                   >
-                    <span className={sedangAktif ? "text-[#d4f34a]" : ""}>
-                      {ak.labelAkun}
-                    </span>
-                    <span className="block text-[10px] font-normal opacity-80">
-                      Sapaan: {ak.selfPronounInput}/{ak.audiencePronounInput}
-                    </span>
+                    {terblokirKarenaTurunPaket && (
+                      <FlatIcon name="lock" className="w-3.5 h-3.5 shrink-0" />
+                    )}
+                    <div>
+                      <span
+                        className={
+                          sedangAktif && !terblokirKarenaTurunPaket
+                            ? "text-[#d4f34a]"
+                            : ""
+                        }
+                      >
+                        {ak.labelAkun}
+                      </span>
+                      <span className="block text-[10px] font-normal opacity-80">
+                        {terblokirKarenaTurunPaket
+                          ? "Terkunci (Upgrade Paket)"
+                          : `Sapaan: ${ak.selfPronounInput}/${ak.audiencePronounInput}`}
+                      </span>
+                    </div>
                   </button>
                   {daftarAkunTernak.length > 1 && (
                     <button
@@ -877,7 +945,7 @@ export default function PersonaDNAView({
               rawWritingSamples === KALIMAT_DUMMY_LAMA ? "" : rawWritingSamples
             }
             onChange={setRawWritingSamples}
-            placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan..."
+            placeholder="Ketik atau rekam contoh kalimat gaya bicaramu di sini..."
             onNotify={showToast}
           />
         ) : (
@@ -890,18 +958,29 @@ export default function PersonaDNAView({
                   : rawWritingSamples
               }
               onChange={(e) => setRawWritingSamples(e.target.value)}
-              placeholder="Contoh pengetikan: Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-24 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none"
+              placeholder="Ketik contoh kalimat gaya bicaramu di sini..."
+              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-28 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none"
             />
-            <button
-              type="button"
-              onClick={onTriggerUpgradeVIP}
-              title="Fitur Mikrofon khusus Paket VIP (Rp20.000+)"
-              className="cursor-pointer absolute right-2 bottom-2 px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
-            >
-              <FlatIcon name="lock" className="w-3.5 h-3.5" />
-              <span>Mic VIP</span>
-            </button>
+            <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
+              {rawWritingSamples && rawWritingSamples.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setRawWritingSamples("")}
+                  className="cursor-pointer px-2 py-1.5 rounded-md bg-white border border-slate-200 text-[11px] font-bold text-slate-600"
+                >
+                  Hapus
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onTriggerUpgradeVIP}
+                title="Fitur Mikrofon khusus Paket VIP (Rp20.000+)"
+                className="cursor-pointer px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
+              >
+                <FlatIcon name="lock" className="w-3.5 h-3.5" />
+                <span>Mic VIP</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -920,7 +999,6 @@ export default function PersonaDNAView({
           </button>
         )}
 
-        {/* RINGKASAN MATRIKS SAAT INI */}
         <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
           <div className="text-xs font-bold text-[#4d6b14]">
             Ringkasan Profil Akun Aktif:{" "}

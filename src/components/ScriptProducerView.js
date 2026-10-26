@@ -10,7 +10,6 @@ const PILIHAN_DURASI_KONTEN = [
   "3 Menit (8 Bagian, 430 - 500 Kata)",
 ]
 
-// 9 Format Konten Utama (Termasuk Speech, Kultum, & Pidato)
 const SEMBILAN_FORMAT_KONTEN = [
   {
     id: "ugc",
@@ -59,7 +58,6 @@ const SEMBILAN_FORMAT_KONTEN = [
   },
 ]
 
-// 5 Faktor Pemicu Viral Utama
 const LIMA_FAKTOR_VIRAL = [
   {
     id: "fakta_realitas",
@@ -88,7 +86,6 @@ const LIMA_FAKTOR_VIRAL = [
   },
 ]
 
-// 4 Pendekatan Membangun Kepercayaan (Khusus Fase 2: Trust)
 const EMPAT_PENDEKATAN_TRUST = [
   {
     id: "bukti_jam_terbang",
@@ -218,6 +215,7 @@ export default function ScriptProducerView({
   userId,
   namaUser,
   isPremiumUser = true,
+  kuotaAkunMaksimal = 2,
   onTriggerUpgradeVIP,
   coins,
   updateKoinDatabase,
@@ -241,13 +239,11 @@ export default function ScriptProducerView({
   SEPULUH_BENTUK_KONTEN,
   setModeTeleprompter,
   modeTampilanSkrip,
-  setModeTampilanSkrip,
 }) {
   const sliderIdeRef = useRef(null)
   const firstTextareaRef = useRef(null)
   const storageKey = `hookya_draft_asesmen_${userId || "guest"}`
 
-  // State Strategi 3 Fase, 9 Format, 5 Faktor Viral, Trust, Soft/Hard Selling, & Kepadatan Kata
   const [contentPhase, setContentPhase] = useState("fase_1_viral")
   const [contentFormat, setContentFormat] = useState("edukasi")
   const [viralTrigger, setViralTrigger] = useState("fakta_realitas")
@@ -259,9 +255,9 @@ export default function ScriptProducerView({
   const [kategoriKonten, setKategoriKonten] = useState("personal")
   const [jenisPromosi, setJenisPromosi] = useState("produk")
 
-  // Daftar Multi-Akun (Ternak Akun) yang tersimpan di localStorage
   const [daftarAkunTersimpan, setDaftarAkunTersimpan] = useState([])
   const [idAkunTerpilih, setIdAkunTerpilih] = useState("akun_utama")
+  const [sudahAnalisisIdeProfil, setSudahAnalisisIdeProfil] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -292,13 +288,7 @@ export default function ScriptProducerView({
     .filter(Boolean)
     .join(" • ")
 
-  const [personalSpecsInput, setPersonalSpecsInput] = useState(defaultSpekDiri)
-
-  useEffect(() => {
-    if (!personalSpecsInput && defaultSpekDiri) {
-      setPersonalSpecsInput(defaultSpekDiri)
-    }
-  }, [defaultSpekDiri, personalSpecsInput])
+  const [personalSpecsInput, setPersonalSpecsInput] = useState("")
 
   const [rawTopicInput, setRawTopicInput] = useState("")
   const [targetPlatformInput, setTargetPlatformInput] = useState(
@@ -318,7 +308,6 @@ export default function ScriptProducerView({
     hargaPromo: "",
     masalahDipecahkan: "",
     keunggulanSpesifikasi: "",
-    buktiHasilCaraPakai: "",
   })
 
   const [ssProduk, setSsProduk] = useState(null)
@@ -349,6 +338,18 @@ export default function ScriptProducerView({
   const [isLearningDiff, setIsLearningDiff] = useState(false)
   const [errorAsesmenAI, setErrorAsesmenAI] = useState("")
 
+  // State Minimize Arahan Adegan Visual per Bagian (Default tertutup/minimized)
+  const [openVisualMap, setOpenVisualMap] = useState({})
+  const [pilihanMultiplierDropdown, setPilihanMultiplierDropdown] =
+    useState("2")
+
+  // State Tahap 2 & Tahap 4 (Berbasis Textbox Tanpa Dummy)
+  const [showRekomendasiIlustrasi, setShowRekomendasiIlustrasi] =
+    useState(false)
+  const [showRekomendasiFakta, setShowRekomendasiFakta] = useState(false)
+  const [pondasiFaktaInput, setPondasiFaktaInput] = useState("")
+  const [catatanAkhirUser, setCatatanAkhirUser] = useState("")
+
   const [stage1Batches, setStage1Batches] = useState([])
   const [activeBatch1, setActiveBatch1] = useState(0)
 
@@ -378,13 +379,14 @@ export default function ScriptProducerView({
     chosen_angle: "",
     personal_context_or_story: "",
     injected_reference: {
-      type: "Fakta & Realitas Sebab-Akibat",
+      type: "Fakta & Alasan Logis",
       title: "",
       summary: "",
     },
     actionable_solution: [],
     locked_hook: "",
     call_to_action: "",
+    user_final_notes: "",
   })
 
   const [tempStoryInput, setTempStoryInput] = useState("")
@@ -415,16 +417,37 @@ export default function ScriptProducerView({
     }
   }
 
-  const handleGantiAkunCepat = (akunObj) => {
+  // Ganti Profil Akun & Otomatis Analisis Ide Materi Sesuai Profil Akun yang Dipilih
+  const handleGantiAkunCepat = async (akunObj, idxUrutan = 0) => {
     if (!akunObj) return
+    if (idxUrutan >= kuotaAkunMaksimal) {
+      showToast(
+        `Akun "${akunObj.labelAkun}" terkunci karena batas kuota paketmu (${kuotaAkunMaksimal} akun).`,
+      )
+      setActiveMenu("topup")
+      return
+    }
     setIdAkunTerpilih(akunObj.id)
+    const personaAkun = akunObj.personaProfile || personaProfile
     if (akunObj.personaProfile) {
       setPersonaProfile(akunObj.personaProfile)
     }
     if (akunObj.uspDiriInput) {
       setPersonalSpecsInput(akunObj.uspDiriInput)
     }
-    showToast(`Menggunakan profil akun: ${akunObj.labelAkun}`)
+    showToast(`Profil akun aktif: ${akunObj.labelAkun}`)
+
+    if (contextMode === "sesuai_niche") {
+      handleGenerate10IdeTopikAI(personaAkun)
+    }
+  }
+
+  // Jika user memilih Lintas Topik / Bebas, kosongkan rekomendasi ide topik dummy
+  const handleUbahContextMode = (modeBaru) => {
+    setContextMode(modeBaru)
+    if (modeBaru === "lintas_produk") {
+      setDaftar10IdeTopik([])
+    }
   }
 
   const renderAdaptiveVoiceInput = ({
@@ -451,20 +474,54 @@ export default function ScriptProducerView({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-24 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
+          className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg p-3 pr-28 text-base sm:text-sm font-normal text-[#14141f] placeholder:text-slate-400 focus:bg-white focus:border-[#14141f] outline-none transition leading-relaxed"
         />
-        <button
-          type="button"
-          onClick={onTriggerUpgradeVIP}
-          title="Fitur Mikrofon Suara khusus Paket VIP (Rp20.000+)"
-          className="cursor-pointer absolute right-2 bottom-2 px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
-        >
-          <FlatIcon name="lock" className="w-3.5 h-3.5" />
-          <span>Mic VIP</span>
-        </button>
+        <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
+          {value && value.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              title="Hapus seluruh teks"
+              className="cursor-pointer px-2 py-1.5 rounded-md bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-[11px] font-bold transition"
+            >
+              Hapus
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onTriggerUpgradeVIP}
+            title="Fitur Mikrofon Suara khusus Paket VIP (Rp20.000+)"
+            className="cursor-pointer px-2.5 py-1.5 rounded-md bg-slate-200 hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] flex items-center gap-1 text-[11px] font-bold transition"
+          >
+            <FlatIcon name="lock" className="w-3.5 h-3.5" />
+            <span>Mic VIP</span>
+          </button>
+        </div>
       </div>
     )
   }
+
+  // Input Baris Tunggal dengan Tombol Hapus
+  const renderInputWithClear = ({ value, onChange, placeholder }) => (
+    <div className="relative w-full">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 pr-16 text-base sm:text-xs text-[#14141f] outline-none focus:bg-white focus:border-[#14141f]"
+      />
+      {value && value.trim().length > 0 && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:text-rose-700"
+        >
+          Hapus
+        </button>
+      )}
+    </div>
+  )
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -499,7 +556,6 @@ export default function ScriptProducerView({
           setStage2Batches(parsed.stage2Batches)
         if (Array.isArray(parsed.stage3Batches))
           setStage3Batches(parsed.stage3Batches)
-        if (parsed.tempStoryInput) setTempStoryInput(parsed.tempStoryInput)
         if (
           typeof parsed.savedStage === "number" &&
           parsed.savedStage >= 0 &&
@@ -541,7 +597,6 @@ export default function ScriptProducerView({
         stage1Batches,
         stage2Batches,
         stage3Batches,
-        tempStoryInput,
         savedStage: stage <= 4 ? stage : 0,
       }
       localStorage.setItem(storageKey, JSON.stringify(payloadSimpan))
@@ -572,7 +627,6 @@ export default function ScriptProducerView({
     stage1Batches,
     stage2Batches,
     stage3Batches,
-    tempStoryInput,
     stage,
   ])
 
@@ -611,10 +665,10 @@ export default function ScriptProducerView({
           <div style="font-weight:bold; font-size:12px; color:#475569; margin-bottom:6px;">
             Bagian ${s.partNumber} • ${s.partTitle} ${s.estimatedSeconds ? `(${s.estimatedSeconds})` : ""}
           </div>
-          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;"><strong>Naskah Lisan / Dialog:</strong><br/>${
+          <div style="font-size:14px; line-height:1.6; white-space:pre-line; margin-bottom:8px;"><strong>Naskah:</strong><br/>${
             modeTampilanSkrip === "teks" ? s.onScreenText : s.spokenText
           }</div>
-          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;"><strong>Arahan Adegan Visual:</strong> ${s.visualCue}</div>
+          <div style="font-size:12px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px;"><strong>Arahan Adegan & Intonasi:</strong> ${s.visualCue}</div>
         </div>`,
       )
       .join("")
@@ -631,7 +685,7 @@ export default function ScriptProducerView({
         <body style="font-family:sans-serif; padding:24px; color:#14141f;">
           <h2 style="margin-bottom:4px;">${hasilSkrip.judul}</h2>
           <p style="font-size:12px; color:#64748b; margin-top:0; margin-bottom:20px;">
-            Hookya.site • ${hasilSkrip.waktuDibuat} • ${daftarBagian.length} Bagian Dinamis
+            Hookya.site • ${hasilSkrip.waktuDibuat} • ${daftarBagian.length} Bagian
           </p>
           ${barisHTML}
           ${watermarkFooter}
@@ -742,9 +796,20 @@ export default function ScriptProducerView({
     })
   }
 
-  const handleGenerate10IdeTopikAI = async () => {
+  const handleGenerate10IdeTopikAI = async (
+    personaOverride = personaProfile,
+  ) => {
+    if (contextMode === "lintas_produk") {
+      setDaftar10IdeTopik([])
+      showToast(
+        "Mode Lintas Topik aktif. Silakan ketik topik bebas pada kolom di atas.",
+      )
+      return
+    }
     setIsLoadingIdeTopik(true)
-    showToast("Menyusun 10 ide materi sesuai format dan faktor pemicu...")
+    showToast(
+      "Menganalisis profil akun terpilih untuk menyusun 10 ide materi...",
+    )
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -759,19 +824,16 @@ export default function ScriptProducerView({
           trustApproach,
           sellingStyle,
           personalSpecs: personalSpecsInput,
-          contextMode,
-          personaProfile,
+          contextMode: "sesuai_niche",
+          personaProfile: personaOverride,
           kategoriKonten,
         }),
       })
       const data = await res.json()
       if (res.ok && Array.isArray(data.ideTopik) && data.ideTopik.length > 0) {
-        const sepuluhIde = data.ideTopik.slice(0, 10)
-        setDaftar10IdeTopik(sepuluhIde)
-        if (!rawTopicInput.trim() && sepuluhIde[0]?.judul) {
-          setRawTopicInput(sepuluhIde[0].judul)
-        }
-        showToast("10 ide materi baru berhasil dimuat.")
+        setDaftar10IdeTopik(data.ideTopik.slice(0, 10))
+        setSudahAnalisisIdeProfil(true)
+        showToast("10 rekomendasi ide dari analisis profil akun dimuat.")
       } else {
         showToast("Error sistem, silakan refresh atau hubungi admin.")
       }
@@ -796,13 +858,13 @@ export default function ScriptProducerView({
     if (contentPhase !== "fase_3_konversi") {
       if (!rawTopicInput.trim()) {
         alert(
-          "Pilih salah satu kartu ide topik atau ketik topik bahasan terlebih dahulu.",
+          "Ketik topik pembahasan terlebih dahulu atau pilih dari rekomendasi ide materi.",
         )
         return
       }
       const instruksiJembatan =
         posisiBicara !== "Sesuai Positioning Utama Saya"
-          ? ` [ POSISI BICARA: Gunakan mode "${posisiBicara}". Jelaskan istilah teknis menggunakan perbandingan sehari-hari yang dekat dengan pengalaman pengguna. ]`
+          ? ` [ POSISI BICARA: Gunakan mode "${posisiBicara}". ]`
           : ""
       const lampiranBerita = sumberBeritaMentah.trim()
         ? ` [ FAKTA / BERITA SUMBER: "${sumberBeritaMentah.trim()}" ]`
@@ -834,6 +896,15 @@ export default function ScriptProducerView({
     if (!isRegenerateBatch) {
       setStage1Batches([])
       setActiveBatch1(0)
+      // Kosongkan seluruh textbox dari teks dummy saat masuk ke Tahap 1
+      setTempStoryInput("")
+      setPondasiFaktaInput("")
+      setTempCustomSolution("")
+      setTempCustomHook("")
+      setTempCustomCTA("")
+      setCatatanAkhirUser("")
+      setShowRekomendasiIlustrasi(false)
+      setShowRekomendasiFakta(false)
     }
     setIsLoadingOpsi(true)
 
@@ -898,14 +969,6 @@ export default function ScriptProducerView({
         return listBaru
       })
 
-      if (
-        contentPhase === "fase_2_trust" &&
-        !tempStoryInput &&
-        personalSpecsInput
-      ) {
-        setTempStoryInput(personalSpecsInput)
-      }
-
       setContentBrief((prev) => ({
         ...prev,
         session_id: `ses_${Date.now().toString().slice(-4)}`,
@@ -943,14 +1006,6 @@ export default function ScriptProducerView({
 
     setContentBrief((prev) => ({
       ...prev,
-      content_phase: contentPhase,
-      content_format: contentFormat,
-      viral_trigger: viralTrigger,
-      trust_approach: trustApproach,
-      selling_style: sellingStyle,
-      word_density: wordDensity,
-      personal_specs: personalSpecsInput,
-      context_mode: contextMode,
       chosen_angle: finalAngle,
       personal_context_or_story: finalStory,
     }))
@@ -1023,17 +1078,9 @@ export default function ScriptProducerView({
         return listBaru
       })
 
-      const ceritaOtomatis =
-        finalStory.trim() ||
-        data.relatable_analogies?.[0] ||
-        "Situasi sehari-hari."
-
-      setTempStoryInput(ceritaOtomatis)
+      // Jangan timpa tempStoryInput dengan teks dummy otomatis (biarkan kosong jika user tidak mengisi)
       setContentBrief((prev) => ({
         ...prev,
-        personal_context_or_story: ceritaOtomatis,
-        injected_reference:
-          data.reference_cards?.[0] || prev.injected_reference,
         actionable_solution: data.suggested_solutions
           ? data.suggested_solutions.slice(0, 2)
           : prev.actionable_solution,
@@ -1055,18 +1102,21 @@ export default function ScriptProducerView({
       ? [...contentBrief.actionable_solution, tempCustomSolution.trim()]
       : contentBrief.actionable_solution
 
+    const faktaTerpilihObj = {
+      type: "Fakta & Alasan Logis",
+      title: pondasiFaktaInput.trim()
+        ? "Pondasi Fakta Pengguna"
+        : "Fakta Lapangan",
+      summary:
+        pondasiFaktaInput.trim() ||
+        coPilotStage2Data?.reference_cards?.[0]?.summary ||
+        "",
+    }
+
     setContentBrief((prev) => ({
       ...prev,
-      content_phase: contentPhase,
-      content_format: contentFormat,
-      viral_trigger: viralTrigger,
-      trust_approach: trustApproach,
-      selling_style: sellingStyle,
-      word_density: wordDensity,
-      personal_specs: personalSpecsInput,
-      context_mode: contextMode,
-      personal_context_or_story:
-        tempStoryInput || prev.personal_context_or_story,
+      personal_context_or_story: tempStoryInput.trim(),
+      injected_reference: faktaTerpilihObj,
       actionable_solution: solusiFinal,
     }))
 
@@ -1117,9 +1167,8 @@ export default function ScriptProducerView({
             contextMode,
             coreIdea: contentBrief.core_idea,
             chosenAngle: contentBrief.chosen_angle,
-            personalStory:
-              tempStoryInput || contentBrief.personal_context_or_story,
-            injectedReference: contentBrief.injected_reference,
+            personalStory: tempStoryInput.trim(),
+            injectedReference: faktaTerpilihObj,
             actionableSolutions: solusiFinal,
           },
           customPrompts,
@@ -1237,14 +1286,6 @@ export default function ScriptProducerView({
   const lanjutKeTahap4FinalBrief = () => {
     setContentBrief((prev) => ({
       ...prev,
-      content_phase: contentPhase,
-      content_format: contentFormat,
-      viral_trigger: viralTrigger,
-      trust_approach: trustApproach,
-      selling_style: sellingStyle,
-      word_density: wordDensity,
-      personal_specs: personalSpecsInput,
-      context_mode: contextMode,
       locked_hook: tempCustomHook.trim() || prev.locked_hook,
       call_to_action: tempCustomCTA.trim() || prev.call_to_action,
     }))
@@ -1282,17 +1323,11 @@ export default function ScriptProducerView({
           wordDensity,
           personalSpecs: personalSpecsInput,
           contextMode,
+          catatanAkhirUser,
           personaProfile,
           contentBrief: {
             ...contentBrief,
-            content_phase: contentPhase,
-            content_format: contentFormat,
-            viral_trigger: viralTrigger,
-            trust_approach: trustApproach,
-            selling_style: sellingStyle,
-            word_density: wordDensity,
-            personal_specs: personalSpecsInput,
-            context_mode: contextMode,
+            user_final_notes: catatanAkhirUser,
           },
           bentukKonten: bentukKontenFinal,
           ugcConfig: { ...ugcConfig, namaPemeran: pemeranBersih },
@@ -1343,6 +1378,7 @@ export default function ScriptProducerView({
       )
       setKoleksiVariasiGanda([])
       setIndexVariasiAktif(0)
+      setOpenVisualMap({})
 
       const uploadPkg = data.uploadPackage || data.upload_pack || null
       const uploadPackTerformat = uploadPkg
@@ -1376,6 +1412,10 @@ export default function ScriptProducerView({
           data.targetDuration || contentBrief.target_platform || "60 Detik",
         flowStyle: data.flowStyle || "Padat & Mengalir",
         totalSections: segmenHasil.length,
+        kritikSaran:
+          data.kritikSaran ||
+          data.script_score?.producer_tip ||
+          "Pastikan kalimat pembuka diucapkan tanpa jeda ragu dan jaga kontak mata dengan lensa kamera.",
         metadata: data.metadata || {
           estimated_duration:
             data.targetDuration || contentBrief.target_platform,
@@ -1385,6 +1425,7 @@ export default function ScriptProducerView({
         scriptScore: data.script_score || null,
         uploadPackage: uploadPackTerformat,
         uploadPack: uploadPackTerformat,
+        variasiFolder: [],
         contentBrief,
         sudahUpload: false,
         tanggalUpload: "",
@@ -1407,11 +1448,10 @@ export default function ScriptProducerView({
   }
 
   const handleUbahDurasiSkrip = async (
-    durasiPilihan,
+    durasiPilihan = targetDurasiUbah,
     kepadatanOverride = wordDensity,
   ) => {
     if (!hasilSkrip || isChangingDuration) return
-    setTargetDurasiUbah(durasiPilihan)
     setIsChangingDuration(true)
     showToast(`Menyesuaikan panjang & kepadatan naskah ke ${durasiPilihan}...`)
 
@@ -1473,7 +1513,11 @@ export default function ScriptProducerView({
     }
   }
 
-  const handleGandakanStokSkrip = async (jumlahX, biayaKoin) => {
+  // Gandakan Skrip via Dropdown & Simpan ke dalam 1 Folder Induk (`variasiFolder`)
+  const handleGandakanViaDropdown = async () => {
+    const jumlahX = parseInt(pilihanMultiplierDropdown) || 2
+    const biayaKoin = jumlahX === 10 ? 3 : jumlahX === 5 ? 2 : 1
+
     if (!hasilSkrip || isMultiplyingScript) return
     if (coins < biayaKoin) {
       alert(
@@ -1485,7 +1529,7 @@ export default function ScriptProducerView({
 
     setIsMultiplyingScript(true)
     await updateKoinDatabase(coins - biayaKoin)
-    showToast(`Menyusun ${jumlahX} variasi skrip berbeda...`)
+    showToast(`Menyusun ${jumlahX} variasi skrip ke dalam 1 folder...`)
 
     try {
       const res = await fetch("/api/ai", {
@@ -1534,36 +1578,39 @@ export default function ScriptProducerView({
         minute: "2-digit",
       })
 
-      const arsipBaruList = []
-      for (let i = 0; i < listVariasi.length; i++) {
-        const v = listVariasi[i]
+      const itemFolderBaru = listVariasi.map((v, i) => {
         const bagVariasi = ambilDaftarBagianSkrip(v)
-        const objekSkripVariasi = {
+        return {
           id: Date.now() + i + 1,
-          dbId: null,
-          judul: `${hasilSkrip.judul} (${v.judulVariasi || `Variasi ${i + 1}`})`,
-          kategori: hasilSkrip.kategori || "Stok Konten",
-          bentuk: hasilSkrip.bentuk,
+          judul: v.judulVariasi || `Variasi ${i + 1}`,
           waktuDibuat: waktuSekarang,
-          targetDuration: hasilSkrip.targetDuration,
-          flowStyle: hasilSkrip.flowStyle,
-          totalSections: bagVariasi.length,
-          metadata: hasilSkrip.metadata,
-          sudahUpload: false,
-          tanggalUpload: "",
           sections: bagVariasi,
           segmen: bagVariasi,
         }
-        const tersimpanDB =
-          await simpanAtauUpdateSkripDatabase(objekSkripVariasi)
-        arsipBaruList.push(tersimpanDB)
+      })
+
+      const folderGabungan = [
+        ...(Array.isArray(hasilSkrip.variasiFolder)
+          ? hasilSkrip.variasiFolder
+          : []),
+        ...itemFolderBaru,
+      ]
+
+      const skripIndukUpdate = {
+        ...hasilSkrip,
+        variasiFolder: folderGabungan,
       }
 
-      setKoleksiSkripTersimpan((prev) => [...arsipBaruList, ...prev])
-      setKoleksiVariasiGanda(arsipBaruList)
+      const tersimpanDB = await simpanAtauUpdateSkripDatabase(skripIndukUpdate)
+      setHasilSkrip(tersimpanDB)
+      setKoleksiSkripTersimpan((prev) =>
+        prev.map((item) => (item.id === tersimpanDB.id ? tersimpanDB : item)),
+      )
+      setKoleksiVariasiGanda(folderGabungan)
       setIndexVariasiAktif(0)
-      setHasilSkrip(arsipBaruList[0])
-      showToast(`${arsipBaruList.length} variasi skrip baru disimpan ke Arsip.`)
+      showToast(
+        `${itemFolderBaru.length} variasi skrip disimpan ke dalam Folder "${hasilSkrip.judul}" di Arsip.`,
+      )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -1767,6 +1814,11 @@ export default function ScriptProducerView({
   const estimasiDetikBacaNormal = Math.round((totalKataSkripAktif / 140) * 60)
   const paketUploadAktif =
     hasilSkrip?.uploadPackage || hasilSkrip?.uploadPack || null
+  const teksKritikSaran =
+    hasilSkrip?.kritikSaran ||
+    hasilSkrip?.scriptScore?.producer_tip ||
+    hasilSkrip?.scriptScore?.retention_bridge ||
+    "Pastikan kalimat pembuka diucapkan secara lugas dan jaga intonasi bicara tetap mengalir di setiap pergantian bagian."
   const infoFormatTerpilih = SEMBILAN_FORMAT_KONTEN.find(
     (f) => f.id === contentFormat,
   )
@@ -1776,13 +1828,13 @@ export default function ScriptProducerView({
 
   return (
     <div className="bg-white p-4 sm:p-8 rounded-2xl border border-slate-200 space-y-6 w-full max-w-full overflow-hidden">
-      {/* HEADER TAHAP TANPA EYEBROW BADGE */}
+      {/* HEADER TAHAP */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-base sm:text-xl font-bold text-[#14141f] break-words">
             {stage === 0 && "Buat Skrip Konten"}
             {stage === 1 && "Tahap 1: Pilih Sudut Pandang Bahasan"}
-            {stage === 2 && "Tahap 2: Ilustrasi, Bukti Fakta & Solusi"}
+            {stage === 2 && "Tahap 2: Ilustrasi, Pondasi Fakta & Solusi"}
             {stage === 3 && "Tahap 3: Struktur, Kalimat Pembuka (Hook) & CTA"}
             {stage === 4 && "Tahap 4: Periksa Rancangan Konten"}
             {stage === 5 && hasilSkrip?.judul}
@@ -1831,41 +1883,48 @@ export default function ScriptProducerView({
       {/* STAGE 0 */}
       {stage === 0 && (
         <div className="space-y-6">
-          {/* PEMILIH CEPAT PROFIL AKUN (JIKA MEMILIKI MULTI-AKUN TERNAK AKUN) */}
-          {daftarAkunTersimpan.length > 1 && (
+          {/* PEMILIH PROFIL AKUN (DENGAN INDIKATOR KUNCI JIKA MELEBIHI KUOTA PAKET) */}
+          {daftarAkunTersimpan.length > 0 && (
             <div className="bg-[#f4f5f7] p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-[#14141f]">
-                Profil Akun Aktif:
+                Pilih Profil Akun Sosial Media:
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {daftarAkunTersimpan.map((ak) => (
-                  <button
-                    key={ak.id}
-                    type="button"
-                    onClick={() => handleGantiAkunCepat(ak)}
-                    className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                      idAkunTerpilih === ak.id
-                        ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    {ak.labelAkun}
-                  </button>
-                ))}
+                {daftarAkunTersimpan.map((ak, idx) => {
+                  const terkunci = idx >= kuotaAkunMaksimal
+                  return (
+                    <button
+                      key={ak.id}
+                      type="button"
+                      onClick={() => handleGantiAkunCepat(ak, idx)}
+                      className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 ${
+                        terkunci
+                          ? "bg-slate-200 text-slate-500 border-slate-300 opacity-75"
+                          : idAkunTerpilih === ak.id
+                            ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-[#14141f]"
+                      }`}
+                    >
+                      {terkunci && (
+                        <FlatIcon name="lock" className="w-3 h-3 shrink-0" />
+                      )}
+                      <span>{ak.labelAkun}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {/* SEKSI 1: PILIH FASE KONTEN (VIRAL, TRUST, ATAU KONVERSI) */}
+          {/* SEKSI 1: PILIH FASE KONTEN */}
           <section className="space-y-3">
             <div>
               <h3 className="text-sm font-bold text-[#14141f]">
                 1. Pilih Fase Tujuan Konten
               </h3>
               <p className="text-xs text-slate-600 mt-0.5">
-                Pilih apakah konten ini bertujuan mencari jangkauan viral baru,
-                membangun kepercayaan (trust), atau melakukan konversi
-                penjualan.
+                Pilih tujuan kontenmu hari ini: mencari jangkauan viral baru,
+                membangun kepercayaan (trust), atau konversi penjualan.
               </p>
             </div>
 
@@ -1926,7 +1985,6 @@ export default function ScriptProducerView({
               })}
             </div>
 
-            {/* PANEL KHUSUS FASE 2: PENDEKATAN TRUST & SPESIFIKASI PERSONAL DIRI */}
             {contentPhase === "fase_2_trust" && (
               <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-xl space-y-3 mt-2">
                 <div>
@@ -1934,8 +1992,8 @@ export default function ScriptProducerView({
                     Pengaturan Fase 2: Pendekatan Kepercayaan & Spesifikasi Diri
                   </h4>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Pilih sudut pembuktian kepercayaan dan pastikan spesifikasi
-                    pengalaman dirimu di bawah sudah sesuai.
+                    Pilih sudut pembuktian kepercayaan dan sesuaikan spesifikasi
+                    pengalaman dirimu di bawah ini.
                   </p>
                 </div>
 
@@ -1971,28 +2029,22 @@ export default function ScriptProducerView({
                     Spesifikasi Personal Diri / Jam Terbang yang Diselipkan ke
                     Skrip
                   </label>
-                  <input
-                    type="text"
-                    value={personalSpecsInput}
-                    onChange={(e) => setPersonalSpecsInput(e.target.value)}
-                    placeholder="Contoh: Sudah 3 tahun praktik langsung di lapangan dan menangani puluhan kasus..."
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs font-bold text-[#14141f] outline-none focus:border-[#14141f]"
-                  />
+                  {renderInputWithClear({
+                    value: personalSpecsInput,
+                    onChange: setPersonalSpecsInput,
+                    placeholder:
+                      "Ketik pengalaman atau jam terbangmu di sini...",
+                  })}
                 </div>
               </div>
             )}
 
-            {/* PANEL KHUSUS FASE 3: PILIHAN SOFT SELLING VS HARD SELLING */}
             {contentPhase === "fase_3_konversi" && (
               <div className="bg-[#f4f5f7] border border-slate-200 p-4 rounded-xl space-y-3 mt-2">
                 <div>
                   <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
                     Pilih Strategi Penjualan (Soft Selling vs Hard Selling)
                   </h4>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Tentukan cara menawarkan produk atau campaign di dalam
-                    naskah.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -2016,7 +2068,7 @@ export default function ScriptProducerView({
                       }`}
                     >
                       Buka dengan cerita kejadian atau tips bermanfaat, lalu
-                      masukkan produk secara alami sebagai solusi di akhir.
+                      masukkan produk secara alami di akhir.
                     </p>
                   </button>
 
@@ -2113,10 +2165,6 @@ export default function ScriptProducerView({
               <h3 className="text-sm font-bold text-[#14141f]">
                 3. Pilih Faktor Pemicu Perhatian & Viral
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Tentukan unsur psikologis utama yang akan disuntikkan ke dalam
-                naskah agar disukai dan dibagikan banyak orang.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -2167,11 +2215,6 @@ export default function ScriptProducerView({
               <h3 className="text-sm font-bold text-[#14141f]">
                 4. Pengaturan Durasi Baca Riil, Kepadatan Kata & Konteks Bidang
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Pilih mode <strong>Padat Berisi & Kaya Kosakata</strong> agar
-                naskah dijabarkan secara lengkap dan benar-benar memenuhi
-                estimasi waktu bicara normal (140 kata per menit).
-              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2221,7 +2264,7 @@ export default function ScriptProducerView({
                 <div className="bg-[#f4f5f7] p-1.5 rounded-xl grid grid-cols-2 gap-1.5 border border-slate-200">
                   <button
                     type="button"
-                    onClick={() => setContextMode("sesuai_niche")}
+                    onClick={() => handleUbahContextMode("sesuai_niche")}
                     className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
                       contextMode === "sesuai_niche"
                         ? "bg-[#14141f] text-[#d4f34a]"
@@ -2238,7 +2281,7 @@ export default function ScriptProducerView({
 
                   <button
                     type="button"
-                    onClick={() => setContextMode("lintas_produk")}
+                    onClick={() => handleUbahContextMode("lintas_produk")}
                     className={`cursor-pointer p-2.5 rounded-lg text-left transition ${
                       contextMode === "lintas_produk"
                         ? "bg-[#14141f] text-[#d4f34a]"
@@ -2274,114 +2317,129 @@ export default function ScriptProducerView({
             </div>
           </section>
 
-          {/* SEKSI 5: INPUT MATERI / PRODUK */}
+          {/* SEKSI 5: KOTAK TOPIK KETIK SENDIRI DI ATAS PILIHAN REKOMENDASI IDE MATERI */}
           <section className="space-y-5 pt-6 border-t border-slate-200">
             {contentPhase !== "fase_3_konversi" ? (
               <div className="space-y-5">
-                <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                        5. Rekomendasi 10 Ide Materi (
-                        {infoFormatTerpilih?.judul})
-                      </h3>
-                      <p className="text-xs text-slate-600">
-                        Klik tombol Muat 10 Ide Baru untuk mencari ide topik
-                        yang menggabungkan format dan faktor pemicu pilihanmu.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={isLoadingIdeTopik}
-                        onClick={handleGenerate10IdeTopikAI}
-                        className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5"
-                      >
-                        {isLoadingIdeTopik && (
-                          <FlatIcon
-                            name="refresh"
-                            className="w-3.5 h-3.5 animate-spin"
-                          />
-                        )}
-                        <span>
-                          {isLoadingIdeTopik
-                            ? "Memuat..."
-                            : "Carikan 10 Ide Materi Baru"}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => geserSliderIde("kiri")}
-                        className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
-                      >
-                        <FlatIcon name="chevronLeft" className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => geserSliderIde("kanan")}
-                        className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
-                      >
-                        <FlatIcon name="chevronRight" className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div
-                    ref={sliderIdeRef}
-                    className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 snap-x snap-mandatory"
-                  >
-                    {daftar10IdeTopik.map((ide, idx) => {
-                      const terpilih = rawTopicInput === ide.judul
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setRawTopicInput(ide.judul)
-                            showToast(`Topik dipilih: ${ide.judul}`)
-                          }}
-                          className={`cursor-pointer snap-start shrink-0 w-64 sm:w-72 p-3.5 rounded-lg border text-left transition ${
-                            terpilih
-                              ? "bg-[#14141f] text-white border-[#14141f]"
-                              : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                          }`}
-                        >
-                          <span
-                            className={`text-[11px] font-bold ${
-                              terpilih ? "text-[#d4f34a]" : "text-slate-500"
-                            }`}
-                          >
-                            Ide {idx + 1} • {ide.nuansa}
-                          </span>
-                          <div className="text-xs sm:text-sm font-bold mt-1">
-                            {ide.judul}
-                          </div>
-                          <p
-                            className={`text-xs mt-1 leading-snug ${
-                              terpilih ? "text-slate-300" : "text-slate-600"
-                            }`}
-                          >
-                            {ide.ringkasan}
-                          </p>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
+                {/* 1. KOTAK KOLOM TOPIK KETIK SENDIRI DITARUH DI PALING ATAS */}
                 <div>
                   <label className="block text-xs font-bold text-[#14141f] mb-1.5">
-                    Topik Pembahasan (Bisa Pilih dari Kartu di Atas atau Ketik
-                    Sendiri)
+                    5. Ketik Topik Pembahasan Sendiri
                   </label>
                   {renderAdaptiveVoiceInput({
                     rows: 2,
                     value: rawTopicInput,
                     onChange: setRawTopicInput,
                     placeholder:
-                      "Ketik topik materi, judul kultum/pidato, atau fenomena yang ingin kamu bahas...",
+                      "Ketik topik materi, judul kultum/pidato, atau fenomena yang ingin kamu bahas di sini...",
                   })}
                 </div>
+
+                {/* 2. REKOMENDASI IDE MATERI (HANYA TAMPIL JIKA BUKAN LINTAS TOPIK BEBAS) */}
+                {contextMode === "sesuai_niche" && (
+                  <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
+                          Rekomendasi Ide Materi dari Analisis Profil Akun
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                          Klik tombol di kanan untuk menganalisis profil akun
+                          terpilih dan memunculkan 10 ide materi yang relevan.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={isLoadingIdeTopik}
+                          onClick={() => handleGenerate10IdeTopikAI()}
+                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5"
+                        >
+                          {isLoadingIdeTopik && (
+                            <FlatIcon
+                              name="refresh"
+                              className="w-3.5 h-3.5 animate-spin"
+                            />
+                          )}
+                          <span>
+                            {isLoadingIdeTopik
+                              ? "Menganalisis Profil..."
+                              : "Analisis Profil & Cari 10 Ide"}
+                          </span>
+                        </button>
+                        {sudahAnalisisIdeProfil &&
+                          daftar10IdeTopik.length > 0 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => geserSliderIde("kiri")}
+                                className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                              >
+                                <FlatIcon
+                                  name="chevronLeft"
+                                  className="w-4 h-4"
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => geserSliderIde("kanan")}
+                                className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                              >
+                                <FlatIcon
+                                  name="chevronRight"
+                                  className="w-4 h-4"
+                                />
+                              </button>
+                            </>
+                          )}
+                      </div>
+                    </div>
+
+                    {sudahAnalisisIdeProfil && daftar10IdeTopik.length > 0 && (
+                      <div
+                        ref={sliderIdeRef}
+                        className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 snap-x snap-mandatory"
+                      >
+                        {daftar10IdeTopik.map((ide, idx) => {
+                          const terpilih = rawTopicInput === ide.judul
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setRawTopicInput(ide.judul)
+                                showToast(`Topik dipilih: ${ide.judul}`)
+                              }}
+                              className={`cursor-pointer snap-start shrink-0 w-64 sm:w-72 p-3.5 rounded-lg border text-left transition ${
+                                terpilih
+                                  ? "bg-[#14141f] text-white border-[#14141f]"
+                                  : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
+                              }`}
+                            >
+                              <span
+                                className={`text-[11px] font-bold ${
+                                  terpilih ? "text-[#d4f34a]" : "text-slate-500"
+                                }`}
+                              >
+                                Ide {idx + 1} • {ide.nuansa}
+                              </span>
+                              <div className="text-xs sm:text-sm font-bold mt-1">
+                                {ide.judul}
+                              </div>
+                              <p
+                                className={`text-xs mt-1 leading-snug ${
+                                  terpilih ? "text-slate-300" : "text-slate-600"
+                                }`}
+                              >
+                                {ide.ringkasan}
+                              </p>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-xl space-y-3">
                   <button
@@ -2393,13 +2451,8 @@ export default function ScriptProducerView({
                   >
                     <div>
                       <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                        Pengaturan Topik Lintas Bidang & Kutipan Sumber
-                        (Opsional)
+                        Pengaturan Sudut Bicara & Kutipan Sumber (Opsional)
                       </h4>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        Gunakan jika kamu ingin menempelkan teks
-                        berita/referensi atau mengatur posisi bicara khusus.
-                      </p>
                     </div>
                     <FlatIcon
                       name="chevronDown"
@@ -2510,11 +2563,6 @@ export default function ScriptProducerView({
                           <h4 className="text-xs sm:text-sm font-bold text-[#14141f]">
                             Ekstrak Otomatis dari Screenshot Marketplace
                           </h4>
-                          <p className="text-xs text-slate-500">
-                            Unggah tangkapan layar produk Shopee, TikTok Shop,
-                            atau Tokopedia untuk menyalin nama, merek, dan
-                            spesifikasinya.
-                          </p>
                         </div>
                         {!isPremiumUser && (
                           <button
@@ -2550,9 +2598,6 @@ export default function ScriptProducerView({
                                 ? ssProduk.namaFile
                                 : "1. Pilih Screenshot Produk"}
                             </div>
-                            <span className="text-[11px] text-slate-500 block">
-                              Nama produk, merek & harga
-                            </span>
                           </div>
                           {isPremiumUser && (
                             <input
@@ -2585,9 +2630,6 @@ export default function ScriptProducerView({
                                 ? ssSpesifikasi.namaFile
                                 : "2. Pilih Screenshot Spesifikasi (Opsional)"}
                             </div>
-                            <span className="text-[11px] text-slate-500 block">
-                              Detail bahan, ukuran & fitur
-                            </span>
                           </div>
                           {isPremiumUser && (
                             <input
@@ -2622,52 +2664,34 @@ export default function ScriptProducerView({
                         <label className="block text-xs font-bold text-[#14141f] mb-1">
                           Nama Produk (Wajib)
                         </label>
-                        <input
-                          type="text"
-                          value={formProduk.namaProduk}
-                          onChange={(e) =>
-                            setFormProduk({
-                              ...formProduk,
-                              namaProduk: e.target.value,
-                            })
-                          }
-                          placeholder="Masukkan nama produk..."
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:border-[#14141f]"
-                        />
+                        {renderInputWithClear({
+                          value: formProduk.namaProduk,
+                          onChange: (val) =>
+                            setFormProduk({ ...formProduk, namaProduk: val }),
+                          placeholder: "Masukkan nama produk...",
+                        })}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-[#14141f] mb-1">
                           Merek / Nama Toko (Opsional)
                         </label>
-                        <input
-                          type="text"
-                          value={formProduk.brand}
-                          onChange={(e) =>
-                            setFormProduk({
-                              ...formProduk,
-                              brand: e.target.value,
-                            })
-                          }
-                          placeholder="Masukkan nama merek..."
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:border-[#14141f]"
-                        />
+                        {renderInputWithClear({
+                          value: formProduk.brand,
+                          onChange: (val) =>
+                            setFormProduk({ ...formProduk, brand: val }),
+                          placeholder: "Masukkan nama merek...",
+                        })}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-[#14141f] mb-1">
                           Harga / Promo (Opsional)
                         </label>
-                        <input
-                          type="text"
-                          value={formProduk.hargaPromo}
-                          onChange={(e) =>
-                            setFormProduk({
-                              ...formProduk,
-                              hargaPromo: e.target.value,
-                            })
-                          }
-                          placeholder="Contoh: Rp150.000"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:border-[#14141f]"
-                        />
+                        {renderInputWithClear({
+                          value: formProduk.hargaPromo,
+                          onChange: (val) =>
+                            setFormProduk({ ...formProduk, hargaPromo: val }),
+                          placeholder: "Masukkan harga/promo...",
+                        })}
                       </div>
                     </div>
 
@@ -2711,30 +2735,24 @@ export default function ScriptProducerView({
                 {jenisPromosi === "campaign" && (
                   <div className="bg-[#f4f5f7] p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <input
-                        type="text"
-                        value={formCampaign.namaCampaign}
-                        onChange={(e) =>
+                      {renderInputWithClear({
+                        value: formCampaign.namaCampaign,
+                        onChange: (val) =>
                           setFormCampaign({
                             ...formCampaign,
-                            namaCampaign: e.target.value,
-                          })
-                        }
-                        placeholder="Nama Gerakan / Acara (Wajib)"
-                        className="bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={formCampaign.penyelenggara}
-                        onChange={(e) =>
+                            namaCampaign: val,
+                          }),
+                        placeholder: "Nama Gerakan / Acara (Wajib)",
+                      })}
+                      {renderInputWithClear({
+                        value: formCampaign.penyelenggara,
+                        onChange: (val) =>
                           setFormCampaign({
                             ...formCampaign,
-                            penyelenggara: e.target.value,
-                          })
-                        }
-                        placeholder="Penyelenggara / Komunitas (Opsional)"
-                        className="bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none"
-                      />
+                            penyelenggara: val,
+                          }),
+                        placeholder: "Penyelenggara / Komunitas (Opsional)",
+                      })}
                     </div>
                     {renderAdaptiveVoiceInput({
                       rows: 2,
@@ -2749,83 +2767,6 @@ export default function ScriptProducerView({
               </div>
             )}
           </section>
-
-          {/* PENGATURAN TAMBAHAN: MODE DIALOG UGC */}
-          <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-4 rounded-xl space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
-                  <FlatIcon name="users" className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                    Format Dialog Percakapan (UGC)
-                  </h3>
-                  <p className="text-xs text-slate-600">
-                    Aktifkan jika skrip akan diperankan oleh 2 sampai 4 orang
-                    secara bersahutan.
-                  </p>
-                </div>
-              </div>
-
-              <label className="cursor-pointer inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200">
-                <input
-                  type="checkbox"
-                  checked={ugcConfig.aktif}
-                  onChange={(e) =>
-                    setUgcConfig({ ...ugcConfig, aktif: e.target.checked })
-                  }
-                  className="w-4 h-4 accent-[#14141f]"
-                />
-                <span>Gunakan Dialog UGC</span>
-              </label>
-            </div>
-
-            {ugcConfig.aktif && (
-              <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="text-xs font-bold text-[#14141f]">
-                    Jumlah Pemeran:
-                  </label>
-                  {[2, 3, 4].map((jml) => (
-                    <button
-                      key={jml}
-                      type="button"
-                      onClick={() => handleUbahJumlahPemeranUGC(jml)}
-                      className={`cursor-pointer px-3 py-1 rounded-md text-xs font-bold border ${
-                        ugcConfig.jumlahOrang === jml
-                          ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                          : "bg-[#f4f5f7] text-slate-700 border-slate-200"
-                      }`}
-                    >
-                      {jml} Orang
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-                  {ugcConfig.namaPemeran.map((namaP, idx) => (
-                    <div key={idx}>
-                      <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                        Pemeran {idx + 1}
-                      </label>
-                      <input
-                        type="text"
-                        value={namaP}
-                        onChange={(e) => {
-                          const salinan = [...ugcConfig.namaPemeran]
-                          salinan[idx] = e.target.value
-                          setUgcConfig({ ...ugcConfig, namaPemeran: salinan })
-                        }}
-                        placeholder={`Nama Pemeran ${idx + 1}`}
-                        className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none focus:bg-white"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           <button
             type="button"
@@ -2877,7 +2818,7 @@ export default function ScriptProducerView({
         </div>
       )}
 
-      {/* TAHAP 1 */}
+      {/* TAHAP 1: PILIH SUDUT PANDANG (TANPA TEKS DUMMY & ADA TOMBOL HAPUS) */}
       {stage === 1 && !isLoadingOpsi && coPilotStage1Data && (
         <div className="space-y-5">
           {renderProducerChatBubble(coPilotStage1Data.co_pilot_message)}
@@ -2939,14 +2880,14 @@ export default function ScriptProducerView({
             <label className="block text-xs font-bold text-[#14141f]">
               2.{" "}
               {coPilotStage1Data.story_prompt_question ||
-                "Pengalaman atau detail spesifik yang ingin disertakan (Opsional)"}
+                "Pengalaman pribadi atau kejadian nyata yang ingin kamu selipkan (Opsional)"}
             </label>
             {renderAdaptiveVoiceInput({
               rows: 2,
               value: tempStoryInput,
               onChange: setTempStoryInput,
               placeholder:
-                "Tuliskan pengalaman singkatmu, atau biarkan kosong untuk memakai contoh situasi di tahap berikutnya...",
+                "Kosongkan jika tidak ada, atau ketik pengalaman singkatmu di sini...",
             })}
           </div>
 
@@ -2961,12 +2902,12 @@ export default function ScriptProducerView({
             }
             className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-sm py-3.5 rounded-lg"
           >
-            Lanjutkan ke Ilustrasi & Solusi
+            Lanjutkan ke Ilustrasi & Pondasi Fakta
           </button>
         </div>
       )}
 
-      {/* TAHAP 2 */}
+      {/* TAHAP 2: ILUSTRASI (TEXTBOX + REQUEST REKOMENDASI OPSIONAL) & PONDASI FAKTA (TEXTBOX PERTANYAAN MUDAH) */}
       {stage === 2 && !isLoadingOpsi && coPilotStage2Data && (
         <div className="space-y-5">
           {renderProducerChatBubble(coPilotStage2Data.co_pilot_message)}
@@ -2984,86 +2925,131 @@ export default function ScriptProducerView({
             "Ilustrasi & Solusi",
           )}
 
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-[#14141f]">
-              1. Pilih atau Sesuaikan Ilustrasi / Perbandingan (Set{" "}
-              {activeBatch2 + 1})
-            </label>
-            {Array.isArray(coPilotStage2Data.relatable_analogies) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2">
-                {coPilotStage2Data.relatable_analogies.map((ana, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setTempStoryInput(ana)}
-                    className={`cursor-pointer p-3 rounded-lg border text-left text-xs ${
-                      tempStoryInput === ana
-                        ? "bg-[#f2fce2] border-[#4d6b14] font-bold text-[#14141f]"
-                        : "bg-white border-slate-200 text-slate-700"
-                    }`}
-                  >
-                    {ana}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* 1. PILIHAN ILUSTRASI BERUPA TEXTBOX (OPSIONAL) + TOMBOL REQUEST REKOMENDASI */}
+          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-bold text-[#14141f]">
+                1. Ilustrasi / Perumpamaan Sehari-hari (Opsional, Boleh
+                Dikosongkan)
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowRekomendasiIlustrasi(!showRekomendasiIlustrasi)
+                }
+                className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-300 px-3 py-1 rounded-md text-[11px] font-bold transition"
+              >
+                {showRekomendasiIlustrasi
+                  ? "Sembunyikan Rekomendasi"
+                  : "Minta Rekomendasi Ilustrasi"}
+              </button>
+            </div>
+
+            {showRekomendasiIlustrasi &&
+              Array.isArray(coPilotStage2Data.relatable_analogies) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  {coPilotStage2Data.relatable_analogies.map((ana, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setTempStoryInput(ana)}
+                      className={`cursor-pointer p-3 rounded-lg border text-left text-xs transition ${
+                        tempStoryInput === ana
+                          ? "bg-[#14141f] text-[#d4f34a] border-[#14141f] font-bold"
+                          : "bg-white border-slate-200 text-slate-700 hover:border-[#14141f]"
+                      }`}
+                    >
+                      {ana}
+                    </button>
+                  ))}
+                </div>
+              )}
+
             {renderAdaptiveVoiceInput({
               rows: 2,
               value: tempStoryInput,
               onChange: setTempStoryInput,
-              placeholder: "Ilustrasi atau perbandingan yang akan dipakai...",
+              placeholder:
+                "Ketik perumpamaan versimu sendiri, klik tombol Minta Rekomendasi di atas, atau biarkan kosong...",
             })}
           </div>
 
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold text-[#14141f]">
-              2. Pilih 1 Pondasi Fakta / Bukti Pengalaman
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(coPilotStage2Data.reference_cards || []).map((refCard, idx) => {
-                const terpilih =
-                  contentBrief.injected_reference?.title === refCard.title
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() =>
-                      setContentBrief({
-                        ...contentBrief,
-                        injected_reference: refCard,
-                      })
-                    }
-                    className={`cursor-pointer p-4 rounded-xl border text-left transition flex flex-col justify-between ${
-                      terpilih
-                        ? "bg-[#14141f] text-white border-[#14141f]"
-                        : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
-                    }`}
-                  >
-                    <div>
-                      <span
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                          terpilih
-                            ? "bg-[#d4f34a] text-[#14141f]"
-                            : "bg-[#f4f5f7] text-slate-600"
-                        }`}
-                      >
-                        {refCard.type}
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-bold mt-2">
-                        {refCard.title}
-                      </h4>
-                      <p
-                        className={`text-xs font-normal mt-1 leading-relaxed ${
-                          terpilih ? "text-slate-300" : "text-slate-600"
-                        }`}
-                      >
-                        {refCard.summary}
-                      </p>
-                    </div>
-                  </button>
-                )
-              })}
+          {/* 2. PILIH PONDASI FAKTA BERUPA TEXTBOX DENGAN PERTANYAAN MUDAH DIMENGERTI */}
+          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="block text-xs font-bold text-[#14141f]">
+                  2. Pondasi Fakta: Kenyataan lapangan, alasan masuk akal, atau
+                  bukti nyata apa yang membuat penonton percaya pada bahasanmu
+                  ini?
+                </label>
+                <span className="text-[11px] text-slate-500">
+                  Ketik dengan bahasamu sendiri atau klik tombol Lihat Ide Fakta
+                  di samping jika butuh contoh.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRekomendasiFakta(!showRekomendasiFakta)}
+                className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-300 px-3 py-1 rounded-md text-[11px] font-bold transition shrink-0"
+              >
+                {showRekomendasiFakta
+                  ? "Sembunyikan Ide Fakta"
+                  : "Lihat Ide Fakta Pendukung"}
+              </button>
             </div>
+
+            {showRekomendasiFakta &&
+              Array.isArray(coPilotStage2Data.reference_cards) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  {coPilotStage2Data.reference_cards.map((refCard, idx) => {
+                    const teksFakta = `${refCard.title}: ${refCard.summary}`
+                    const terpilih = pondasiFaktaInput === teksFakta
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setPondasiFaktaInput(teksFakta)}
+                        className={`cursor-pointer p-3.5 rounded-lg border text-left transition flex flex-col justify-between ${
+                          terpilih
+                            ? "bg-[#14141f] text-white border-[#14141f]"
+                            : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
+                        }`}
+                      >
+                        <div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              terpilih
+                                ? "bg-[#d4f34a] text-[#14141f]"
+                                : "bg-[#f4f5f7] text-slate-600"
+                            }`}
+                          >
+                            {refCard.type}
+                          </span>
+                          <h4 className="text-xs font-bold mt-1.5">
+                            {refCard.title}
+                          </h4>
+                          <p
+                            className={`text-[11px] mt-1 leading-relaxed ${
+                              terpilih ? "text-slate-300" : "text-slate-600"
+                            }`}
+                          >
+                            {refCard.summary}
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+            {renderAdaptiveVoiceInput({
+              rows: 2,
+              value: pondasiFaktaInput,
+              onChange: setPondasiFaktaInput,
+              placeholder:
+                "Ketik fakta nyata, kejadian yang sering kamu temui, atau bukti hasil di sini...",
+            })}
           </div>
 
           <div className="space-y-2">
@@ -3102,13 +3088,12 @@ export default function ScriptProducerView({
                 )
               })}
             </div>
-            <input
-              type="text"
-              value={tempCustomSolution}
-              onChange={(e) => setTempCustomSolution(e.target.value)}
-              placeholder="Tambahkan poin bahasan atau solusi sendiri (opsional)..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none"
-            />
+            {renderInputWithClear({
+              value: tempCustomSolution,
+              onChange: setTempCustomSolution,
+              placeholder:
+                "Tambahkan poin bahasan atau solusi sendiri (opsional)...",
+            })}
           </div>
 
           <button
@@ -3263,13 +3248,12 @@ export default function ScriptProducerView({
                 )
               })}
             </div>
-            <input
-              type="text"
-              value={tempCustomHook}
-              onChange={(e) => setTempCustomHook(e.target.value)}
-              placeholder="Atau tulis sendiri kalimat pembuka versimu di sini..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white"
-            />
+            {renderInputWithClear({
+              value: tempCustomHook,
+              onChange: setTempCustomHook,
+              placeholder:
+                "Atau tulis sendiri kalimat pembuka versimu di sini...",
+            })}
           </div>
 
           <div className="space-y-2">
@@ -3315,13 +3299,12 @@ export default function ScriptProducerView({
                 </button>
               )
             })}
-            <input
-              type="text"
-              value={tempCustomCTA}
-              onChange={(e) => setTempCustomCTA(e.target.value)}
-              placeholder="Atau tulis sendiri kalimat ajakan penutup di sini..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-3.5 py-2.5 text-base sm:text-xs outline-none focus:bg-white"
-            />
+            {renderInputWithClear({
+              value: tempCustomCTA,
+              onChange: setTempCustomCTA,
+              placeholder:
+                "Atau tulis sendiri kalimat ajakan penutup di sini...",
+            })}
           </div>
 
           <button
@@ -3334,7 +3317,7 @@ export default function ScriptProducerView({
         </div>
       )}
 
-      {/* TAHAP 4 */}
+      {/* TAHAP 4: PERIKSA RANCANGAN KONTEN + TEXTBOX PASTIKAN HASIL ASESMEN SESUAI KEINGINAN USER */}
       {stage === 4 && (
         <div className="space-y-5">
           <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3 text-xs">
@@ -3362,6 +3345,18 @@ export default function ScriptProducerView({
               <span className="text-slate-500">Sudut Pandang:</span>{" "}
               <strong>{contentBrief.chosen_angle}</strong>
             </div>
+            {contentBrief.personal_context_or_story && (
+              <div>
+                <span className="text-slate-500">Ilustrasi:</span>{" "}
+                <strong>{contentBrief.personal_context_or_story}</strong>
+              </div>
+            )}
+            {contentBrief.injected_reference?.summary && (
+              <div>
+                <span className="text-slate-500">Pondasi Fakta:</span>{" "}
+                <strong>{contentBrief.injected_reference.summary}</strong>
+              </div>
+            )}
             <div>
               <span className="text-slate-500">Target Durasi:</span>{" "}
               <strong>{contentBrief.target_platform}</strong>
@@ -3374,9 +3369,27 @@ export default function ScriptProducerView({
             </div>
           </div>
 
+          {/* KOLOM TEXTBOX UNTUK MEMASTIKAN HASIL ASESMEN SESUAI KEINGINAN USER */}
+          <div className="bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-2">
+            <label className="block text-xs font-bold text-[#14141f]">
+              Catatan Tambahan / Koreksi Akhir Sebelum Naskah Dibuat (Opsional)
+            </label>
+            <p className="text-[11px] text-slate-600">
+              Tuliskan di sini jika ada poin khusus, istilah, atau penyesuaian
+              yang ingin kamu pastikan masuk ke dalam naskah.
+            </p>
+            {renderAdaptiveVoiceInput({
+              rows: 2,
+              value: catatanAkhirUser,
+              onChange: setCatatanAkhirUser,
+              placeholder:
+                "Contoh: Pastikan bahasannya menyertakan contoh kasus nyata dan jangan terlalu formal...",
+            })}
+          </div>
+
           {isGenerating ? (
             <AILoadingBox
-              label="Menyusun naskah skrip penuh sesuai target jumlah kata dan durasi baca riil..."
+              label="Menyusun naskah skrip penuh sesuai target jumlah kata dan catatanmu..."
               onRefresh={handleBuatSkripSekarang}
             />
           ) : (
@@ -3473,16 +3486,16 @@ export default function ScriptProducerView({
             </div>
           </div>
 
-          {/* DAFTAR VARIASI JIKA PENGGUNA MENGGANDAKAN SKRIP */}
-          {koleksiVariasiGanda.length > 1 && (
+          {/* DAFTAR VARIASI DALAM FOLDER INDUK */}
+          {koleksiVariasiGanda.length > 0 && (
             <div className="bg-[#f0eeff] border border-[#5b4bc4]/25 p-3.5 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-[#14141f]">
-                  Daftar Variasi Skrip ({koleksiVariasiGanda.length} Skrip
-                  Tersimpan di Arsip)
+                  Isi Folder Variasi ({koleksiVariasiGanda.length} Variasi
+                  Tersimpan dalam 1 Folder Arsip)
                 </span>
                 <span className="text-[11px] text-slate-600">
-                  Klik untuk berpindah variasi
+                  Klik untuk melihat tiap variasi
                 </span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
@@ -3492,7 +3505,11 @@ export default function ScriptProducerView({
                     type="button"
                     onClick={() => {
                       setIndexVariasiAktif(idx)
-                      setHasilSkrip(vItem)
+                      setHasilSkrip({
+                        ...hasilSkrip,
+                        sections: vItem.sections,
+                        segmen: vItem.segmen,
+                      })
                     }}
                     className={`cursor-pointer snap-start shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition ${
                       indexVariasiAktif === idx
@@ -3500,80 +3517,56 @@ export default function ScriptProducerView({
                         : "bg-white text-slate-700 border-slate-200"
                     }`}
                   >
-                    Variasi {idx + 1}
+                    {vItem.judul || `Variasi ${idx + 1}`}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* BAR KONTROL TAMPILAN, KEPADATAN KATA, DURASI & FORMAT VISUAL */}
+          {/* BAR KONTROL DURASI (DENGAN TOMBOL UBAH DURASI DI SAMPING DROPDOWN) & BENTUK VISUAL */}
           <div className="bg-[#f4f5f7] p-3.5 rounded-xl border border-slate-200 space-y-3 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="grid grid-cols-2 sm:inline-flex bg-white p-1 rounded-lg border border-slate-200 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setModeTampilanSkrip("voiceover")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-md text-xs font-bold text-center ${
-                    modeTampilanSkrip === "voiceover"
-                      ? "bg-[#14141f] text-[#d4f34a]"
-                      : "text-slate-600"
-                  }`}
-                >
-                  Naskah Lisan ({totalKataSkripAktif} Kata)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModeTampilanSkrip("teks")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-md text-xs font-bold text-center ${
-                    modeTampilanSkrip === "teks"
-                      ? "bg-[#14141f] text-[#d4f34a]"
-                      : "text-slate-600"
-                  }`}
-                >
-                  Teks di Layar
-                </button>
-              </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+              <select
+                value={wordDensity}
+                disabled={isChangingDuration}
+                onChange={(e) => setWordDensity(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+              >
+                <option value="padat_kaya_kosakata">
+                  Gaya: Padat & Kaya Kosakata
+                </option>
+                <option value="irit_ringkas">Gaya: Ringkas & Irit Kata</option>
+              </select>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={wordDensity}
-                  disabled={isChangingDuration}
-                  onChange={(e) => {
-                    const densBaru = e.target.value
-                    setWordDensity(densBaru)
-                    handleUbahDurasiSkrip(targetDurasiUbah, densBaru)
-                  }}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
-                >
-                  <option value="padat_kaya_kosakata">
-                    Gaya: Padat & Kaya Kosakata
+              <select
+                value={targetDurasiUbah}
+                disabled={isChangingDuration}
+                onChange={(e) => setTargetDurasiUbah(e.target.value)}
+                className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+              >
+                {PILIHAN_DURASI_KONTEN.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
                   </option>
-                  <option value="irit_ringkas">
-                    Gaya: Ringkas & Irit Kata
-                  </option>
-                </select>
+                ))}
+              </select>
 
-                <select
-                  value={targetDurasiUbah}
-                  disabled={isChangingDuration}
-                  onChange={(e) =>
-                    handleUbahDurasiSkrip(e.target.value, wordDensity)
-                  }
-                  className="flex-1 sm:w-60 bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
-                >
-                  {PILIHAN_DURASI_KONTEN.map((d) => (
-                    <option key={d} value={d}>
-                      Durasi: {d}
-                    </option>
-                  ))}
-                </select>
+              <button
+                type="button"
+                disabled={isChangingDuration}
+                onClick={() =>
+                  handleUbahDurasiSkrip(targetDurasiUbah, wordDensity)
+                }
+                className="cursor-pointer w-full sm:w-auto bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-lg shrink-0 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
                 {isChangingDuration && (
-                  <div className="w-8 h-8 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
-                    <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-                  </div>
+                  <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
                 )}
-              </div>
+                <span>
+                  {isChangingDuration ? "Mengubah Durasi..." : "Ubah Durasi"}
+                </span>
+              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full pt-2.5 border-t border-slate-200">
@@ -3604,12 +3597,13 @@ export default function ScriptProducerView({
             </div>
           </div>
 
-          {/* KARTU BAGIAN SKRIP DINAMIS (3 S/D 8 BAGIAN) */}
+          {/* KARTU BAGIAN SKRIP DINAMIS (ARAHAN ADEGAN MINIMIZE SECARA DEFAULT) */}
           <div className="space-y-3.5">
             {daftarBagianAktif.map((sec, idx) => {
               const teksAktif =
                 modeTampilanSkrip === "teks" ? sec.onScreenText : sec.spokenText
               const sedangRegenBarisIni = regeneratingIndex === idx
+              const isVisualOpen = Boolean(openVisualMap[idx])
 
               return (
                 <div
@@ -3627,67 +3621,82 @@ export default function ScriptProducerView({
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-500">
-                      Klik ikon putar untuk mengganti variasi bagian ini
-                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenVisualMap((prev) => ({
+                          ...prev,
+                          [idx]: !prev[idx],
+                        }))
+                      }
+                      className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#14141f] bg-[#f4f5f7] px-2.5 py-1 rounded-md border border-slate-200 transition"
+                    >
+                      <span>Arahan Adegan & Intonasi</span>
+                      <FlatIcon
+                        name="chevronDown"
+                        className={`w-3.5 h-3.5 transition ${
+                          isVisualOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                    <div className="lg:col-span-7 bg-[#f4f5f7] border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
-                      <div className="flex-1 min-w-0">
-                        <textarea
-                          ref={idx === 0 ? firstTextareaRef : null}
-                          rows={4}
-                          value={teksAktif}
-                          onChange={(e) => {
-                            const valBaru = e.target.value
-                            const listUpdate = daftarBagianAktif.map((s, i) => {
-                              if (i !== idx) return s
-                              if (modeTampilanSkrip === "teks") {
-                                return {
-                                  ...s,
-                                  onScreenText: valBaru,
-                                  teksLayar: valBaru,
-                                }
-                              }
+                  <div className="bg-[#f4f5f7] border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
+                    <div className="flex-1 min-w-0">
+                      <textarea
+                        ref={idx === 0 ? firstTextareaRef : null}
+                        rows={4}
+                        value={teksAktif}
+                        onChange={(e) => {
+                          const valBaru = e.target.value
+                          const listUpdate = daftarBagianAktif.map((s, i) => {
+                            if (i !== idx) return s
+                            if (modeTampilanSkrip === "teks") {
                               return {
                                 ...s,
-                                spokenText: valBaru,
-                                voiceover: valBaru,
+                                onScreenText: valBaru,
+                                teksLayar: valBaru,
                               }
-                            })
-                            setHasilSkrip({
-                              ...hasilSkrip,
-                              sections: listUpdate,
-                              segmen: listUpdate,
-                            })
-                          }}
-                          className={`w-full bg-white border ${
-                            isEditMode
-                              ? "border-[#14141f] ring-2 ring-[#d4f34a]"
-                              : "border-slate-200"
-                          } rounded-lg p-2.5 text-base sm:text-sm font-normal text-[#14141f] leading-relaxed outline-none`}
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRegenerateSatuKerangka(idx, "skrip")
-                        }
-                        title="Buat variasi baru khusus bagian ini"
-                        className="cursor-pointer w-8 h-8 rounded-lg bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
-                      >
-                        <FlatIcon
-                          name="refresh"
-                          className={`w-4 h-4 ${
-                            sedangRegenBarisIni ? "animate-spin" : ""
-                          }`}
-                        />
-                      </button>
+                            }
+                            return {
+                              ...s,
+                              spokenText: valBaru,
+                              voiceover: valBaru,
+                            }
+                          })
+                          setHasilSkrip({
+                            ...hasilSkrip,
+                            sections: listUpdate,
+                            segmen: listUpdate,
+                          })
+                        }}
+                        className={`w-full bg-white border ${
+                          isEditMode
+                            ? "border-[#14141f] ring-2 ring-[#d4f34a]"
+                            : "border-slate-200"
+                        } rounded-lg p-2.5 text-base sm:text-sm font-normal text-[#14141f] leading-relaxed outline-none`}
+                      />
                     </div>
 
-                    <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRegenerateSatuKerangka(idx, "skrip")}
+                      title="Buat variasi baru khusus bagian ini"
+                      className="cursor-pointer w-8 h-8 rounded-lg bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 flex items-center justify-center shrink-0 transition"
+                    >
+                      <FlatIcon
+                        name="refresh"
+                        className={`w-4 h-4 ${
+                          sedangRegenBarisIni ? "animate-spin" : ""
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* PANEL ARAHAN ADEGAN & INTONASI (MUNCUL SAAT PANAH DIKLIK) */}
+                  {isVisualOpen && (
+                    <div className="bg-white border border-slate-200 rounded-lg p-3.5 flex items-start justify-between gap-2.5">
                       <div className="space-y-1 min-w-0 flex-1">
                         <span className="text-xs font-bold text-[#14141f] block">
                           Arahan Adegan & Intonasi
@@ -3713,38 +3722,23 @@ export default function ScriptProducerView({
                         />
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               )
             })}
           </div>
 
-          {/* EVALUASI STRUKTUR SKRIP TANPA EYEBROW BADGE */}
-          {hasilSkrip.scriptScore && (
-            <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
-                  Evaluasi Struktur & Retensi Naskah:{" "}
-                  {hasilSkrip.scriptScore.hook_strength}
-                </h3>
-                <p className="text-xs text-slate-700">
-                  <strong>Alur Tengah:</strong>{" "}
-                  {hasilSkrip.scriptScore.retention_bridge}
-                </p>
-                <p className="text-xs text-[#4d6b14] font-bold">
-                  Catatan Eksekusi: {hasilSkrip.scriptScore.producer_tip}
-                </p>
-              </div>
-              <div className="bg-[#14141f] text-[#d4f34a] px-4 py-2.5 rounded-lg text-center shrink-0">
-                <div className="text-xl font-bold leading-none">
-                  {hasilSkrip.scriptScore.total_score || 95}/100
-                </div>
-                <span className="text-[10px] text-white">Skor Struktur</span>
-              </div>
-            </div>
-          )}
+          {/* KRITIK & SARAN (DILETAKKAN DI ATAS KELENGKAPAN UPLOAD) */}
+          <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 sm:p-5 rounded-xl space-y-1.5">
+            <h3 className="text-xs sm:text-sm font-bold text-[#14141f]">
+              Kritik & Saran Pembawaan Naskah
+            </h3>
+            <p className="text-xs text-slate-700 leading-relaxed">
+              {teksKritikSaran}
+            </p>
+          </div>
 
-          {/* PAKET PELENGKAP UPLOAD */}
+          {/* KELENGKAPAN UPLOAD */}
           {paketUploadAktif && (
             <div className="bg-[#f4f5f7] p-5 rounded-xl border border-slate-200 space-y-3">
               <h3 className="text-sm font-bold text-[#14141f]">
@@ -3832,59 +3826,44 @@ export default function ScriptProducerView({
             </div>
           )}
 
-          {/* GENERATOR VARIASI STOK KONTEN */}
-          <div className="bg-[#14141f] text-white p-5 rounded-xl space-y-3">
+          {/* OPSI GANDAKAN SKRIP MENJADI DROPDOWN RINGKAS */}
+          <div className="bg-[#14141f] text-white p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold">
-                Gandakan Topik Ini Menjadi Beberapa Variasi Skrip
+              <h3 className="text-xs sm:text-sm font-bold">
+                Gandakan Topik Ini ke Dalam Folder Arsip
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                Buat 2, 5, atau 10 variasi naskah dengan sudut pandang pembuka
-                berbeda. Seluruh variasi otomatis tersimpan ke Arsip Skrip.
+                Hasil penggandaan otomatis disimpan menjadi 1 folder pada topik
+                ini di menu Arsip.
               </p>
             </div>
 
-            {isMultiplyingScript ? (
-              <div className="bg-white/10 p-3.5 rounded-lg flex items-center justify-center gap-2.5 text-xs font-bold text-[#d4f34a]">
-                <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
-                <span>Menyusun variasi skrip dan menyimpan ke Arsip...</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleGandakanStokSkrip(2, 1)}
-                  className="cursor-pointer bg-white/10 hover:bg-[#d4f34a] text-white hover:text-[#14141f] border border-white/15 font-bold text-xs py-2.5 px-4 rounded-lg transition flex items-center justify-between"
-                >
-                  <span>Buat 2 Variasi Skrip</span>
-                  <span className="bg-white/15 px-2 py-0.5 rounded-md text-[11px]">
-                    1 Koin
-                  </span>
-                </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+              <select
+                value={pilihanMultiplierDropdown}
+                disabled={isMultiplyingScript}
+                onChange={(e) => setPilihanMultiplierDropdown(e.target.value)}
+                className="bg-white text-[#14141f] rounded-lg px-3 py-2.5 text-base sm:text-xs font-bold outline-none"
+              >
+                <option value="2">Buat 2 Variasi Skrip (1 Koin)</option>
+                <option value="5">Buat 5 Variasi Skrip (2 Koin)</option>
+                <option value="10">Buat 10 Variasi Skrip (3 Koin)</option>
+              </select>
 
-                <button
-                  type="button"
-                  onClick={() => handleGandakanStokSkrip(5, 2)}
-                  className="cursor-pointer bg-white/10 hover:bg-[#d4f34a] text-white hover:text-[#14141f] border border-white/15 font-bold text-xs py-2.5 px-4 rounded-lg transition flex items-center justify-between"
-                >
-                  <span>Buat 5 Variasi Skrip</span>
-                  <span className="bg-white/15 px-2 py-0.5 rounded-md text-[11px]">
-                    2 Koin
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleGandakanStokSkrip(10, 3)}
-                  className="cursor-pointer bg-[#d4f34a] text-[#14141f] font-bold text-xs py-2.5 px-4 rounded-lg transition flex items-center justify-between"
-                >
-                  <span>Buat 10 Variasi Skrip</span>
-                  <span className="bg-[#14141f] text-[#d4f34a] px-2 py-0.5 rounded-md text-[11px]">
-                    3 Koin
-                  </span>
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                disabled={isMultiplyingScript}
+                onClick={handleGandakanViaDropdown}
+                className="cursor-pointer bg-[#d4f34a] text-[#14141f] font-bold text-xs px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isMultiplyingScript && (
+                  <FlatIcon name="refresh" className="w-4 h-4 animate-spin" />
+                )}
+                <span>
+                  {isMultiplyingScript ? "Menggandakan..." : "Gandakan Skrip"}
+                </span>
+              </button>
+            </div>
           </div>
 
           <button

@@ -120,6 +120,53 @@ function hitungSisaHariAktif(expiredAtStr) {
   return Math.max(0, selisih)
 }
 
+// Rumus Kuota Profil Akun Sosial Media per Paket:
+// 5K = 1 akun | 10K-20K = 2 akun | 25K = 3 akun | 50K = 5 akun | 90K = 10 akun
+function hitungKuotaAkunDariPaket(
+  namaPaket = "",
+  nominal = 0,
+  isAdmin = false,
+) {
+  if (isAdmin) return 10
+  const p = (namaPaket || "").toLowerCase()
+  const nom = Number(nominal) || 0
+  if (p.includes("90") || nom >= 85000) return 10
+  if (p.includes("50") || nom >= 45000) return 5
+  if (p.includes("25") || nom >= 24000) return 3
+  if (
+    p.includes("20") ||
+    p.includes("15") ||
+    p.includes("10") ||
+    (nom >= 9000 && nom < 24000)
+  ) {
+    return 2
+  }
+  if (
+    p.includes("5k") ||
+    p.includes("5.000") ||
+    p.includes("coba") ||
+    nom > 0
+  ) {
+    return 1
+  }
+  return 1
+}
+
+const NAMA_BULAN_ID = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+]
+
 export default function HookyaMainApp() {
   const [viewMode, setViewMode] = useState("auth")
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -139,13 +186,28 @@ export default function HookyaMainApp() {
   const [isPremiumUser, setIsPremiumUser] = useState(false)
   const [expiredAt, setExpiredAt] = useState(null)
   const [sisaHariPaket, setSisaHariPaket] = useState(30)
-  const [checkinStreak, setCheckinStreak] = useState(0)
-  const [lastCheckinDate, setLastCheckinDate] = useState("")
+  const [namaPaketAktif, setNamaPaketAktif] = useState("Paket 5K (Coba)")
+  const [kuotaAkunMaksimal, setKuotaAkunMaksimal] = useState(1)
 
   const [coins, setCoins] = useState(20)
   const [toastMsg, setToastMsg] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [multiplyingArchiveId, setMultiplyingArchiveId] = useState(null)
+
+  // State Arsip Ringkas, Folder Variasi, Pencarian Keyword, & Kalender Arsip Konten
+  const [keywordCariArsip, setKeywordCariArsip] = useState("")
+  const [pilihanGandakanArsip, setPilihanGandakanArsip] = useState({})
+  const [folderTerbukaMap, setFolderTerbukaMap] = useState({})
+  const [kalenderBulan, setKalenderBulan] = useState(() =>
+    new Date().getMonth(),
+  )
+  const [kalenderTahun, setKalenderTahun] = useState(() =>
+    new Date().getFullYear(),
+  )
+  const [tanggalKalenderTerpilih, setTanggalKalenderTerpilih] = useState(
+    () => new Date().toISOString().split("T")[0],
+  )
+  const [idSkripPlotTerpilih, setIdSkripPlotTerpilih] = useState("")
 
   const [rawCropImageSrc, setRawCropImageSrc] = useState(null)
 
@@ -176,6 +238,9 @@ export default function HookyaMainApp() {
     audiencePronounInput: "Lo / Kalian",
     prinsipUtamaInput: "Praktik lebih penting dari teori",
     opiniKontraInput: "Kurang suka teori tanpa langkah praktik",
+    idAkunAktif: "akun_utama",
+    labelAkunSosmed: "Akun Utama",
+    daftarAkunTernak: [],
   })
 
   const [formUsulan, setFormUsulan] = useState({
@@ -235,24 +300,7 @@ export default function HookyaMainApp() {
     ? `${bentukKonten} (Catatan: ${deskripsiBentukSendiri.trim()})`
     : bentukKonten
 
-  const [daftar10IdeTopik, setDaftar10IdeTopik] = useState([
-    {
-      judul: "Kesalahan Menabung dari Sisa Gaji Bulanan",
-      nuansa: "Koreksi Kebiasaan",
-      ringkasan:
-        "Alasan uang tabungan selalu habis jika menunggu sisa akhir bulan.",
-    },
-    {
-      judul: "Memulai Jualan Tanpa Mencatat Arus Kas Harian",
-      nuansa: "Masalah Lapangan",
-      ringkasan: "Penyebab penjualan ramai tetapi modal kerja habis.",
-    },
-    {
-      judul: "Membangun Kebiasaan Lari 15 Menit Setiap Pagi",
-      nuansa: "Langkah Praktis",
-      ringkasan: "Cara menjaga jadwal olahraga tetap jalan di sela jam kerja.",
-    },
-  ])
+  const [daftar10IdeTopik, setDaftar10IdeTopik] = useState([])
 
   const [stage, setStage] = useState(0)
   const [hasilSkrip, setHasilSkrip] = useState(null)
@@ -367,6 +415,12 @@ export default function HookyaMainApp() {
 
   const muatUlangDataSupabase = async (idTarget) => {
     try {
+      const { data: trxRows } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("created_at", { ascending: false })
+      if (trxRows) setDaftarTransaksi(trxRows)
+
       const { data: userRows } = await supabase
         .from("users")
         .select("*")
@@ -424,26 +478,37 @@ export default function HookyaMainApp() {
             activeUser.expired_at || activeUser.profil_dna?.expired_at
           const sisaHari = isOwnerOrAdmin ? 365 : hitungSisaHariAktif(expStr)
 
+          // Cek paket terakhir yang lunas dari transaksi atau dari profil_dna
+          const trxLunasTerakhir = (trxRows || []).find(
+            (t) => t.user_id === activeUser.id && t.status === "lunas",
+          )
+          const paketTersimpan =
+            trxLunasTerakhir?.nama_paket ||
+            activeUser.profil_dna?.paketAktif ||
+            (activeUser.is_premium ? "Paket 20K VIP" : "Paket 5K (Coba)")
+          const nominalTersimpan =
+            trxLunasTerakhir?.nominal_asli ||
+            trxLunasTerakhir?.nominal_bayar ||
+            0
+
+          const kuotaHitung = hitungKuotaAkunDariPaket(
+            paketTersimpan,
+            nominalTersimpan,
+            isOwnerOrAdmin,
+          )
+
           setUserId(activeUser.id)
           setUserRole(roleAktif)
           setExpiredAt(expStr)
           setSisaHariPaket(sisaHari)
+          setNamaPaketAktif(isOwnerOrAdmin ? "Paket 90K VIP" : paketTersimpan)
+          setKuotaAkunMaksimal(kuotaHitung)
           setIsPremiumUser(
             Boolean(
               isOwnerOrAdmin ||
               activeUser.is_premium ||
               activeUser.profil_dna?.is_premium,
             ),
-          )
-          setCheckinStreak(
-            activeUser.checkin_streak ||
-              activeUser.profil_dna?.checkin_streak ||
-              0,
-          )
-          setLastCheckinDate(
-            activeUser.last_checkin ||
-              activeUser.profil_dna?.last_checkin ||
-              "",
           )
 
           if (!isOwnerOrAdmin && sisaHari === 0 && (activeUser.koin || 0) > 0) {
@@ -490,29 +555,38 @@ export default function HookyaMainApp() {
         .order("created_at", { ascending: false })
 
       if (scriptRows) {
-        const formatBarisSkrip = (row) => ({
-          id: row.id,
-          dbId: row.id,
-          userId: row.user_id,
-          judul: row.judul,
-          kategori: row.kategori,
-          bentuk: row.bentuk_konten,
-          waktuDibuat:
-            row.segmen_skrip?.meta?.waktuDibuat ||
-            new Date(row.created_at).toLocaleDateString("id-ID"),
-          scriptScore: row.segmen_skrip?.meta?.scriptScore || null,
-          uploadPack: row.segmen_skrip?.meta?.uploadPack || null,
-          segmen: Array.isArray(row.segmen_skrip)
+        const formatBarisSkrip = (row) => {
+          const segmenArr = Array.isArray(row.segmen_skrip)
             ? row.segmen_skrip
-            : row.segmen_skrip?.segmen || [],
-          sudahUpload: Boolean(row.segmen_skrip?.meta?.sudahUpload),
-          tanggalUpload: row.segmen_skrip?.meta?.tanggalUpload || "",
-          views: row.segmen_skrip?.meta?.views ?? null,
-          likes: row.segmen_skrip?.meta?.likes ?? null,
-          komen: row.segmen_skrip?.meta?.komen ?? null,
-          sudahEvaluasi: Boolean(row.segmen_skrip?.meta?.sudahEvaluasi),
-          evaluasiAI: row.segmen_skrip?.meta?.evaluasiAI || "",
-        })
+            : row.segmen_skrip?.segmen || []
+          return {
+            id: row.id,
+            dbId: row.id,
+            userId: row.user_id,
+            judul: row.judul,
+            kategori: row.kategori,
+            bentuk: row.bentuk_konten,
+            waktuDibuat:
+              row.segmen_skrip?.meta?.waktuDibuat ||
+              new Date(row.created_at).toLocaleDateString("id-ID"),
+            scriptScore: row.segmen_skrip?.meta?.scriptScore || null,
+            kritikSaran: row.segmen_skrip?.meta?.kritikSaran || "",
+            uploadPack: row.segmen_skrip?.meta?.uploadPack || null,
+            uploadPackage: row.segmen_skrip?.meta?.uploadPack || null,
+            variasiFolder: Array.isArray(row.segmen_skrip?.meta?.variasiFolder)
+              ? row.segmen_skrip.meta.variasiFolder
+              : [],
+            sections: segmenArr,
+            segmen: segmenArr,
+            sudahUpload: Boolean(row.segmen_skrip?.meta?.sudahUpload),
+            tanggalUpload: row.segmen_skrip?.meta?.tanggalUpload || "",
+            views: row.segmen_skrip?.meta?.views ?? null,
+            likes: row.segmen_skrip?.meta?.likes ?? null,
+            komen: row.segmen_skrip?.meta?.komen ?? null,
+            sudahEvaluasi: Boolean(row.segmen_skrip?.meta?.sudahEvaluasi),
+            evaluasiAI: row.segmen_skrip?.meta?.evaluasiAI || "",
+          }
+        }
 
         const semuaTerformat = scriptRows.map(formatBarisSkrip)
         setSemuaSkripAdmin(semuaTerformat)
@@ -534,12 +608,6 @@ export default function HookyaMainApp() {
           .order("created_at", { ascending: false })
         if (fbUser) setRiwayatUsulanSaya(fbUser)
       }
-
-      const { data: trxRows } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false })
-      if (trxRows) setDaftarTransaksi(trxRows)
     } catch {
       // Abaikan
     }
@@ -570,10 +638,10 @@ export default function HookyaMainApp() {
         avatar_url: profil.avatar_url,
         profil_dna: {
           ...profil,
+          paketAktif: namaPaketAktif,
+          kuotaAkunMaksimal,
           is_premium: isPremiumUser,
           expired_at: expiredAt,
-          checkin_streak: checkinStreak,
-          last_checkin: lastCheckinDate,
           jadwalFleksibel,
           jadwalCeklis,
           rawWritingSamples,
@@ -629,11 +697,15 @@ export default function HookyaMainApp() {
 
   const simpanAtauUpdateSkripDatabase = async (skripObj) => {
     const payloadSegmen = {
-      segmen: skripObj.segmen,
+      segmen: skripObj.segmen || skripObj.sections || [],
       meta: {
         waktuDibuat: skripObj.waktuDibuat,
         scriptScore: skripObj.scriptScore || null,
-        uploadPack: skripObj.uploadPack || null,
+        kritikSaran: skripObj.kritikSaran || "",
+        uploadPack: skripObj.uploadPack || skripObj.uploadPackage || null,
+        variasiFolder: Array.isArray(skripObj.variasiFolder)
+          ? skripObj.variasiFolder
+          : [],
         sudahUpload: skripObj.sudahUpload,
         tanggalUpload: skripObj.tanggalUpload,
         views: skripObj.views,
@@ -676,11 +748,15 @@ export default function HookyaMainApp() {
     return skripObj
   }
 
-  const handleGandakanDariArsip = async (itemArsip, jumlahX, biayaKoin) => {
+  // GANDAKAN SKRIP DARI ARSIP -> MASUK KE DALAM 1 FOLDER PADA KARTU TOPIK TERSEBUT
+  const handleGandakanDariArsip = async (itemArsip) => {
     if (multiplyingArchiveId) return
+    const jmlX = parseInt(pilihanGandakanArsip[itemArsip.id] || "2") || 2
+    const biayaKoin = jmlX === 10 ? 3 : jmlX === 5 ? 2 : 1
+
     if (coins < biayaKoin) {
       alert(
-        `Saldo koin belum mencukupi (Butuh ${biayaKoin} Koin untuk membuat ${jumlahX}x variasi skrip). Silakan isi ulang koin.`,
+        `Saldo koin belum mencukupi (Perlu ${biayaKoin} Koin untuk membuat ${jmlX}x variasi skrip). Silakan isi ulang koin.`,
       )
       setActiveMenu("topup")
       return
@@ -689,7 +765,7 @@ export default function HookyaMainApp() {
     setMultiplyingArchiveId(itemArsip.id)
     await updateKoinDatabase(coins - biayaKoin)
     showToast(
-      `Menyusun ${jumlahX} variasi skrip baru dari "${itemArsip.judul}"...`,
+      `Menyusun ${jmlX} variasi skrip ke dalam Folder "${itemArsip.judul}"...`,
     )
 
     try {
@@ -703,7 +779,7 @@ export default function HookyaMainApp() {
           personaProfile,
           subyek: itemArsip.judul,
           skripSebelumnya: itemArsip.segmen,
-          jumlahMultiplier: jumlahX,
+          jumlahMultiplier: jmlX,
           koinDipakai: biayaKoin,
         }),
       })
@@ -727,28 +803,35 @@ export default function HookyaMainApp() {
         minute: "2-digit",
       })
 
-      const arsipBaruList = []
-      for (let i = 0; i < listVariasi.length; i++) {
-        const v = listVariasi[i]
-        const objekSkripVariasi = {
-          id: Date.now() + i + 1,
-          dbId: null,
-          judul: `${itemArsip.judul} (${v.judulVariasi || `Variasi ${i + 1}`})`,
-          kategori: itemArsip.kategori || "Stok Konten Massal",
-          bentuk: itemArsip.bentuk,
-          waktuDibuat: waktuSekarang,
-          sudahUpload: false,
-          tanggalUpload: "",
-          segmen: v.segmen || itemArsip.segmen,
-        }
-        const tersimpanDB =
-          await simpanAtauUpdateSkripDatabase(objekSkripVariasi)
-        arsipBaruList.push(tersimpanDB)
+      const itemVariasiBaru = listVariasi.map((v, i) => ({
+        id: Date.now() + i + 1,
+        judul: v.judulVariasi || `Variasi ${i + 1}`,
+        waktuDibuat: waktuSekarang,
+        sections: v.sections || v.segmen || itemArsip.segmen,
+        segmen: v.segmen || v.sections || itemArsip.segmen,
+      }))
+
+      const folderUpdate = [
+        ...(Array.isArray(itemArsip.variasiFolder)
+          ? itemArsip.variasiFolder
+          : []),
+        ...itemVariasiBaru,
+      ]
+
+      const skripIndukDiperbarui = {
+        ...itemArsip,
+        variasiFolder: folderUpdate,
       }
 
-      setKoleksiSkripTersimpan((prev) => [...arsipBaruList, ...prev])
+      const tersimpanDB =
+        await simpanAtauUpdateSkripDatabase(skripIndukDiperbarui)
+
+      setKoleksiSkripTersimpan((prev) =>
+        prev.map((s) => (s.id === itemArsip.id ? tersimpanDB : s)),
+      )
+      setFolderTerbukaMap((prev) => ({ ...prev, [itemArsip.id]: true }))
       showToast(
-        `${arsipBaruList.length} variasi skrip baru telah ditambahkan ke Arsip.`,
+        `${itemVariasiBaru.length} variasi berhasil disimpan ke dalam Folder "${itemArsip.judul}".`,
       )
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -757,43 +840,39 @@ export default function HookyaMainApp() {
     }
   }
 
-  const handleCheckinHarian = async () => {
-    const hariIni = new Date().toISOString().split("T")[0]
-    if (lastCheckinDate === hariIni) {
-      showToast("Kamu sudah melakukan Check-in hari ini.")
-      return
+  // Fungsi Plot / Jadwalkan Skrip ke Tanggal di Kalender Arsip Konten
+  const handlePlotSkripKeTanggalKalender = async (idSkrip, tglTarget) => {
+    const itemTarget = koleksiSkripTersimpan.find(
+      (s) => String(s.id) === String(idSkrip),
+    )
+    if (!itemTarget || !tglTarget) return
+
+    const updated = {
+      ...itemTarget,
+      sudahUpload: true,
+      tanggalUpload: tglTarget,
     }
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((s) => (s.id === itemTarget.id ? updated : s)),
+    )
+    await simpanAtauUpdateSkripDatabase(updated)
+    setIdSkripPlotTerpilih("")
+    showToast(
+      `Skrip "${itemTarget.judul}" ditambahkan ke tanggal ${tglTarget}.`,
+    )
+  }
 
-    const streakBaru = checkinStreak + 1
-    let koinBaru = coins
-    let pesan = `Check-in Hari ke-${streakBaru} tercatat (${
-      3 - (streakBaru % 3 || 3)
-    } hari lagi dapat bonus +1 Koin).`
-
-    if (streakBaru % 3 === 0) {
-      koinBaru = coins + 1
-      await updateKoinDatabase(koinBaru)
-      pesan = `Check-in 3 hari berturut-turut selesai. Kamu mendapat +1 Koin.`
+  const handleHapusSkripDariTanggalKalender = async (item) => {
+    const updated = {
+      ...item,
+      sudahUpload: false,
+      tanggalUpload: "",
     }
-
-    setCheckinStreak(streakBaru)
-    setLastCheckinDate(hariIni)
-
-    if (userId) {
-      await supabase
-        .from("users")
-        .update({
-          checkin_streak: streakBaru,
-          last_checkin: hariIni,
-          profil_dna: {
-            ...profil,
-            checkin_streak: streakBaru,
-            last_checkin: hariIni,
-          },
-        })
-        .eq("id", userId)
-    }
-    showToast(pesan)
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((s) => (s.id === item.id ? updated : s)),
+    )
+    await simpanAtauUpdateSkripDatabase(updated)
+    showToast("Skrip dilepas dari jadwal kalender.")
   }
 
   const handleKirimUsulanUser = async (e) => {
@@ -1053,10 +1132,44 @@ export default function HookyaMainApp() {
     (s) => s.sudahUpload && !s.sudahEvaluasi,
   ).length
 
-  const kodeReferralSaya = `${(profil.username || profil.nama || "HOOKYA")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase()
-    .slice(0, 6)}15`
+  // Filter Pencarian Keyword pada Arsip Skrip Tersimpan
+  const arsipTerfilterKeyword = koleksiSkripTersimpan.filter((item) => {
+    if (!keywordCariArsip.trim()) return true
+    const q = keywordCariArsip.toLowerCase()
+    const cocokJudul = (item.judul || "").toLowerCase().includes(q)
+    const cocokKategori = (item.kategori || "").toLowerCase().includes(q)
+    const cocokIsi = (item.segmen || []).some((seg) =>
+      (seg.spokenText || seg.voiceover || "").toLowerCase().includes(q),
+    )
+    const cocokFolder = (item.variasiFolder || []).some((vf) =>
+      (vf.judul || "").toLowerCase().includes(q),
+    )
+    return cocokJudul || cocokKategori || cocokIsi || cocokFolder
+  })
+
+  // Pembantu Kalender Arsip Konten
+  const buatGridTanggalBulan = (tahun, bulan) => {
+    const hariPertama = new Date(tahun, bulan, 1).getDay()
+    const jumlahHari = new Date(tahun, bulan + 1, 0).getDate()
+    const cells = []
+    for (let i = 0; i < hariPertama; i++) {
+      cells.push(null)
+    }
+    for (let d = 1; d <= jumlahHari; d++) {
+      const mm = String(bulan + 1).padStart(2, "0")
+      const dd = String(d).padStart(2, "0")
+      cells.push({
+        hari: d,
+        iso: `${tahun}-${mm}-${dd}`,
+      })
+    }
+    return cells
+  }
+
+  const gridHariKalender = buatGridTanggalBulan(kalenderTahun, kalenderBulan)
+  const daftarSkripPadaTanggalTerpilih = koleksiSkripTersimpan.filter(
+    (s) => s.tanggalUpload === tanggalKalenderTerpilih,
+  )
 
   if (viewMode === "auth") {
     return (
@@ -1126,15 +1239,20 @@ export default function HookyaMainApp() {
             const koinDasar = sisaHariLama > 0 ? targetU.koin || 0 : 0
             const totalKoinBaru = koinDasar + (parseInt(trx.jumlah_koin) || 0)
 
+            const nominalTrx =
+              parseInt(trx.nominal_asli) || parseInt(trx.nominal_bayar) || 0
             const jadiVIP =
               Boolean(
                 infoCatatan?.isVIP ||
                 targetU.is_premium ||
                 targetU.profil_dna?.is_premium,
-              ) ||
-              (parseInt(trx.nominal_asli) ||
-                parseInt(trx.nominal_bayar) ||
-                0) >= 20000
+              ) || nominalTrx >= 20000
+
+            const kuotaAkunBaru = hitungKuotaAkunDariPaket(
+              trx.nama_paket,
+              nominalTrx,
+              targetU.role === "admin",
+            )
 
             await supabase
               .from("users")
@@ -1145,6 +1263,8 @@ export default function HookyaMainApp() {
                 profil_dna: {
                   ...(targetU.profil_dna || {}),
                   statusPendaftaran: "aktif",
+                  paketAktif: trx.nama_paket,
+                  kuotaAkunMaksimal: kuotaAkunBaru,
                   is_premium: jadiVIP,
                   expired_at: expiredBaruISO,
                 },
@@ -1154,6 +1274,8 @@ export default function HookyaMainApp() {
             if (targetU.id === userId) {
               setCoins(totalKoinBaru)
               setIsPremiumUser(jadiVIP)
+              setNamaPaketAktif(trx.nama_paket)
+              setKuotaAkunMaksimal(kuotaAkunBaru)
               setExpiredAt(expiredBaruISO)
               setSisaHariPaket(totalHariBaru)
             }
@@ -1194,16 +1316,12 @@ export default function HookyaMainApp() {
                   `*RINCIAN PAKET AKTIF:*\n` +
                   `No. Invoice: *#${trx.invoice_id}*\n` +
                   `Nama Paket: *${trx.nama_paket}*\n` +
+                  `Kuota Profil Akun Sosmed: *Maksimal ${kuotaAkunBaru} Akun*\n` +
                   `Nominal Pembayaran: *Rp${Number(
                     trx.nominal_bayar,
                   ).toLocaleString("id-ID")} (LUNAS)*\n` +
                   `Jumlah Koin Masuk: *+${trx.jumlah_koin} Koin* (Total Saldo: *${totalKoinBaru} Koin*)\n` +
-                  `Durasi Masa Aktif: *${totalHariBaru} Hari*\n` +
-                  `Status Akses: *${
-                    jadiVIP
-                      ? "Member VIP (Fitur Mic, Scan Produk & Ekstrak Video Aktif)"
-                      : "Member Standar"
-                  }*\n\n` +
+                  `Durasi Masa Aktif: *${totalHariBaru} Hari*\n\n` +
                   `*INFORMASI LOGIN AKUN:*\n` +
                   `Username: *${usernameLogin}*\n` +
                   `Gmail: *${emailLogin}*\n` +
@@ -1224,9 +1342,7 @@ export default function HookyaMainApp() {
             ),
           )
           await muatUlangDataSupabase()
-          showToast(
-            "Pembayaran di-ACC. Koin dan masa aktif telah ditambahkan dan membuka WhatsApp User.",
-          )
+          showToast("Pembayaran di-ACC dan membuka WhatsApp User.")
         }}
         simpanPengaturanDevKeDB={simpanPengaturanDevPermanen}
         muatUlangDataSupabase={muatUlangDataSupabase}
@@ -1245,9 +1361,14 @@ export default function HookyaMainApp() {
     },
     {
       id: "tersimpan",
-      label: "Arsip Skrip & Upload",
+      label: "Arsip Skrip Tersimpan",
       icon: "bookmark",
       badge: koleksiSkripTersimpan.length,
+    },
+    {
+      id: "kalender",
+      label: "Kalender Arsip Konten",
+      icon: "calendar",
     },
     {
       id: "rapor",
@@ -1255,7 +1376,7 @@ export default function HookyaMainApp() {
       icon: "chart",
       badge: jumlahMenungguLaporan,
     },
-    { id: "topup", label: "Paket Koin & Check-in", icon: "coin" },
+    { id: "topup", label: "Pembelian Paket Koin", icon: "coin" },
     { id: "usulan", label: "Usulan Pengembangan", icon: "code" },
   ]
 
@@ -1265,57 +1386,64 @@ export default function HookyaMainApp() {
       harga: "Rp5.000",
       nominalAngka: 5000,
       koin: 10,
+      kuotaAkun: 1,
       isVIP: false,
-      ket: "Aktif 30 Hari • Akses Buat Skrip Teks, 6 Hook & Durasi 15s sampai 3m.",
+      ket: "Aktif 30 Hari • Kuota 1 Profil Akun Sosmed • Akses Buat Skrip Teks & Durasi 15s-3m.",
     },
     {
       nama: "Paket 10K (Pemula)",
       harga: "Rp10.000",
       nominalAngka: 10000,
       koin: 20,
+      kuotaAkun: 2,
       isVIP: false,
-      ket: "Aktif 30 Hari • Sisa koin lama tidak hangus (Rollover) + Akses Skrip Teks.",
+      ket: "Aktif 30 Hari • Kuota 2 Profil Akun Sosmed • Sisa koin lama tidak hangus (Rollover).",
     },
     {
       nama: "Paket 15K (Hemat)",
       harga: "Rp15.000",
       nominalAngka: 15000,
       koin: 30,
+      kuotaAkun: 2,
       isVIP: false,
-      ket: "Aktif 30 Hari • Pilihan untuk rutin menyusun skrip mingguan.",
+      ket: "Aktif 30 Hari • Kuota 2 Profil Akun Sosmed • Pilihan hemat untuk skrip mingguan.",
     },
     {
       nama: "Paket 20K VIP",
       harga: "Rp20.000",
       nominalAngka: 20000,
       koin: 40,
+      kuotaAkun: 2,
       isVIP: true,
-      ket: "Buka Fitur VIP: Rekam Suara Mic, Scan Produk Marketplace, Ekstrak Video & Tanpa Watermark.",
+      ket: "Kuota 2 Profil Akun • Buka Fitur VIP: Mic Suara, Scan Produk, Ekstrak Video & Tanpa Watermark.",
     },
     {
       nama: "Paket 25K VIP",
       harga: "Rp25.000",
       nominalAngka: 25000,
       koin: 55,
+      kuotaAkun: 3,
       isVIP: true,
       populer: true,
-      ket: "Buka Semua Fitur VIP + 55 Koin untuk Kreator & Affiliator Aktif.",
+      ket: "Kuota 3 Profil Akun Sosmed • Buka Semua Fitur VIP + 55 Koin untuk Kreator Aktif.",
     },
     {
       nama: "Paket 50K VIP (Pro)",
       harga: "Rp50.000",
       nominalAngka: 50000,
       koin: 120,
+      kuotaAkun: 5,
       isVIP: true,
-      ket: "Buka Semua Fitur VIP + Kuota 120 Koin untuk Pengganda Stok Skrip 2x/5x/10x.",
+      ket: "Kuota 5 Profil Akun Sosmed • Buka Semua Fitur VIP + 120 Koin untuk Ternak Akun.",
     },
     {
       nama: "Paket 90K VIP (Agensi)",
       harga: "Rp90.000",
       nominalAngka: 90000,
       koin: 230,
+      kuotaAkun: 10,
       isVIP: true,
-      ket: "Buka Semua Fitur VIP + Kuota 230 Koin untuk Produksi Harian & Tim.",
+      ket: "Kuota 10 Profil Akun Sosmed • Buka Semua Fitur VIP + 230 Koin untuk Produksi Masif.",
     },
   ]
 
@@ -1348,7 +1476,7 @@ export default function HookyaMainApp() {
                 {profil.nama}
               </div>
               <div className="text-[11px] text-slate-400 truncate">
-                {profil.kontak || "kreator@gmail.com"}
+                {namaPaketAktif} ({kuotaAkunMaksimal} Akun)
               </div>
             </div>
           </div>
@@ -1407,7 +1535,7 @@ export default function HookyaMainApp() {
       `}</style>
 
       {toastMsg && (
-        <div className="fixed bottom-5 right-5 z-50 bg-[#14141f] text-[#d4f34a] px-5 py-3.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2.5 border border-[#d4f34a]/40 max-w-md">
+        <div className="fixed bottom-5 right-5 z-50 bg-[#14141f] text-[#d4f34a] px-5 py-3.5 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2.5 border border-[#d4f34a]/40 max-w-md">
           <FlatIcon name="check" className="w-4 h-4 shrink-0" />
           <span className="font-normal text-white">{toastMsg}</span>
         </div>
@@ -1421,11 +1549,10 @@ export default function HookyaMainApp() {
         />
       )}
 
-      {/* MODAL PAYWALL UPGRADE PAKET VIP */}
       {showUpgradeVIPModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4 text-center shadow-2xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-sm font-bold mx-auto">
+          <div className="bg-white text-[#14141f] w-full max-w-md rounded-2xl p-6 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center text-sm font-bold mx-auto">
               VIP
             </div>
             <h3 className="text-base sm:text-lg font-bold">
@@ -1435,24 +1562,14 @@ export default function HookyaMainApp() {
               Fitur <strong>Rekam Suara Mikrofon</strong>,{" "}
               <strong>Scan Screenshot Produk Marketplace</strong>,{" "}
               <strong>Ekstrak Video ke Skrip</strong>, dan{" "}
-              <strong>Tanpa Watermark</strong> terbuka untuk pengguna yang
-              mengaktifkan paket minimal <strong>Rp20.000</strong> ke atas.
+              <strong>Kuota Multi-Akun Lebih Besar</strong> terbuka untuk
+              pengguna paket VIP.
             </p>
-            <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-3.5 rounded-2xl text-xs text-left space-y-1">
-              <div className="font-bold text-[#4d6b14]">
-                Rincian Paket 20K / 25K VIP:
-              </div>
-              <div>1. Tambahan Koin & Masa Aktif +30 Hari</div>
-              <div>2. Sisa koin lama tetap aktif (terakumulasi)</div>
-              <div>
-                3. Akses penuh fitur Mikrofon, Scan Produk & Ekstrak Video
-              </div>
-            </div>
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowUpgradeVIPModal(false)}
-                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3.5 rounded-xl"
+                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3 rounded-lg"
               >
                 Tutup
               </button>
@@ -1462,9 +1579,9 @@ export default function HookyaMainApp() {
                   setShowUpgradeVIPModal(false)
                   setActiveMenu("topup")
                 }}
-                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
+                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-lg"
               >
-                Lihat Pilihan Paket VIP
+                Lihat Pilihan Paket
               </button>
             </div>
           </div>
@@ -1472,7 +1589,7 @@ export default function HookyaMainApp() {
       )}
 
       {/* HEADER STATIS */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between shadow-md border-b border-white/10">
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#14141f] text-white px-3 sm:px-6 flex items-center justify-between border-b border-white/10">
         <div className="flex items-center">
           <button
             type="button"
@@ -1531,7 +1648,7 @@ export default function HookyaMainApp() {
           </button>
 
           {showProfilePopup && (
-            <div className="absolute right-0 top-12 mt-2 w-80 bg-white text-[#14141f] rounded-3xl shadow-2xl border border-slate-200 p-5 z-50 space-y-3.5">
+            <div className="absolute right-0 top-12 mt-2 w-80 bg-white text-[#14141f] rounded-2xl shadow-2xl border border-slate-200 p-5 z-50 space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <label
@@ -1558,7 +1675,7 @@ export default function HookyaMainApp() {
                       {profil.nama}
                     </h4>
                     <span className="text-[11px] text-slate-500 block truncate">
-                      {profil.kontak}
+                      {namaPaketAktif} • Maks {kuotaAkunMaksimal} Akun
                     </span>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded">
@@ -1579,7 +1696,7 @@ export default function HookyaMainApp() {
                 </button>
               </div>
 
-              <div className="bg-[#f4f5f7] rounded-2xl p-3 border border-slate-200 space-y-2">
+              <div className="bg-[#f4f5f7] rounded-xl p-3 border border-slate-200 space-y-2">
                 <button
                   type="button"
                   onClick={() => setShowDetailKoinPopup(!showDetailKoinPopup)}
@@ -1608,7 +1725,7 @@ export default function HookyaMainApp() {
                       <strong>1 / 2 / 3 Koin</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tulis Ulang Kerangka (Tiap 3x):</span>
+                      <span>Tulis Ulang Bagian (Tiap 3x):</span>
                       <strong>1 Koin</strong>
                     </div>
                     <div className="flex justify-between">
@@ -1626,7 +1743,7 @@ export default function HookyaMainApp() {
                     setShowProfilePopup(false)
                     setActiveMenu("dna")
                   }}
-                  className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl"
+                  className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-lg"
                 >
                   Edit Profil
                 </button>
@@ -1636,7 +1753,7 @@ export default function HookyaMainApp() {
                     setShowProfilePopup(false)
                     setActiveMenu("topup")
                   }}
-                  className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
+                  className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold py-2.5 rounded-lg"
                 >
                   + Isi Koin
                 </button>
@@ -1649,7 +1766,7 @@ export default function HookyaMainApp() {
                     setShowProfilePopup(false)
                     setShowPinModal(true)
                   }}
-                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5"
                 >
                   <FlatIcon name="code" className="w-4 h-4" />
                   <span>Buka Dashboard Developer</span>
@@ -1665,7 +1782,7 @@ export default function HookyaMainApp() {
                   }
                   setViewMode("auth")
                 }}
-                className="cursor-pointer w-full bg-[#f4f5f7] text-[#14141f] text-xs font-bold py-2.5 rounded-xl"
+                className="cursor-pointer w-full bg-[#f4f5f7] text-[#14141f] text-xs font-bold py-2.5 rounded-lg"
               >
                 Keluar / Ganti Akun
               </button>
@@ -1681,7 +1798,7 @@ export default function HookyaMainApp() {
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-black/60"
             />
-            <aside className="relative w-72 max-w-[82vw] bg-[#14141f] text-white h-full p-5 flex flex-col justify-between z-10 shadow-2xl overflow-y-auto">
+            <aside className="relative w-72 max-w-[82vw] bg-[#14141f] text-white h-full p-5 flex flex-col justify-between z-10 overflow-y-auto">
               <div>
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
                   <span className="text-base font-bold text-[#d4f34a]">
@@ -1690,7 +1807,7 @@ export default function HookyaMainApp() {
                   <button
                     type="button"
                     onClick={() => setSidebarOpen(false)}
-                    className="cursor-pointer w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center"
+                    className="cursor-pointer w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center"
                   >
                     <FlatIcon name="close" className="w-4 h-4" />
                   </button>
@@ -1704,7 +1821,7 @@ export default function HookyaMainApp() {
                         setActiveMenu(item.id)
                         setSidebarOpen(false)
                       }}
-                      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition cursor-pointer ${
                         activeMenu === item.id
                           ? "bg-[#d4f34a] text-[#14141f] font-bold"
                           : "text-slate-300"
@@ -1715,7 +1832,7 @@ export default function HookyaMainApp() {
                         <span>{item.label}</span>
                       </div>
                       {item.badge > 0 && (
-                        <span className="bg-[#f3a88f] text-[#14141f] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="bg-[#f3a88f] text-[#14141f] text-[10px] font-bold px-2 py-0.5 rounded-md">
                           {item.badge}
                         </span>
                       )}
@@ -1730,7 +1847,7 @@ export default function HookyaMainApp() {
         )}
 
         <aside
-          className={`hidden md:flex flex-col justify-between bg-[#14141f] text-white m-4 rounded-4xl p-4 shrink-0 shadow-xl transition-all duration-300 self-start sticky top-20 ${
+          className={`hidden md:flex flex-col justify-between bg-[#14141f] text-white m-4 rounded-2xl p-4 shrink-0 transition-all duration-300 self-start sticky top-20 ${
             desktopMinimized ? "w-20 items-center" : "w-64"
           }`}
         >
@@ -1746,7 +1863,7 @@ export default function HookyaMainApp() {
                     desktopMinimized
                       ? "justify-center p-3.5"
                       : "justify-between px-4 py-3"
-                  } rounded-2xl transition cursor-pointer ${
+                  } rounded-xl transition cursor-pointer ${
                     isActive
                       ? "bg-[#d4f34a] text-[#14141f] font-bold"
                       : "text-slate-300 hover:bg-white/5"
@@ -1757,7 +1874,7 @@ export default function HookyaMainApp() {
                     {!desktopMinimized && <span>{item.label}</span>}
                   </div>
                   {!desktopMinimized && item.badge > 0 && (
-                    <span className="bg-[#f3a88f] text-[#14141f] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="bg-[#f3a88f] text-[#14141f] text-[10px] font-bold px-2 py-0.5 rounded-md">
                       {item.badge}
                     </span>
                   )}
@@ -1771,7 +1888,7 @@ export default function HookyaMainApp() {
 
         <main className="flex-1 min-w-0 w-full max-w-5xl p-3 sm:p-5 md:pl-0">
           {sisaHariPaket <= 5 && (
-            <div className="mb-4 bg-amber-100 border border-amber-300 text-[#14141f] p-4 rounded-3xl flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="mb-4 bg-amber-100 border border-amber-300 text-[#14141f] p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
               <div>
                 <strong className="font-bold">
                   {sisaHariPaket === 0
@@ -1787,7 +1904,7 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => setActiveMenu("topup")}
-                className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-xl shrink-0"
+                className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-4 py-2.5 rounded-lg shrink-0"
               >
                 Perpanjang Paket Koin
               </button>
@@ -1798,6 +1915,8 @@ export default function HookyaMainApp() {
             <PersonaDNAView
               userId={userId}
               isPremiumUser={statusVIPFinal}
+              kuotaAkunMaksimal={kuotaAkunMaksimal}
+              namaPaketAktif={namaPaketAktif}
               onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
               profil={profil}
               setProfil={setProfil}
@@ -1827,6 +1946,7 @@ export default function HookyaMainApp() {
               userId={userId}
               namaUser={profil.nama}
               isPremiumUser={statusVIPFinal}
+              kuotaAkunMaksimal={kuotaAkunMaksimal}
               onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
               coins={coins}
               updateKoinDatabase={updateKoinDatabase}
@@ -1871,153 +1991,472 @@ export default function HookyaMainApp() {
             />
           )}
 
+          {/* MENU ARSIP SKRIP TERSIMPAN (RINGKAS, PENCARIAN KEYWORD, DROPDOWN GANDAKAN, & FOLDER VARIASI) */}
           {activeMenu === "tersimpan" && (
-            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
-                    Arsip Skrip Tersimpan & Pengganda Stok (2x / 5x / 10x)
+                    Arsip Skrip Tersimpan
                   </h2>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Buka kembali skripmu, tandai status unggah VT, atau gandakan
-                    skrip yang ada menjadi 2x, 5x, hingga 10x variasi skrip
-                    baru.
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Cari skripmu berdasarkan kata kunci, buka folder variasi,
+                    atau plot jadwal konten ke kalender.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStage(0)
-                    setActiveMenu("produksi")
-                  }}
-                  className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-xl"
-                >
-                  + Buat Skrip Baru
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenu("kalender")}
+                    className="cursor-pointer bg-[#f4f5f7] hover:bg-slate-200 text-[#14141f] text-xs font-bold px-3.5 py-2.5 rounded-lg flex items-center gap-1.5 border border-slate-200"
+                  >
+                    <FlatIcon name="calendar" className="w-4 h-4" />
+                    <span>Kalender Arsip Konten</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStage(0)
+                      setActiveMenu("produksi")
+                    }}
+                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2.5 rounded-lg"
+                  >
+                    + Buat Skrip Baru
+                  </button>
+                </div>
               </div>
 
-              {koleksiSkripTersimpan.length === 0 ? (
+              {/* KOLOM PENCARIAN KEYWORD */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={keywordCariArsip}
+                  onChange={(e) => setKeywordCariArsip(e.target.value)}
+                  placeholder="Ketik kata kunci judul atau isi materi untuk mencari skrip..."
+                  className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-4 py-2.5 pr-16 text-base sm:text-xs outline-none focus:bg-white focus:border-[#14141f]"
+                />
+                {keywordCariArsip && (
+                  <button
+                    type="button"
+                    onClick={() => setKeywordCariArsip("")}
+                    className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-600"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
+
+              {arsipTerfilterKeyword.length === 0 ? (
                 <p className="text-xs text-slate-500 py-8 text-center">
-                  Belum ada skrip yang disimpan di arsipmu.
+                  Tidak ada skrip yang ditemukan.
                 </p>
               ) : (
-                koleksiSkripTersimpan.map((item) => {
-                  const sedangGandakanIni = multiplyingArchiveId === item.id
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <span className="text-xs text-slate-500">
-                            Dibuat pada: <strong>{item.waktuDibuat}</strong>
-                          </span>
-                          <h4 className="font-bold text-sm sm:text-base mt-0.5">
-                            {item.judul}
-                          </h4>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHasilSkrip(item)
-                            setStage(5)
-                            setActiveMenu("produksi")
-                          }}
-                          className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-xl"
-                        >
-                          Buka & Tampilkan Skrip
-                        </button>
-                      </div>
+                <div className="space-y-3">
+                  {arsipTerfilterKeyword.map((item) => {
+                    const sedangGandakanIni = multiplyingArchiveId === item.id
+                    const listFolder = Array.isArray(item.variasiFolder)
+                      ? item.variasiFolder
+                      : []
+                    const folderTerbuka = Boolean(folderTerbukaMap[item.id])
 
-                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-[#14141f]">
-                          Gandakan Jadi Stok Materi Baru:
-                        </span>
-
-                        {sedangGandakanIni ? (
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#4d6b14]">
-                            <FlatIcon
-                              name="refresh"
-                              className="w-4 h-4 animate-spin"
-                            />
-                            <span>Menyusun variasi skrip...</span>
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-xl bg-[#f4f5f7] border border-slate-200 space-y-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                              <span>{item.waktuDibuat}</span>
+                              {item.tanggalUpload && (
+                                <span className="bg-[#f2fce2] text-[#4d6b14] font-bold px-2 py-0.5 rounded-md border border-[#4d6b14]/20">
+                                  Terjadwal: {item.tanggalUpload}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-bold text-sm text-[#14141f] mt-0.5 break-words">
+                              {item.judul}
+                            </h4>
                           </div>
-                        ) : (
+
                           <div className="flex flex-wrap items-center gap-1.5">
+                            {listFolder.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFolderTerbukaMap((prev) => ({
+                                    ...prev,
+                                    [item.id]: !prev[item.id],
+                                  }))
+                                }
+                                className="cursor-pointer bg-white hover:bg-[#14141f] text-[#14141f] hover:text-[#d4f34a] border border-slate-200 text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 transition"
+                              >
+                                <FlatIcon
+                                  name="folder"
+                                  className="w-3.5 h-3.5"
+                                />
+                                <span>
+                                  Folder Variasi ({listFolder.length})
+                                </span>
+                                <FlatIcon
+                                  name="chevronDown"
+                                  className={`w-3.5 h-3.5 transition ${
+                                    folderTerbuka ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </button>
+                            )}
+
                             <button
                               type="button"
-                              onClick={() =>
-                                handleGandakanDariArsip(item, 2, 1)
-                              }
-                              className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition"
+                              onClick={() => {
+                                setHasilSkrip(item)
+                                setStage(5)
+                                setActiveMenu("produksi")
+                              }}
+                              className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg"
                             >
-                              Buat 2x Skrip (1 Koin)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleGandakanDariArsip(item, 5, 2)
-                              }
-                              className="cursor-pointer bg-[#f4f5f7] hover:bg-[#14141f] hover:text-[#d4f34a] text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition"
-                            >
-                              Buat 5x Skrip (2 Koin)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleGandakanDariArsip(item, 10, 3)
-                              }
-                              className="cursor-pointer bg-[#d4f34a] text-[#14141f] text-xs font-bold px-3 py-1.5 rounded-xl border border-[#14141f]/20 transition"
-                            >
-                              Buat 10x Skrip (3 Koin)
+                              Buka Skrip
                             </button>
                           </div>
-                        )}
-                      </div>
+                        </div>
 
-                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                        <label className="cursor-pointer flex items-center gap-2 text-xs font-bold">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(item.sudahUpload)}
-                            onChange={(e) =>
-                              handleToggleSudahUpload(item, e.target.checked)
-                            }
-                            className="w-4 h-4 accent-[#14141f]"
-                          />
-                          <span>Sudah Diupload Menjadi Konten VT</span>
-                        </label>
-                        {item.sudahUpload && (
-                          <input
-                            type="date"
-                            value={item.tanggalUpload || ""}
-                            onChange={(e) => {
-                              const updated = {
-                                ...item,
-                                tanggalUpload: e.target.value,
-                              }
-                              setKoleksiSkripTersimpan((prev) =>
-                                prev.map((s) =>
-                                  s.id === item.id ? updated : s,
-                                ),
-                              )
-                              simpanAtauUpdateSkripDatabase(updated)
-                            }}
-                            className="bg-[#f4f5f7] border border-slate-200 rounded-xl px-3 py-1.5 text-base sm:text-xs font-bold"
-                          />
+                        {/* ISI FOLDER VARIASI (MUNCUL SAAT DIKLIK) */}
+                        {folderTerbuka && listFolder.length > 0 && (
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                            <div className="text-[11px] font-bold text-slate-600">
+                              Isi Folder Variasi dari Topik Ini:
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {listFolder.map((vf, vIdx) => (
+                                <div
+                                  key={vf.id || vIdx}
+                                  className="p-2.5 rounded-lg bg-[#f4f5f7] border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                                >
+                                  <span className="font-bold truncate">
+                                    {vf.judul || `Variasi ${vIdx + 1}`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setHasilSkrip({
+                                        ...item,
+                                        judul: `${item.judul} (${vf.judul || `Variasi ${vIdx + 1}`})`,
+                                        sections: vf.sections || vf.segmen,
+                                        segmen: vf.segmen || vf.sections,
+                                      })
+                                      setStage(5)
+                                      setActiveMenu("produksi")
+                                    }}
+                                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-[11px] font-bold px-2.5 py-1 rounded-md shrink-0"
+                                  >
+                                    Buka
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
+
+                        {/* BAR RINGKAS: DROPDOWN GANDAKAN MATERI & STATUS UPLOAD */}
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              value={pilihanGandakanArsip[item.id] || "2"}
+                              disabled={sedangGandakanIni}
+                              onChange={(e) =>
+                                setPilihanGandakanArsip({
+                                  ...pilihanGandakanArsip,
+                                  [item.id]: e.target.value,
+                                })
+                              }
+                              className="bg-[#f4f5f7] border border-slate-200 rounded-md px-2.5 py-1.5 text-base sm:text-xs font-bold outline-none"
+                            >
+                              <option value="2">
+                                Gandakan 2 Variasi (1 Koin)
+                              </option>
+                              <option value="5">
+                                Gandakan 5 Variasi (2 Koin)
+                              </option>
+                              <option value="10">
+                                Gandakan 10 Variasi (3 Koin)
+                              </option>
+                            </select>
+
+                            <button
+                              type="button"
+                              disabled={sedangGandakanIni}
+                              onClick={() => handleGandakanDariArsip(item)}
+                              className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-md flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              {sedangGandakanIni && (
+                                <FlatIcon
+                                  name="refresh"
+                                  className="w-3.5 h-3.5 animate-spin"
+                                />
+                              )}
+                              <span>
+                                {sedangGandakanIni
+                                  ? "Memproses..."
+                                  : "Buat ke Folder"}
+                              </span>
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <label className="cursor-pointer flex items-center gap-1.5 font-bold text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(item.sudahUpload)}
+                                onChange={(e) =>
+                                  handleToggleSudahUpload(
+                                    item,
+                                    e.target.checked,
+                                  )
+                                }
+                                className="w-4 h-4 accent-[#14141f]"
+                              />
+                              <span>Jadwalkan / Upload</span>
+                            </label>
+                            {item.sudahUpload && (
+                              <input
+                                type="date"
+                                value={item.tanggalUpload || ""}
+                                onChange={(e) => {
+                                  const updated = {
+                                    ...item,
+                                    tanggalUpload: e.target.value,
+                                  }
+                                  setKoleksiSkripTersimpan((prev) =>
+                                    prev.map((s) =>
+                                      s.id === item.id ? updated : s,
+                                    ),
+                                  )
+                                  simpanAtauUpdateSkripDatabase(updated)
+                                }}
+                                className="bg-[#f4f5f7] border border-slate-200 rounded-md px-2 py-1 text-base sm:text-xs font-bold"
+                              />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })
+                    )
+                  })}
+                </div>
               )}
             </div>
           )}
 
+          {/* MENU KALENDER ARSIP KONTEN (KALENDER MINI INTERAKTIF) */}
+          {activeMenu === "kalender" && (
+            <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
+                    Kalender Arsip Konten
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Klik tanggal pada kalender untuk melihat daftar skrip konten
+                    pada tanggal tersebut atau menambahkan skrip dari arsip.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMenu("tersimpan")}
+                  className="cursor-pointer bg-[#f4f5f7] text-[#14141f] text-xs font-bold px-3.5 py-2 rounded-lg border border-slate-200"
+                >
+                  Ke Daftar Arsip
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* KOLOM KIRI: KALENDER MINI */}
+                <div className="lg:col-span-6 bg-[#f4f5f7] p-4 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (kalenderBulan === 0) {
+                          setKalenderBulan(11)
+                          setKalenderTahun((y) => y - 1)
+                        } else {
+                          setKalenderBulan((m) => m - 1)
+                        }
+                      }}
+                      className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                    >
+                      <FlatIcon name="chevronLeft" className="w-4 h-4" />
+                    </button>
+
+                    <div className="text-xs sm:text-sm font-bold text-[#14141f]">
+                      {NAMA_BULAN_ID[kalenderBulan]} {kalenderTahun}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (kalenderBulan === 11) {
+                          setKalenderBulan(0)
+                          setKalenderTahun((y) => y + 1)
+                        } else {
+                          setKalenderBulan((m) => m + 1)
+                        }
+                      }}
+                      className="cursor-pointer w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                    >
+                      <FlatIcon name="chevronRight" className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-500 pb-1">
+                    {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
+                      (h) => (
+                        <div key={h}>{h}</div>
+                      ),
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {gridHariKalender.map((cell, idx) => {
+                      if (!cell) {
+                        return <div key={`empty_${idx}`} className="h-11" />
+                      }
+                      const sedangDipilih = tanggalKalenderTerpilih === cell.iso
+                      const skripHariIni = koleksiSkripTersimpan.filter(
+                        (s) => s.tanggalUpload === cell.iso,
+                      )
+
+                      return (
+                        <button
+                          key={cell.iso}
+                          type="button"
+                          onClick={() => setTanggalKalenderTerpilih(cell.iso)}
+                          className={`cursor-pointer h-11 rounded-lg border text-xs font-bold flex flex-col items-center justify-center transition ${
+                            sedangDipilih
+                              ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
+                              : skripHariIni.length > 0
+                                ? "bg-[#f2fce2] text-[#14141f] border-[#4d6b14]/30"
+                                : "bg-white text-[#14141f] border-slate-200 hover:border-[#14141f]"
+                          }`}
+                        >
+                          <span>{cell.hari}</span>
+                          {skripHariIni.length > 0 && (
+                            <span
+                              className={`text-[9px] px-1.5 rounded-sm ${
+                                sedangDipilih
+                                  ? "bg-[#d4f34a] text-[#14141f]"
+                                  : "bg-[#14141f] text-[#d4f34a]"
+                              }`}
+                            >
+                              {skripHariIni.length}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* KOLOM KANAN: DETAIL TANGGAL & PLOT SKRIP DARI ARSIP */}
+                <div className="lg:col-span-6 bg-[#f4f5f7] p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#14141f]">
+                      Jadwal Konten Tanggal: {tanggalKalenderTerpilih}
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {daftarSkripPadaTanggalTerpilih.length > 0
+                        ? `Terdapat ${daftarSkripPadaTanggalTerpilih.length} skrip konten pada tanggal ini.`
+                        : "Belum ada skrip konten yang diplot pada tanggal ini."}
+                    </p>
+                  </div>
+
+                  {/* DAFTAR SKRIP YANG ADA PADA TANGGAL TERSEBUT */}
+                  {daftarSkripPadaTanggalTerpilih.length > 0 && (
+                    <div className="space-y-2">
+                      {daftarSkripPadaTanggalTerpilih.map((sk) => (
+                        <div
+                          key={sk.id}
+                          className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-[#14141f] truncate">
+                              {sk.judul}
+                            </div>
+                            <span className="text-[11px] text-slate-500">
+                              {sk.bentuk}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setHasilSkrip(sk)
+                                setStage(5)
+                                setActiveMenu("produksi")
+                              }}
+                              className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold px-3 py-1.5 rounded-md"
+                            >
+                              Buka
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleHapusSkripDariTanggalKalender(sk)
+                              }
+                              className="cursor-pointer bg-[#f4f5f7] hover:bg-rose-50 text-slate-600 hover:text-rose-700 font-bold px-2.5 py-1.5 rounded-md border border-slate-200"
+                            >
+                              Lepas
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* TAMBAHKAN SKRIP KONTEN DARI ARSIP KE TANGGAL INI */}
+                  <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-2.5">
+                    <label className="block text-xs font-bold text-[#14141f]">
+                      Tambahkan Skrip Konten dari Arsip ke Tanggal Ini
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <select
+                        value={idSkripPlotTerpilih}
+                        onChange={(e) => setIdSkripPlotTerpilih(e.target.value)}
+                        className="flex-1 bg-[#f4f5f7] border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-bold outline-none"
+                      >
+                        <option value="">
+                          -- Pilih Skrip dari Arsip (
+                          {koleksiSkripTersimpan.length} Tersedia) --
+                        </option>
+                        {koleksiSkripTersimpan.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.judul}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!idSkripPlotTerpilih}
+                        onClick={() =>
+                          handlePlotSkripKeTanggalKalender(
+                            idSkripPlotTerpilih,
+                            tanggalKalenderTerpilih,
+                          )
+                        }
+                        className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-4 py-2 rounded-lg shrink-0 disabled:opacity-50"
+                      >
+                        + Tambahkan ke Tanggal Ini
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeMenu === "rapor" && (
-            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-5">
-              <div className="border-b border-slate-100 pb-4">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-5">
+              <div className="border-b border-slate-200 pb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
                   Laporan Kinerja VT Sepekan Setelah Upload
                 </h2>
@@ -2026,7 +2465,7 @@ export default function HookyaMainApp() {
               {koleksiSkripTersimpan.filter((s) => s.sudahUpload).length ===
               0 ? (
                 <p className="text-xs text-slate-500 py-8 text-center">
-                  Belum ada skrip yang ditandai "Sudah Diupload".
+                  Belum ada skrip yang dijadwalkan atau diupload.
                 </p>
               ) : (
                 koleksiSkripTersimpan
@@ -2041,7 +2480,7 @@ export default function HookyaMainApp() {
                     return (
                       <div
                         key={item.id}
-                        className="p-5 rounded-3xl bg-[#f4f5f7] border border-slate-200 space-y-3"
+                        className="p-5 rounded-xl bg-[#f4f5f7] border border-slate-200 space-y-3"
                       >
                         <h4 className="font-bold text-sm">{item.judul}</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
@@ -2058,7 +2497,7 @@ export default function HookyaMainApp() {
                               })
                             }
                             placeholder="Jumlah Views..."
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs"
                           />
                           <input
                             type="number"
@@ -2073,7 +2512,7 @@ export default function HookyaMainApp() {
                               })
                             }
                             placeholder="Jumlah Like..."
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs"
                           />
                           <input
                             type="number"
@@ -2088,19 +2527,19 @@ export default function HookyaMainApp() {
                               })
                             }
                             placeholder="Jumlah Komentar..."
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs"
                           />
                           <button
                             type="button"
                             disabled={isGenerating}
                             onClick={() => handleKirimLaporanKinerjaVT(item)}
-                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold text-xs py-2.5 rounded-xl"
+                            className="cursor-pointer bg-[#14141f] text-[#d4f34a] font-bold text-xs py-2.5 rounded-lg"
                           >
                             Laporkan Kinerja
                           </button>
                         </div>
                         {item.evaluasiAI && (
-                          <p className="text-xs bg-white p-3 rounded-xl">
+                          <p className="text-xs bg-white p-3 rounded-lg border border-slate-200">
                             <strong>Catatan Evaluasi:</strong> {item.evaluasiAI}
                           </p>
                         )}
@@ -2111,83 +2550,34 @@ export default function HookyaMainApp() {
             </div>
           )}
 
+          {/* LAMAN PEMBELIAN PAKET KOIN: CUKUP TAMPILKAN PILIHAN PAKET & KOLOM KODE VOUCHER */}
           {activeMenu === "topup" && (
-            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-[#f2fce2] border border-[#4d6b14]/25 p-4 rounded-3xl flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-bold bg-[#14141f] text-[#d4f34a] px-2 py-0.5 rounded">
-                      CHECK-IN HARIAN
-                    </span>
-                    <h4 className="text-xs sm:text-sm font-bold text-[#14141f] mt-1">
-                      Check-in Harian (Beruntun: {checkinStreak} Hari)
-                    </h4>
-                    <p className="text-[11px] text-slate-600">
-                      Check-in 3 hari berturut-turut untuk mendapatkan +1 Koin
-                      tambahan.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCheckinHarian}
-                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2.5 rounded-xl shrink-0"
-                  >
-                    Check-in Hari Ini
-                  </button>
-                </div>
-
-                <div className="bg-[#f0eeff] border border-[#5b4bc4]/20 p-4 rounded-3xl flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-bold bg-[#5b4bc4] text-white px-2 py-0.5 rounded">
-                      KODE UNDANGAN
-                    </span>
-                    <h4 className="text-xs sm:text-sm font-bold text-[#14141f] mt-1">
-                      Kode Undanganmu: {kodeReferralSaya}
-                    </h4>
-                    <p className="text-[11px] text-slate-600">
-                      Bagikan kode undanganmu kepada teman sesama kreator.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `Susun skrip konten di Hookya.site dan gunakan kode undanganku: ${kodeReferralSaya} di https://hookya.site`,
-                      )
-                      showToast("Tautan dan kode undangan disalin.")
-                    }}
-                    className="cursor-pointer bg-white border border-slate-300 text-[#14141f] text-xs font-bold px-3.5 py-2.5 rounded-xl shrink-0"
-                  >
-                    Salin Kode
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold">
-                    Pilih Paket Koin (5K, 10K, 15K, 20K VIP, 25K VIP, 50K VIP &
-                    90K VIP)
+                  <h2 className="text-lg font-bold text-[#14141f]">
+                    Pilih Paket Koin
                   </h2>
-                  <p className="text-xs text-slate-500">
-                    Masa aktif saat ini: <strong>{sisaHariPaket} Hari</strong>.
-                    Paket Rp20.000 ke atas membuka seluruh fitur VIP.
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Paket aktif: <strong>{namaPaketAktif}</strong> (Kuota{" "}
+                    <strong>{kuotaAkunMaksimal} Profil Akun Sosmed</strong> •
+                    Masa aktif <strong>{sisaHariPaket} Hari</strong>).
                   </p>
                 </div>
-                <div className="flex items-center gap-2 bg-[#f4f5f7] p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-2 bg-[#f4f5f7] p-1.5 rounded-xl border border-slate-200">
                   <input
                     type="text"
                     value={inputKodeVoucherUser}
                     onChange={(e) => setInputKodeVoucherUser(e.target.value)}
-                    placeholder="Kode Voucher..."
-                    className="bg-white rounded-xl px-3 py-2 text-base sm:text-xs font-bold uppercase outline-none w-36"
+                    placeholder="Masukkan Kode Voucher..."
+                    className="bg-white rounded-lg px-3 py-2 text-base sm:text-xs font-bold uppercase outline-none w-44 border border-slate-200"
                   />
                   <button
                     type="button"
                     onClick={handleKlaimVoucherUser}
-                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-xl"
+                    className="cursor-pointer bg-[#14141f] text-[#d4f34a] text-xs font-bold px-3.5 py-2 rounded-lg"
                   >
-                    Klaim
+                    Klaim Voucher
                   </button>
                 </div>
               </div>
@@ -2196,33 +2586,41 @@ export default function HookyaMainApp() {
                 {daftarPaketKoin.map((p) => (
                   <div
                     key={p.nama}
-                    className={`p-5 rounded-3xl flex flex-col justify-between ${
+                    className={`p-5 rounded-xl border flex flex-col justify-between ${
                       p.populer
-                        ? "bg-[#14141f] text-white shadow-xl ring-2 ring-[#d4f34a]"
-                        : "bg-[#f4f5f7] text-[#14141f] border border-slate-200"
+                        ? "bg-[#14141f] text-white border-[#14141f]"
+                        : "bg-[#f4f5f7] text-[#14141f] border-slate-200"
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-1">
                         <h3 className="font-bold text-sm">{p.nama}</h3>
-                        {p.isVIP && (
-                          <span className="text-[10px] font-bold bg-[#d4f34a] text-[#14141f] px-2 py-0.5 rounded-full">
-                            VIP
-                          </span>
-                        )}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            p.populer
+                              ? "bg-[#d4f34a] text-[#14141f]"
+                              : "bg-white text-[#14141f] border border-slate-200"
+                          }`}
+                        >
+                          Maks {p.kuotaAkun} Akun
+                        </span>
                       </div>
                       <div className="text-2xl font-bold mt-1">{p.harga}</div>
-                      <span className="text-xs font-bold bg-[#d4f34a] text-[#14141f] px-2.5 py-0.5 rounded mt-2 inline-block">
+                      <span className="text-xs font-bold bg-[#d4f34a] text-[#14141f] px-2.5 py-0.5 rounded-md mt-2 inline-block">
                         +{p.koin} Koin (+30 Hari)
                       </span>
-                      <p className="text-xs opacity-85 mt-2.5 leading-relaxed">
+                      <p
+                        className={`text-xs mt-2.5 leading-relaxed ${
+                          p.populer ? "text-slate-300" : "text-slate-600"
+                        }`}
+                      >
                         {p.ket}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => bukaLayarCheckoutPaket(p)}
-                      className="cursor-pointer mt-5 w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs py-3 rounded-xl"
+                      className="cursor-pointer mt-5 w-full bg-[#d4f34a] text-[#14141f] font-bold text-xs py-3 rounded-lg"
                     >
                       Pilih Paket ({p.harga})
                     </button>
@@ -2233,8 +2631,8 @@ export default function HookyaMainApp() {
           )}
 
           {activeMenu === "usulan" && (
-            <div className="bg-white p-5 sm:p-8 rounded-4xl border border-slate-100 shadow-sm space-y-6">
-              <div className="border-b border-slate-100 pb-4">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 space-y-6">
+              <div className="border-b border-slate-200 pb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-[#14141f]">
                   Usulan Pengembangan & Laporan Kendala Aplikasi
                 </h2>
@@ -2257,10 +2655,10 @@ export default function HookyaMainApp() {
                       onClick={() =>
                         setFormUsulan({ ...formUsulan, kategori: kat })
                       }
-                      className={`cursor-pointer py-2.5 px-3 rounded-xl text-xs font-bold border transition ${
+                      className={`cursor-pointer py-2.5 px-3 rounded-lg text-xs font-bold border transition ${
                         formUsulan.kategori === kat
                           ? "bg-[#14141f] text-[#d4f34a] border-[#14141f]"
-                          : "bg-[#f4f5f7] text-slate-600 border-transparent"
+                          : "bg-[#f4f5f7] text-slate-600 border-slate-200"
                       }`}
                     >
                       {kat}
@@ -2281,7 +2679,7 @@ export default function HookyaMainApp() {
                 <button
                   type="submit"
                   disabled={isSendingUsulan}
-                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-4 rounded-2xl"
+                  className="cursor-pointer w-full bg-[#14141f] text-[#d4f34a] font-bold text-xs sm:text-sm py-3.5 rounded-lg"
                 >
                   {isSendingUsulan
                     ? "Mengirim ke Developer..."
@@ -2296,10 +2694,10 @@ export default function HookyaMainApp() {
       {/* MODAL PEMBAYARAN QRIS MANUAL */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-[#14141f] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl my-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white text-[#14141f] w-full max-w-md rounded-2xl p-6 space-y-4 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded">
+                <span className="text-[10px] font-bold bg-[#f2fce2] text-[#4d6b14] px-2 py-0.5 rounded-md">
                   Tagihan #{checkoutModal.invoiceId}
                 </span>
                 <h3 className="text-base font-bold mt-0.5">
@@ -2310,13 +2708,13 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => setCheckoutModal(null)}
-                className="cursor-pointer w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"
+                className="cursor-pointer w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-[#f4f5f7] p-4 rounded-2xl text-center space-y-2 border border-slate-200">
+            <div className="bg-[#f4f5f7] p-4 rounded-xl text-center space-y-2 border border-slate-200">
               <div className="text-xs font-bold text-slate-600">
                 1. Scan QRIS Statis & Bayar Sesuai Nominal Berikut:
               </div>
@@ -2324,7 +2722,7 @@ export default function HookyaMainApp() {
                 <img
                   src={pengaturanPayment.qrisImageUrl}
                   alt="QRIS Merchant"
-                  className="w-52 h-52 mx-auto rounded-xl object-contain bg-white p-2 border border-slate-200"
+                  className="w-52 h-52 mx-auto rounded-lg object-contain bg-white p-2 border border-slate-200"
                 />
               ) : (
                 <FlatIcon
@@ -2344,15 +2742,15 @@ export default function HookyaMainApp() {
               <label className="block text-xs font-bold text-[#14141f]">
                 2. Upload Foto / Screenshot Bukti Pembayaran:
               </label>
-              <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-2xl p-3.5 flex items-center gap-3 transition">
+              <label className="cursor-pointer border border-dashed border-slate-300 hover:border-[#14141f] bg-[#f4f5f7] rounded-xl p-3.5 flex items-center gap-3 transition">
                 {buktiBayarBase64 ? (
                   <img
                     src={buktiBayarBase64}
                     alt="Bukti Bayar"
-                    className="w-12 h-12 rounded-xl object-cover border border-slate-300 shrink-0"
+                    className="w-12 h-12 rounded-lg object-cover border border-slate-300 shrink-0"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-[#14141f] text-[#d4f34a] flex items-center justify-center shrink-0">
                     <FlatIcon name="upload" className="w-4 h-4" />
                   </div>
                 )}
@@ -2377,7 +2775,7 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => setCheckoutModal(null)}
-                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3.5 rounded-xl"
+                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3 rounded-lg"
               >
                 Batal
               </button>
@@ -2385,7 +2783,7 @@ export default function HookyaMainApp() {
                 type="button"
                 disabled={sedangProsesBayar}
                 onClick={handleKonfirmasiBayarDanKirimWA}
-                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3.5 rounded-xl"
+                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-lg"
               >
                 {sedangProsesBayar
                   ? "Mengirim Bukti..."
@@ -2399,20 +2797,20 @@ export default function HookyaMainApp() {
       {/* MODAL PIN DEVELOPER */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white text-[#14141f] w-full max-w-sm rounded-3xl p-6 space-y-4 text-center">
+          <div className="bg-white text-[#14141f] w-full max-w-sm rounded-2xl p-6 space-y-4 text-center">
             <h3 className="text-base font-bold">Masuk ke Mode Developer</h3>
             <input
               type="password"
               value={inputPinDev}
               onChange={(e) => setInputPinDev(e.target.value)}
               placeholder="PIN Admin..."
-              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-xl px-4 py-3 text-center text-base sm:text-sm font-bold outline-none"
+              className="w-full bg-[#f4f5f7] border border-slate-200 rounded-lg px-4 py-3 text-center text-base sm:text-sm font-bold outline-none"
             />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setShowPinModal(false)}
-                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3 rounded-xl"
+                className="cursor-pointer w-1/3 bg-[#f4f5f7] font-bold text-xs py-3 rounded-lg"
               >
                 Batal
               </button>
@@ -2427,7 +2825,7 @@ export default function HookyaMainApp() {
                     alert("PIN Admin salah.")
                   }
                 }}
-                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-xl"
+                className="cursor-pointer flex-1 bg-[#14141f] text-[#d4f34a] font-bold text-xs py-3 rounded-lg"
               >
                 Buka Dashboard Dev
               </button>
@@ -2445,7 +2843,7 @@ export default function HookyaMainApp() {
             </span>
             <button
               onClick={() => setModeTeleprompter(false)}
-              className="cursor-pointer bg-white/10 px-4 py-2 rounded-xl text-xs font-bold"
+              className="cursor-pointer bg-white/10 px-4 py-2 rounded-lg text-xs font-bold"
             >
               Tutup
             </button>
@@ -2454,10 +2852,13 @@ export default function HookyaMainApp() {
             {hasilSkrip.segmen.map((s, idx) => (
               <div key={idx} className="space-y-1.5">
                 <div className="text-xs text-[#d4f34a] font-bold">
-                  {s.labelMini} [{s.visual}]
+                  {s.labelMini || `Bagian ${idx + 1}`} [
+                  {s.visual || s.visualCue}]
                 </div>
                 <p className="text-xl sm:text-2xl font-bold leading-snug whitespace-pre-line">
-                  {modeTampilanSkrip === "teks" ? s.teksLayar : s.voiceover}
+                  {modeTampilanSkrip === "teks"
+                    ? s.teksLayar || s.onScreenText
+                    : s.voiceover || s.spokenText}
                 </p>
               </div>
             ))}

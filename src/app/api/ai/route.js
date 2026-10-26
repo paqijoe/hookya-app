@@ -8,32 +8,26 @@ function getSupabase() {
   return createClient(url, key)
 }
 
-// ============================================================================
-// 1. KAMUS 9 FORMAT KONTEN UTAMA (TERMASUK SPEECH, KULTUM, & PIDATO)
-// ============================================================================
 const KAMUS_FORMAT_KONTEN = {
   ugc: "User-Generated Content (UGC): Gaya berbagi pengalaman sebagai pengguna langsung yang jujur, natural, dan terasa seperti rekomendasi teman dekat.",
   edukasi:
-    "Educational Content: Membongkar ilmu, cara kerja, atau pengetahuan baru secara runtut sehingga penonton merasa pintar setelah menonton.",
+    "Educational Content: Membongkar ilmu, cara kerja, atau pengetahuan baru secara runtut sehingga penonton merasa mendapat wawasan baru.",
   entertaining:
     "Entertaining Content: Mengutamakan alur cerita yang seru, menghibur, segar, dan menjaga suasana penonton tetap asik dari awal sampai akhir.",
   inspirational:
-    "Inspirational & Motivating Content: Menggerakkan hati, mengubah cara pandang (mindset), dan membangkitkan semangat penonton lewat kisah atau perenungan mendalam.",
+    "Inspirational & Motivating Content: Menggerakkan hati, mengubah cara pandang, dan membangkitkan semangat penonton lewat kisah atau perenungan mendalam.",
   interactive:
     "Interactive Content: Melibatkan penonton secara aktif lewat pertanyaan pancingan, tebak pilihan, atau ajakan berpendapat langsung di kolom komentar.",
   testimonial_review:
     "Testimonial and Reviews: Mengulas pengalaman pemakaian nyata, membedah kelebihan dan kekurangan secara objektif, serta menunjukkan bukti hasil.",
   seasonal:
-    "Seasonal Content: Mengaitkan bahasan dengan momen khusus, musim, tanggal gajian, bulan puasa/hari raya, atau kejadian tahunan yang sedang dirasakan semua orang.",
+    "Seasonal Content: Mengaitkan bahasan dengan momen khusus, musim, tanggal gajian, bulan puasa/hari raya, atau kejadian yang sedang dirasakan semua orang.",
   tips_trick:
-    "Tips & Trick Praktis: Memberikan langkah-langkah taktis, jalan pintas yang halal/aman, dan solusi praktis yang bisa langsung dicoba penonton hari ini.",
+    "Tips & Trick Praktis: Memberikan langkah-langkah taktis dan solusi praktis yang bisa langsung dicoba penonton hari ini.",
   speech_kultum_pidato:
-    "Materi Speech, Kultum, & Pidato: Naskah berbicara di depan umum (public speaking, ceramah/kultum, sambutan, atau orasi motivasi) dengan retorika yang berwibawa, menyentuh hati, kaya kosakata, memilikisapaan audiens yang hangat, ilustrasi kisah yang kuat, serta penutup yang berkesan.",
+    "Materi Speech, Kultum, & Pidato: Naskah berbicara di depan umum (public speaking, ceramah/kultum, sambutan, atau orasi motivasi) dengan retorika yang berwibawa, menyentuh hati, kaya kosakata, sapaan audiens yang hangat, ilustrasi kisah yang kuat, serta penutup yang berkesan.",
 }
 
-// ============================================================================
-// 2. KAMUS 5 FAKTOR PEMICU VIRAL + PENDEKATAN TRUST & KONVERSI
-// ============================================================================
 const KAMUS_FAKTOR_VIRAL = {
   fakta_realitas:
     "Fakta & Realitas Lapangan: Mengangkat kenyataan nyata di lapangan, fakta mengejutkan, atau kebenaran yang sering diabaikan orang.",
@@ -65,12 +59,9 @@ const KAMUS_GAYA_JUALAN = {
     "Hard Selling (Jualan Tegas, To-The-Point & Penawaran Kuat): Langsung tunjukkan masalah utama di detik pertama, pamerkan keunggulan fisik & bukti nyata produk, sebutkan penawaran/harga/keuntungan, dan tutup dengan ajakan beli yang tegas.",
 }
 
-// ============================================================================
-// 3. ATURAN ANTI-SLOP & KUALITAS BAHASA LISAN INDONESIA
-// ============================================================================
 const ATURAN_BAHASA_INDONESIA_PRO = `
 ATURAN KUALITAS PENULISAN NASKAH (WAJIB DIPATUHI 100%):
-1. DILARANG menggunakan karakter em dash (—) atau tanda hubung ganda (--) di bagian mana pun. Gunakan koma, titik, atau kalimat baru.
+1. DILARANG menggunakan karakter em dash atau tanda hubung ganda (--) di bagian mana pun. Gunakan koma, titik, atau kalimat baru.
 2. DILARANG menggunakan struktur klise terjemahan AI seperti "Bukan sekadar X, tapi juga Y", "Tidak hanya X, melainkan Y", "Di era digital yang serba cepat ini", "Membuka potensi", "Pengubah permainan (game-changer)".
 3. DILARANG mengarang angka statistik atau riset palsu yang tidak ada di input pengguna.
 4. Naskah harus terdengar hidup saat dibaca keras oleh manusia (memiliki jembatan antar-kalimat yang mengalir, ritme bicara yang jelas, dan pilihan kata yang tepat sasaran).
@@ -101,13 +92,9 @@ function sanitasiObjekAntiSlop(obj) {
   return obj
 }
 
-// ============================================================================
-// 4. MESIN KEPADATAN KATA & DURASI RIIL (MENGATASI MASALAH 3 MENIT CUMA < 1 MENIT)
-// Kecepatan bicara normal Bahasa Indonesia = 135 - 150 kata per menit.
-// ============================================================================
 function getAturanDurasiDanKepadatanRiil({
   durasiStr = "60 Detik (1 Menit)",
-  wordDensity = "padat_kaya_kosakata", // 'padat_kaya_kosakata' | 'irit_ringkas'
+  wordDensity = "padat_kaya_kosakata",
   contentFormat = "edukasi",
 }) {
   const d = (durasiStr || "").toLowerCase()
@@ -116,8 +103,8 @@ function getAturanDurasiDanKepadatanRiil({
 
   const instruksiGayaKepadatan = isPadat
     ? `MODE KEPADATAN: PADAT BERISI & KAYA KOSAKATA.
-- DILARANG KERAS menulis kalimat yang irit, pendek-pendek terputus, atau terlalu singkat!
-- Gunakan perbendaharaan kata (kosakata) yang kaya, ekspresif, mengalir, dan penuh elaborasi nyata.
+- DILARANG KERAS menulis kalimat yang irit, pendek-pendek terputus, atau terlalu singkat.
+- Gunakan perbendaharaan kata yang kaya, ekspresif, mengalir, dan penuh elaborasi nyata.
 - Setiap bagian ("section") WAJIB dijabarkan secara utuh dengan contoh konkret, penjelasan logis, dan kalimat transisi yang mulus agar target jumlah kata benar-benar tercapai saat dibaca dengan kecepatan normal (140 kata per menit).`
     : `MODE KEPADATAN: RINGKAS & TO-THE-POINT (IRIT KATA).
 - Gunakan kalimat yang lugas, padat, langsung menghantam inti bahasan tanpa berputar-putar, namun tetap memenuhi durasi yang diminta.`
@@ -167,9 +154,9 @@ Buat tepat 4 bagian ("sections"), di mana masing-masing bagian WAJIB terdiri dar
       minWordsPerSection: isPadat ? 50 : 40,
       totalTargetWords: "280 - 330 Kata",
       instruksiBabak: `
-TARGET DURASI RIIL: 2 MENIT PENUH (TOTAL WAJIB 280 SAMPAI 330 KATA UCAP!).
+TARGET DURASI RIIL: 2 MENIT PENUH (TOTAL WAJIB 280 SAMPAI 330 KATA UCAP).
 ${instruksiGayaKepadatan}
-PERINGATAN KERAS: Jangan pernah menulis terlalu pendek! Agar saat dibaca benar-benar mencapai 2 menit penuh, kamu WAJIB membuat 6 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 4 sampai 5 kalimat lengkap (minimal 45 - 55 kata per bagian!):
+PERINGATAN KERAS: Jangan pernah menulis terlalu pendek. Agar saat dibaca benar-benar mencapai 2 menit penuh, kamu WAJIB membuat 6 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 4 sampai 5 kalimat lengkap (minimal 45 - 55 kata per bagian):
 - Bagian 1: Pembuka & Pengunci Perhatian [0:00 - 0:15] (Minimal 45 kata)
 - Bagian 2: Latar Belakang Kejadian / Fenomena Nyata [0:15 - 0:35] (Minimal 50 kata)
 - Bagian 3: Bedah Kesalahan Umum / Akar Masalah [0:35 - 1:00] (Minimal 55 kata)
@@ -189,9 +176,9 @@ PERINGATAN KERAS: Jangan pernah menulis terlalu pendek! Agar saat dibaca benar-b
       minWordsPerSection: isPadat ? 60 : 48,
       totalTargetWords: "430 - 500 Kata",
       instruksiBabak: `
-TARGET DURASI RIIL: 3 MENIT PENUH (TOTAL NASKAH WAJIB 430 SAMPAI 500 KATA UCAP!).
+TARGET DURASI RIIL: 3 MENIT PENUH (TOTAL NASKAH WAJIB 430 SAMPAI 500 KATA UCAP).
 ${instruksiGayaKepadatan}
-PERINGATAN MUTLAK: Sebelumnya naskah 3 menit gagal karena terlalu pendek! Kali ini, kamu WAJIB membuat 8 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 5 sampai 6 kalimat yang kaya kosakata dan mendalam (minimal 55 - 65 kata di setiap bagian!). Jangan ada bagian yang cuma 1-2 kalimat!
+PERINGATAN MUTLAK: Kamu WAJIB membuat 8 bagian ("sections"), dan SETIAP BAGIAN WAJIB berisi 5 sampai 6 kalimat yang kaya kosakata dan mendalam (minimal 55 - 65 kata di setiap bagian). Jangan ada bagian yang cuma 1-2 kalimat.
 Rincian 8 Bagian Wajib:
 - Bagian 1: Pembuka & Pancingan Kuat [0:00 - 0:18] (Minimal 55 kata)
 - Bagian 2: Konteks Kejadian / Cerita Pemicu di Lapangan [0:18 - 0:40] (Minimal 60 kata)
@@ -204,7 +191,6 @@ Rincian 8 Bagian Wajib:
     }
   }
 
-  // Default: 60 Detik (1 Menit) -> Wajib 150 - 180 kata
   return {
     targetDuration: "60 Detik (1 Menit)",
     flowStyle: isPadat ? "Mengalir Padat & Kaya Kosakata" : "Lugas & Mengena",
@@ -212,7 +198,7 @@ Rincian 8 Bagian Wajib:
     minWordsPerSection: isPadat ? 34 : 28,
     totalTargetWords: "150 - 180 Kata",
     instruksiBabak: `
-TARGET DURASI RIIL: 60 DETIK / 1 MENIT PENUH (TOTAL WAJIB 150 SAMPAI 180 KATA UCAP!).
+TARGET DURASI RIIL: 60 DETIK / 1 MENIT PENUH (TOTAL WAJIB 150 SAMPAI 180 KATA UCAP).
 ${instruksiGayaKepadatan}
 Buat tepat 5 bagian ("sections"), di mana SETIAP BAGIAN WAJIB berisi 3 sampai 4 kalimat utuh (minimal 32 - 38 kata per bagian):
 - Bagian 1: Pembuka / Hook [0:00 - 0:08] (~30 kata)
@@ -223,9 +209,6 @@ Buat tepat 5 bagian ("sections"), di mana SETIAP BAGIAN WAJIB berisi 3 sampai 4 
   }
 }
 
-// ============================================================================
-// 5. PENYUSUN INSTRUKSI 3 FASE + 9 FORMAT + 5 FAKTOR VIRAL + SOFT/HARD SELLING
-// ============================================================================
 function susunInstruksiStrategiKonten({
   contentPhase = "fase_1_viral",
   contentFormat = "edukasi",
@@ -265,7 +248,6 @@ function susunInstruksiStrategiKonten({
 - SPESIFIKASI PERSONAL DIRI KREATOR (WAJIB DISELIPKAN KE DALAM NASKAH):
   * Jam Terbang & Pengalaman Nyata: "${spekDiriProfil}"
   * Peran Kreator: "${peranKreator}"
-- INSTRUKSI EKSEKUSI: Buat penonton percaya penuh bahwa kreator ini benar-benar paham bidangnya melalui cerita pengalaman nyata, rincian proses kerja yang jujur, dan cara pandang yang matang.
 `
   }
 
@@ -275,11 +257,6 @@ function susunInstruksiStrategiKonten({
 - GAYA JUALAN YANG DIPILIH (${sellingStyle}): ${deskripsiSelling}
 - FORMAT PEMBAWAAN (${contentFormat}): ${deskripsiFormat}
 - FAKTOR PEMICU PERHATIAN AWAL (${viralTrigger}): ${deskripsiViral}
-- INSTRUKSI EKSEKUSI: ${
-      sellingStyle === "hard_selling"
-        ? "Gunakan teknik HARD SELLING yang tajam: buka langsung dengan masalah utama dan klaim bukti nyata produk, jabarkan spesifikasi menjadi keuntungan fisik yang sulit ditolak, tekankan nilai/harga promo, dan tutup dengan instruksi pembelian yang tegas."
-        : "Gunakan teknik SOFT SELLING yang elegan: buka dengan cerita/masalah harian atau edukasi sesuai faktor pemicu di atas hingga penonton merasa sangat terhubung, lalu hadirkan produk/jasa secara halus sebagai jalan keluar yang paling masuk akal."
-    }
 `
   }
 
@@ -287,11 +264,6 @@ function susunInstruksiStrategiKonten({
 # FASE KONTEN: FASE 1 - CARI VIRAL DULU (MENJANGKAU PENONTON BARU LUAS)
 - FORMAT KONTEN (${contentFormat}): ${deskripsiFormat}
 - FAKTOR PEMICU VIRAL UTAMA (${viralTrigger}): ${deskripsiViral}
-- INSTRUKSI EKSEKUSI: ${
-    contentFormat === "speech_kultum_pidato"
-      ? "Susun sebagai naskah SPEECH / KULTUM / PIDATO yang memukau audiens: gunakan sapaan pembuka yang menggugah, bangun argumen dengan fakta/realitas dan kisah teladan yang menyentuh hati, gunakan retorika yang kaya kosakata, dan tutup dengan kesimpulan yang membekas di ingatan pendengar."
-      : "Fokus 100% membuat penonton baru berhenti scroll di 3 detik pertama, merasa sangat relevan dengan topik yang dibahas, dan terdorong untuk menonton sampai detik terakhir atau berkomentar."
-  }
 `
 }
 
@@ -431,6 +403,10 @@ function normalisasiHasilSkripDinamis(rawObj, aturanDurasi) {
     totalSections: sectionsBersih.length,
     sections: sectionsBersih,
     segmen: segmenSinkron,
+    kritikSaran:
+      rawObj.kritikSaran ||
+      rawObj.script_score?.producer_tip ||
+      "Pastikan kalimat pembuka diucapkan tanpa jeda ragu dan jaga kontak mata dengan lensa kamera.",
     metadata: {
       ...(rawObj.metadata || {}),
       estimated_duration:
@@ -517,6 +493,11 @@ async function catatErrorKeAdminDanRefund({
   return koinTerbaru
 }
 
+// ============================================================================
+// PERBAIKAN TOTAL MULTIMODAL (MIC, SCREENSHOT, & VIDEO) DI OPENROUTER & GEMINI
+// Menghapus `response_format: { type: "json_object" }` pada request multimodal
+// karena OpenRouter menolak kombinasi input_audio/image_url + json_object.
+// ============================================================================
 async function panggilMultimodalPintar({
   openRouterKey,
   geminiKey,
@@ -525,66 +506,82 @@ async function panggilMultimodalPintar({
   audioItem = null,
 }) {
   let errorCatatan = ""
-  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA_PRO}`
+  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA_PRO}\nPENTING: Balas HANYA dengan JSON murni yang diawali kurung kurawal buka { dan diakhiri kurung kurawal tutup } tanpa teks pengantar.`
 
   if (openRouterKey && openRouterKey.trim() !== "") {
-    try {
-      const contentArray = [{ type: "text", text: promptLengkap }]
+    const modelMultimodal = [
+      "google/gemini-2.0-flash-001",
+      "google/gemini-2.5-flash",
+      "openai/gpt-4o-mini",
+    ]
 
-      imagesList.forEach((img) => {
-        if (img?.data) {
+    for (const model of modelMultimodal) {
+      // Lewati gpt-4o-mini jika tugasnya berupa audio input murni
+      if (
+        model === "openai/gpt-4o-mini" &&
+        audioItem?.data &&
+        imagesList.length === 0
+      ) {
+        continue
+      }
+
+      try {
+        const contentArray = [{ type: "text", text: promptLengkap }]
+
+        imagesList.forEach((img) => {
+          if (img?.data) {
+            contentArray.push({
+              type: "image_url",
+              image_url: {
+                url: `data:${img.mimeType || "image/jpeg"};base64,${img.data}`,
+              },
+            })
+          }
+        })
+
+        if (audioItem?.data) {
+          const formatAudio = (audioItem.mimeType || "").includes("wav")
+            ? "wav"
+            : (audioItem.mimeType || "").includes("mp3")
+              ? "mp3"
+              : "ogg"
           contentArray.push({
-            type: "image_url",
-            image_url: {
-              url: `data:${img.mimeType || "image/jpeg"};base64,${img.data}`,
+            type: "input_audio",
+            input_audio: {
+              data: audioItem.data,
+              format: formatAudio,
             },
           })
         }
-      })
 
-      if (audioItem?.data) {
-        const formatAudio = (audioItem.mimeType || "").includes("wav")
-          ? "wav"
-          : (audioItem.mimeType || "").includes("mp3")
-            ? "mp3"
-            : "ogg"
-        contentArray.push({
-          type: "input_audio",
-          input_audio: {
-            data: audioItem.data,
-            format: formatAudio,
+        const response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://hookya.site",
+              "X-Title": "Hookya Multimodal AI",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: contentArray }],
+              max_tokens: 3500,
+              temperature: 0.4,
+            }),
           },
-        })
-      }
+        )
 
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openRouterKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://hookya.site",
-            "X-Title": "Hookya Multimodal AI",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
-            messages: [{ role: "user", content: contentArray }],
-            response_format: { type: "json_object" },
-            max_tokens: 4096,
-            temperature: 0.5,
-          }),
-        },
-      )
-
-      const data = await response.json()
-      if (response.ok && data?.choices?.[0]?.message?.content) {
-        return uraiJSONAman(data.choices[0].message.content)
+        const data = await response.json()
+        if (response.ok && data?.choices?.[0]?.message?.content) {
+          return uraiJSONAman(data.choices[0].message.content)
+        }
+        errorCatatan =
+          data?.error?.message || `Multimodal ${model} gagal merespons`
+      } catch (err) {
+        errorCatatan = err.message
       }
-      errorCatatan =
-        data?.error?.message || "OpenRouter Multimodal gagal merespons"
-    } catch (err) {
-      errorCatatan = err.message
     }
   }
 
@@ -621,7 +618,7 @@ async function panggilMultimodalPintar({
               contents: [{ parts: partsPayload }],
               generationConfig: {
                 responseMimeType: "application/json",
-                temperature: 0.5,
+                temperature: 0.4,
               },
             }),
           },
@@ -721,6 +718,7 @@ export async function POST(request) {
       wordDensity = "padat_kaya_kosakata",
       personalSpecs = "",
       contextMode = "sesuai_niche",
+      catatanAkhirUser = "",
       contentBrief,
       stageNumber,
       stageInput,
@@ -755,7 +753,7 @@ export async function POST(request) {
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
 
-    // 1. TOMBOL "i Contoh Isian" PADA PROFILING
+    // 1. TOMBOL "i Referensi" PADA PROFILING
     if (action === "suggest_profiling_field") {
       const promptSaran = `
 Pengguna sedang menyiapkan profil akun media sosialnya dan mengisi kolom "${fieldLabel}" (Kode: "${fieldKey}").
@@ -833,7 +831,7 @@ Keluarkan HANYA valid JSON:
         )
       }
       const promptAudio = `
-Salin ucapan di dalam rekaman suara ini kata demi kata menjadi teks Bahasa Indonesia.
+Dengarkan rekaman suara ini dan salin ucapannya kata demi kata menjadi teks Bahasa Indonesia yang rapi.
 Balas HANYA dalam format JSON:
 {
   "teks": "..."
@@ -860,8 +858,8 @@ Balas HANYA dalam format JSON:
 
       const promptVideo = `
 Tugasmu:
-1. Salin kata demi kata ucapan audio atau teks di layar video ke dalam "transkripAsliVideo".
-2. Jika video kosong tanpa ucapan maupun teks layar yang terbaca, isi "unreadableError": true.
+1. Perhatikan seluruh potongan gambar frame video (termasuk teks/subtitle di layar dan adegan visual) SERTA dengarkan audio (jika ada) untuk menyalin isi video ke dalam "transkripAsliVideo".
+2. Jika tidak ada suara ucapan, tuliskan narasi lengkap dari teks layar atau rangkaian adegan visual yang terlihat di video ke dalam "transkripAsliVideo" (jangan dikosongkan selama ada gambar frame yang terlihat).
 3. Jelaskan struktur video tersebut pada "bedahKompetitor" ("jenisHookAsli", "pemicuEmosi", "rahasiaRetensi").
 4. Tulis naskah baru yang orisinil dan padat berisi berdasarkan isi video tersebut menggunakan Voice DNA pengguna:
 ${instruksiPersona}
@@ -886,7 +884,7 @@ Keluarkan HANYA valid JSON:
   ]
 }`
 
-      const listFrames = (framesBase64 || []).slice(0, 5).map((f) => ({
+      const listFrames = (framesBase64 || []).slice(0, 6).map((f) => ({
         mimeType: "image/jpeg",
         data: f,
       }))
@@ -902,23 +900,6 @@ Keluarkan HANYA valid JSON:
         imagesList: listFrames,
         audioItem: itemAudio,
       })
-
-      if (hasilParsed?.unreadableError) {
-        const koinGanti = await catatErrorKeAdminDanRefund({
-          userId,
-          namaUser,
-          fitur: `Ekstrak Video (${namaFileVideo || "File"})`,
-          pesanErrorAsli: "Video tidak memiliki suara atau teks yang terbaca",
-          koinKompensasi: 2,
-        })
-        return NextResponse.json(
-          {
-            error: "Error sistem, silakan refresh atau hubungi admin.",
-            silentCoinUpdated: koinGanti,
-          },
-          { status: 422 },
-        )
-      }
 
       return NextResponse.json(hasilParsed)
     }
@@ -986,7 +967,7 @@ Keluarkan HANYA valid JSON:
 }`
     }
 
-    // 6. GENERATOR 10 IDE MATERI SESUAI FASE, 9 FORMAT KONTEN, & 5 FAKTOR VIRAL
+    // 6. GENERATOR 10 IDE MATERI (MURNI HASIL ANALISIS PROFIL AKUN YANG DIPILIH)
     else if (action === "buat_10_ide_topik") {
       const instruksiStrategi = susunInstruksiStrategiKonten({
         contentPhase,
@@ -1000,31 +981,31 @@ Keluarkan HANYA valid JSON:
 
       const blokPersona = susunInstruksiPersonaTerpisah(
         personaProfile,
-        contextMode,
-        personaProfile?.niche_context?.primary_niche || "Bidang Kreator",
+        "sesuai_niche",
+        personaProfile?.niche_context?.primary_niche || "Bidang Profil Akun",
       )
 
       promptFinal = `
-Buatkan 10 ide materi konten yang tajam, konkret, dan siap dibawakan oleh kreator berikut:
+Analisis secara mendalam Profil Akun Sosial Media kreator berikut (Bidang Utama, Spesifikasi Jam Terbang, Masalah Penonton, dan Harapan Penonton) untuk menghasilkan 10 rekomendasi ide materi yang 100% spesifik pada akun tersebut:
 ${blokPersona}
 ${instruksiStrategi}
 
 TUGAS UTAMA:
-Pastikan ke-10 ide materi di bawah ini benar-benar menggabungkan Format Konten (${KAMUS_FORMAT_KONTEN[contentFormat] || contentFormat}) dengan Faktor Pemicu (${KAMUS_FAKTOR_VIRAL[viralTrigger] || viralTrigger}) sesuai Fase yang dipilih!
+Buatkan 10 ide materi konten yang spesifik, nyata, dan langsung menjawab masalah penonton dari profil akun di atas, dengan menggabungkan Format Konten (${KAMUS_FORMAT_KONTEN[contentFormat] || contentFormat}) dan Faktor Pemicu (${KAMUS_FAKTOR_VIRAL[viralTrigger] || viralTrigger}).
 
 Balas HANYA dalam format JSON:
 {
   "ideTopik": [
     {
-      "judul": "Judul materi yang spesifik dan menarik perhatian...",
+      "judul": "Judul materi spesifik sesuai bidang akun ini...",
       "nuansa": "Format & Faktor Pemicu...",
-      "ringkasan": "1 kalimat penjelasan poin utama yang akan dibahas di dalam materi ini..."
+      "ringkasan": "1 kalimat penjelasan poin utama yang akan dibahas..."
     }
   ]
 }`
     }
 
-    // 7. ASESMEN TERPANDU TAHAP 1, 2, DAN 3 (ADAPTIF TERHADAP 9 FORMAT & 3 FASE)
+    // 7. ASESMEN TERPANDU TAHAP 1, 2, DAN 3
     else if (action === "assessment_copilot") {
       const faseAktif =
         stageInput?.contentPhase || contentPhase || "fase_1_viral"
@@ -1083,21 +1064,10 @@ DATA MATERI TAHAP 0:
 ${catatanHindariDuplikat}
 
 TUGAS TAHAP 1 (3 OPSI SUDUT PANDANG TAJAM SESUAI FORMAT & FAKTOR VIRAL):
-1. Pada "co_pilot_message", berikan arahan singkat yang jelas tentang bagaimana membawakan topik ini dengan format "${formatAktif}" dan faktor "${faktorViralAktif}".
+1. Pada "co_pilot_message", berikan arahan singkat yang jelas tentang bagaimana membawakan topik ini.
 2. Rumuskan 1 kalimat inti materi pada "refined_core_idea".
-3. Berikan 3 pilihan sudut pandang ("angle_options") yang konkret dan mendalam:
-   - Opsi 1: Sudut pandang yang menonjolkan Fakta/Realitas atau Kesalahan Umum di lapangan.
-   - Opsi 2: ${
-     faseAktif === "fase_2_trust"
-       ? "Sudut pandang yang menonjolkan Jam Terbang, Kejujuran Proses, atau Pengalaman Nyata Kreator."
-       : faseAktif === "fase_3_konversi"
-         ? `Sudut pandang penjualan (${gayaJualanAktif === "hard_selling" ? "Hard Selling langsung ke bukti keunggulan produk" : "Soft Selling lewat cerita masalah harian menuju solusi produk"}).`
-         : formatAktif === "speech_kultum_pidato"
-           ? "Sudut pandang retorika pidato/kultum yang menyentuh kesadaran bersama."
-           : "Sudut pandang jalan keluar praktis / tips yang langsung bisa diterapkan."
-   }
-   - Opsi 3: Sudut pandang kontras / pemicu diskusi sesuai faktor "${faktorViralAktif}".
-4. Pada "story_prompt_question", tanyakan 1 pertanyaan untuk menggali kisah, contoh kasus, atau pengalaman kreator.
+3. Berikan 3 pilihan sudut pandang ("angle_options") yang konkret dan mendalam.
+4. Pada "story_prompt_question", tanyakan 1 pertanyaan yang mudah dimengerti untuk menggali kisah, contoh kasus, atau pengalaman kreator.
 
 Keluarkan HANYA valid JSON:
 {
@@ -1105,15 +1075,7 @@ Keluarkan HANYA valid JSON:
   "refined_core_idea": "...",
   "angle_options": [
     { "id": "angle_1", "type": "Realitas & Fakta Lapangan", "angle_text": "..." },
-    { "id": "angle_2", "type": "${
-      faseAktif === "fase_2_trust"
-        ? "Kredibilitas & Pengalaman Diri"
-        : faseAktif === "fase_3_konversi"
-          ? gayaJualanAktif === "hard_selling"
-            ? "Penawaran Langsung (Hard Selling)"
-            : "Jembatan Cerita (Soft Selling)"
-          : "Pendekatan Utama Format"
-    }", "angle_text": "..." },
+    { "id": "angle_2", "type": "Pendekatan Utama Format", "angle_text": "..." },
     { "id": "angle_3", "type": "Sudut Pandang Pemicu Diskusi", "angle_text": "..." }
   ],
   "story_prompt_question": "..."
@@ -1127,38 +1089,23 @@ ${blokStrategi}
 DATA TAHAP 1:
 - Inti Materi: "${stageInput?.coreIdea}"
 - Sudut Pandang Terpilih: "${stageInput?.chosenAngle}"
-- Pengalaman / Detail dari Kreator: "${stageInput?.userStory || spekPersonalAktif || "(Belum diisi)"}"
+- Pengalaman / Detail dari Kreator: "${stageInput?.userStory || "(Belum diisi)"}"
 - Detail Produk/Campaign (jika ada): ${JSON.stringify(stageInput?.detailPromosi || {})}
 ${catatanHindariDuplikat}
 
-TUGAS TAHAP 2 (ILUSTRASI/PERUMPAMAAN, BUKTI FAKTA/TRUST, & POIN ISI UTAMA):
+TUGAS TAHAP 2 (REKOMENDASI ILUSTRASI, PONDASI FAKTA, & POIN ISI UTAMA):
 1. Tanggapi secara jelas di "co_pilot_message".
-2. Buat 2 pilihan perumpamaan atau ilustrasi kisah sehari-hari ("relatable_analogies") yang membuat materi ini langsung terbayang jelas di benak pendengar.
-3. Buat 3 Kartu Pondasi Argumen ("reference_cards"):
-   - Kartu 1 ("Fakta & Realitas Sebab-Akibat"): Penjelasan logis dan nyata di lapangan.
-   - Kartu 2 ("${
-     faseAktif === "fase_2_trust"
-       ? "Bukti Jam Terbang & Spesifikasi Diri"
-       : formatAktif === "speech_kultum_pidato"
-         ? "Kisah Teladan / Fenomena Sosial"
-         : "Kejadian Nyata yang Sering Dialami"
-   }"): Penjelasan mendalam yang membangun kepercayaan dan empati audiens.
-   - Kartu 3 ("Bukti Hasil / Pengalaman Praktik"): Gambaran nyata hasil atau perubahan setelah menerapkan hal ini.
+2. Buat 3 pilihan perumpamaan atau ilustrasi kisah sehari-hari ("relatable_analogies") yang membuat materi ini langsung terbayang jelas.
+3. Buat 3 pilihan Pondasi Fakta / Alasan Logis ("reference_cards") yang mudah dipahami pengguna.
 4. Berikan 3 poin bahasan inti atau solusi ("suggested_solutions") yang kaya dan berbobot untuk mengisi tubuh naskah.
 
 Keluarkan HANYA valid JSON:
 {
   "co_pilot_message": "...",
-  "relatable_analogies": ["Ilustrasi 1...", "Ilustrasi 2..."],
+  "relatable_analogies": ["Ilustrasi 1...", "Ilustrasi 2...", "Ilustrasi 3..."],
   "reference_cards": [
-    { "type": "Fakta & Realitas Sebab-Akibat", "title": "...", "summary": "..." },
-    { "type": "${
-      faseAktif === "fase_2_trust"
-        ? "Spesifikasi Diri & Jam Terbang"
-        : formatAktif === "speech_kultum_pidato"
-          ? "Kisah Teladan & Realitas"
-          : "Situasi Nyata Audiens"
-    }", "title": "...", "summary": "..." },
+    { "type": "Fakta & Alasan Logis", "title": "...", "summary": "..." },
+    { "type": "Kejadian Nyata di Lapangan", "title": "...", "summary": "..." },
     { "type": "Bukti Hasil & Praktik Nyata", "title": "...", "summary": "..." }
   ],
   "suggested_solutions": ["Poin Isi / Solusi 1...", "Poin Isi / Solusi 2...", "Poin Isi / Solusi 3..."]
@@ -1172,21 +1119,15 @@ ${blokStrategi}
 DATA TAHAP 1 & 2:
 - Inti Materi: "${stageInput?.coreIdea}"
 - Sudut Pandang: "${stageInput?.chosenAngle}"
-- Ilustrasi/Cerita: "${stageInput?.personalStory}"
-- Pondasi Argumen: ${JSON.stringify(stageInput?.injectedReference)}
+- Ilustrasi/Cerita: "${stageInput?.personalStory || "(Opsional)"}"
+- Pondasi Fakta: ${JSON.stringify(stageInput?.injectedReference)}
 - Poin Isi/Solusi: ${JSON.stringify(stageInput?.actionableSolutions)}
 ${catatanHindariDuplikat}
 
 TUGAS TAHAP 3 (6 KATEGORI KALIMAT PEMBUKA / HOOK & 3 KALIMAT PENUTUP / CTA):
 1. Berikan pengantar singkat di "co_pilot_message".
 2. Pilih 1 struktur alur terbaik ("PAS_RELATABLE_BRIDGE", "HSO_STORY", "CONTRARIAN_MYTH_BUSTER", atau "BAB_TRANSFORMATION") beserta alasannya di "framework_reason".
-3. WAJIB buat 6 pilihan kalimat pembuka ("hook_options") yang kuat dan sesuai dengan format "${formatAktif}" serta faktor "${faktorViralAktif}":
-   - "Negative / Warning Hook": Mengingatkan risiko nyata atau kesalahan yang sering tidak disadari.
-   - "Positive Outcome Hook": Menunjukkan hasil atau perubahan nyata yang bisa dicapai.
-   - "Proof / Reality Hook": Membuka dengan fakta realitas lapangan atau bukti jam terbang.
-   - "Contrarian / Pro-Kontra Hook": Mengangkat pernyataan tajam yang memancing rasa penasaran atau debat sehat.
-   - "Relatable / Emotional Hook": Menyentuh kejadian harian atau perasaan terdalam audiens.
-   - "Curiosity / Famous Case Hook": Membuka celah penasaran atau mengaitkan dengan fenomena/tokoh terkenal.
+3. WAJIB buat 6 pilihan kalimat pembuka ("hook_options") yang kuat.
 4. Buat 3 pilihan kalimat penutup ("cta_options") yang kuat sesuai tujuan Fase (${faseAktif}).
 
 Keluarkan HANYA valid JSON:
@@ -1205,19 +1146,13 @@ Keluarkan HANYA valid JSON:
   "cta_options": [
     { "category": "Pancing Interaksi & Komentar", "text": "..." },
     { "category": "Simpan & Bagikan Manfaat", "text": "..." },
-    { "category": "${
-      faseAktif === "fase_3_konversi"
-        ? gayaJualanAktif === "hard_selling"
-          ? "Ajakan Beli Tegas (Hard Selling CTA)"
-          : "Rekomendasi Halus (Soft Selling CTA)"
-        : "Pesan Penutup Menggetarkan / Ikuti Akun"
-    }", "text": "..." }
+    { "category": "Ajakan Bertindak / Penutup Kuat", "text": "..." }
   ]
 }`
       }
     }
 
-    // 8. PENYUSUN SKRIP AKHIR — FULL DURATION & WORD DENSITY ENGINE (15 DETIK S/D 3 MENIT RIIL)
+    // 8. PENYUSUN SKRIP AKHIR — FULL DURATION, CATATAN AKHIR USER & KRITIK/SARAN
     else if (action === "assemble_humanized_script") {
       const faseAktif =
         contentBrief?.content_phase || contentPhase || "fase_1_viral"
@@ -1235,6 +1170,8 @@ Keluarkan HANYA valid JSON:
         contentBrief?.personal_specs || personalSpecs || ""
       const modeKonteksAktif =
         contentBrief?.context_mode || contextMode || "sesuai_niche"
+      const catatanTambahan =
+        catatanAkhirUser || contentBrief?.user_final_notes || ""
 
       const aturanDurasi = getAturanDurasiDanKepadatanRiil({
         durasiStr: contentBrief?.target_platform || "60 Detik (1 Menit)",
@@ -1272,6 +1209,10 @@ Keluarkan HANYA valid JSON:
           ? `\nFORMAT DIALOG UGC (${ugcConfig?.jumlahOrang || 2} ORANG: ${daftarPemeran}): Tulis percakapan saling menyahut yang hidup dan mendalam di setiap bagian.`
           : `\nFORMAT PENYAMPAIAN LISAN: Gunakan sapaan khas kreator secara konsisten dan mengalir.`
 
+      const instruksiCatatanAkhir = catatanTambahan.trim()
+        ? `\n# INSTRUKSI KHUSUS / KOREKSI AKHIR DARI PENGGUNA (WAJIB DIIKUTI 100%):\n"${catatanTambahan.trim()}"\n`
+        : ""
+
       promptFinal = `
 Susun naskah skrip lengkap yang memenuhi target durasi bicara riil dan kepadatan kosakata berikut.
 ${blokPersona}
@@ -1279,15 +1220,15 @@ ${blokStrategi}
 
 RANCANGAN KONTEN TERKUNCI:
 ${JSON.stringify(contentBrief)}
-
+${instruksiCatatanAkhir}
 BENTUK EKSEKUSI VISUAL: "${bentukKonten}"
 ${instruksiUGC}
 
 # ATURAN MUTLAK DURASI RIIL & JUMLAH KATA (WAJIB DITAATI 100%):
 ${aturanDurasi.instruksiBabak}
 - Total target kata seluruh naskah: **${aturanDurasi.totalTargetWords}**.
-- Setiap bagian ("section") WAJIB memiliki minimal **${aturanDurasi.minWordsPerSection} kata** pada kolom "spokenText"!
-- Jabarkan argumen, contoh kejadian nyata, detail penjelasan, dan kalimat penghubung secara utuh agar saat dibaca dengan kecepatan normal benar-benar mencapai durasi **${aturanDurasi.targetDuration}**!
+- Setiap bagian ("section") WAJIB memiliki minimal **${aturanDurasi.minWordsPerSection} kata** pada kolom "spokenText".
+- Berikan juga "kritikSaran" (2-3 kalimat kritik objektif terhadap titik lemah draf topik ini beserta saran praktis cara membawakannya agar lebih kuat di depan penonton).
 
 Keluarkan HANYA valid JSON dengan struktur berikut:
 {
@@ -1304,12 +1245,7 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
       "onScreenText": "Teks inti di layar..."
     }
   ],
-  "script_score": {
-    "total_score": 95,
-    "hook_strength": "Evaluasi kekuatan pembuka...",
-    "retention_bridge": "Evaluasi kepadatan isi, alur retensi, dan kesesuaian jumlah kata dengan durasi...",
-    "producer_tip": "Tips intonasi dan pembawaan..."
-  },
+  "kritikSaran": "Kritik objektif dan saran pembawaan naskah ini...",
   "uploadPackage": {
     "coverTitle": "...",
     "caption": "...",
@@ -1329,7 +1265,7 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
       return NextResponse.json(hasilNormal)
     }
 
-    // 9. PENGUBAH DURASI & KEPADATAN SKRIP (MEMPERLUAS ATAU MEMADATKAN NASKAH SECARA RIIL)
+    // 9. PENGUBAH DURASI & KEPADATAN SKRIP
     else if (action === "ubah_durasi_skrip") {
       const aturanDurasi = getAturanDurasiDanKepadatanRiil({
         durasiStr: durasiTargetBaru,
@@ -1364,7 +1300,7 @@ ${JSON.stringify(skripSebelumnya)}
 # ATURAN EKSPANSI / PENYESUAIAN DURASI BARU:
 ${aturanDurasi.instruksiBabak}
 - Buat tepat ${aturanDurasi.totalSectionsDefault} bagian ("sections").
-- Setiap bagian WAJIB memiliki minimal ${aturanDurasi.minWordsPerSection} kata pada "spokenText" agar saat dibaca keras benar-benar mencapai durasi ${aturanDurasi.targetDuration}!
+- Setiap bagian WAJIB memiliki minimal ${aturanDurasi.minWordsPerSection} kata pada "spokenText" agar saat dibaca keras benar-benar mencapai durasi ${aturanDurasi.targetDuration}.
 
 Keluarkan HANYA valid JSON:
 {
