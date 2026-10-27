@@ -245,7 +245,6 @@ export default function ScriptProducerView({
   updateKoinDatabase,
   personaProfile,
   setPersonaProfile,
-  simpanPersonaKeSupabase,
   bentukKonten,
   setBentukKonten,
   bentukKontenFinal,
@@ -262,7 +261,7 @@ export default function ScriptProducerView({
   customPrompts,
   SEPULUH_BENTUK_KONTEN = [],
   setModeTeleprompter,
-  modeTampilanSkrip,
+  onRefreshDataUser,
 }) {
   const firstTextareaRef = useRef(null)
 
@@ -276,6 +275,17 @@ export default function ScriptProducerView({
   const [targetPlatformInput, setTargetPlatformInput] = useState(
     PILIHAN_DURASI_KONTEN[5],
   )
+
+  // State Edit Judul Naskah di Layar Hasil Akhir (Stage 5)
+  const [isEditingJudulHasil, setIsEditingJudulHasil] = useState(false)
+  const [inputJudulHasilBaru, setInputJudulHasilBaru] = useState("")
+
+  useEffect(() => {
+    if (hasilSkrip?.judul) {
+      setInputJudulHasilBaru(hasilSkrip.judul)
+      setIsEditingJudulHasil(false)
+    }
+  }, [hasilSkrip?.id, hasilSkrip?.judul])
 
   const [daftarAkunTersimpan, setDaftarAkunTersimpan] = useState([])
   const [idAkunTerpilih, setIdAkunTerpilih] = useState("akun_utama")
@@ -319,7 +329,6 @@ export default function ScriptProducerView({
   const [ssSpesifikasi, setSsSpesifikasi] = useState(null)
   const [isScanningSS, setIsScanningSS] = useState(false)
 
-  // State Asesmen Terpandu (Bagian B)
   const [assessmentBatches, setAssessmentBatches] = useState([])
   const [activeBatchIdx, setActiveBatchIdx] = useState(0)
   const currentAssessment = assessmentBatches[activeBatchIdx] || null
@@ -358,6 +367,23 @@ export default function ScriptProducerView({
   )
   const [pilihanMultiplierDropdown, setPilihanMultiplierDropdown] =
     useState("2")
+
+  const handleSimpanJudulHasil = async () => {
+    if (!hasilSkrip) return
+    const judulBersih = inputJudulHasilBaru.trim()
+    if (!judulBersih) {
+      alert("Judul skrip tidak boleh kosong.")
+      return
+    }
+    const skripUpdate = { ...hasilSkrip, judul: judulBersih }
+    setHasilSkrip(skripUpdate)
+    setIsEditingJudulHasil(false)
+    const tersimpan = await simpanAtauUpdateSkripDatabase(skripUpdate)
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((item) => (item.id === tersimpan.id ? tersimpan : item)),
+    )
+    showToast("Judul skrip berhasil diperbarui.")
+  }
 
   const handleGantiAkunCepat = (akunObj, idxUrutan = 0) => {
     if (!akunObj) return
@@ -651,6 +677,7 @@ export default function ScriptProducerView({
         if (data.silentCoinUpdated != null) {
           updateKoinDatabase(data.silentCoinUpdated)
         }
+        if (onRefreshDataUser) onRefreshDataUser()
         throw new Error("Error sistem")
       }
 
@@ -709,9 +736,12 @@ export default function ScriptProducerView({
       setHasilSkrip(tersimpan)
       setKoleksiSkripTersimpan((prev) => [tersimpan, ...prev])
       setStage(5)
+      if (onRefreshDataUser) onRefreshDataUser()
       showToast("Naskah skrip selesai disusun dan disimpan ke Arsip.")
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast(
+        "Request gagal diproses. Koin Anda telah dikembalikan otomatis (Auto-Refund).",
+      )
     } finally {
       setIsGenerating(false)
     }
@@ -760,6 +790,7 @@ export default function ScriptProducerView({
       }
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
+      if (onRefreshDataUser) onRefreshDataUser()
       showToast(
         `Durasi diperbarui (${sectionsBaru.length} Bagian, ${hitungJumlahKataSkrip(
           sectionsBaru,
@@ -806,6 +837,7 @@ export default function ScriptProducerView({
       setBentukKonten(targetKonversiBentuk)
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
+      if (onRefreshDataUser) onRefreshDataUser()
       showToast("Bentuk eksekusi visual berhasil diperbarui.")
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -817,7 +849,9 @@ export default function ScriptProducerView({
   const handleRegenerateSatuKerangka = async (indexBaris, fokusTarget) => {
     if (!hasilSkrip) return
     const hitunganBaru = regenCount + 1
-    if (hitunganBaru % 3 === 0) {
+    const potongKoinRegen = hitunganBaru % 3 === 0
+
+    if (potongKoinRegen) {
       if (coins < 1) {
         alert("Saldo koin tidak mencukupi untuk pembaruan bagian ke-3.")
         setActiveMenu("topup")
@@ -847,10 +881,17 @@ export default function ScriptProducerView({
           personaProfile,
           subyek: hasilSkrip.judul,
           segmenTarget: bagianLama,
+          isBillableRegen: potongKoinRegen,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error("Gagal regenerasi bagian")
+      if (!res.ok) {
+        if (data.silentCoinUpdated != null) {
+          updateKoinDatabase(data.silentCoinUpdated)
+        }
+        if (onRefreshDataUser) onRefreshDataUser()
+        throw new Error("Gagal regenerasi bagian")
+      }
 
       const bagianUpdate = { ...bagianLama }
       if (fokusTarget === "visual") {
@@ -879,6 +920,7 @@ export default function ScriptProducerView({
       }
       setHasilSkrip(skripDiperbarui)
       await simpanAtauUpdateSkripDatabase(skripDiperbarui)
+      if (onRefreshDataUser) onRefreshDataUser()
       showToast(`Bagian ${bagianLama.partNumber} berhasil diperbarui.`)
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
@@ -929,6 +971,7 @@ export default function ScriptProducerView({
         if (data.silentCoinUpdated != null) {
           updateKoinDatabase(data.silentCoinUpdated)
         }
+        if (onRefreshDataUser) onRefreshDataUser()
         throw new Error("Gagal menggandakan skrip")
       }
 
@@ -964,11 +1007,14 @@ export default function ScriptProducerView({
       setKoleksiSkripTersimpan((prev) =>
         prev.map((item) => (item.id === tersimpanDB.id ? tersimpanDB : item)),
       )
+      if (onRefreshDataUser) onRefreshDataUser()
       showToast(
         `${itemFolderBaru.length} variasi disimpan ke Folder "${hasilSkrip.judul}" di Arsip.`,
       )
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast(
+        "Gagal menggandakan skrip. Koin Anda telah dikembalikan otomatis.",
+      )
     } finally {
       setIsMultiplyingScript(false)
     }
@@ -1033,13 +1079,13 @@ export default function ScriptProducerView({
   const infoFaktorAktif = LIMA_FAKTOR_VIRAL.find((v) => v.id === viralTrigger)
 
   // ============================================================================
-  // LAYAR HASIL AKHIR NASKAH SKRIP (STAGE 5 - SESUAI GAMBAR 5.JPG)
+  // LAYAR HASIL AKHIR NASKAH SKRIP (STAGE 5 - DILENGKAPI FITUR EDIT JUDUL)
   // ============================================================================
   if (stage === 5 && hasilSkrip) {
     return (
       <div className="w-full max-w-4xl mx-auto space-y-5 pb-10">
-        {/* 1. Header & Real Word Count Indicator */}
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-2">
+        {/* 1. Header & Fitur Edit Judul Naskah */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] text-[#4E6100] bg-[#D4F34A]/35 px-2.5 py-0.5 rounded-md font-bold tracking-wider uppercase">
               DRAFT NASKAH FINAL • SIAP PRODUKSI
@@ -1055,9 +1101,60 @@ export default function ScriptProducerView({
               + Buat Topik Baru
             </button>
           </div>
-          <h1 className="text-lg sm:text-xl font-bold text-[#14141F] leading-snug">
-            {hasilSkrip.judul}
-          </h1>
+
+          {isEditingJudulHasil ? (
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <input
+                type="text"
+                value={inputJudulHasilBaru}
+                onChange={(e) => setInputJudulHasilBaru(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSimpanJudulHasil()
+                }}
+                autoFocus
+                placeholder="Ketik judul skrip baru..."
+                className="flex-1 h-11 px-3.5 rounded-lg border-2 border-[#14141F] bg-white text-base sm:text-sm font-bold text-[#14141F] focus:outline-none"
+              />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSimpanJudulHasil}
+                  className="cursor-pointer h-11 px-4 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold"
+                >
+                  Simpan Judul
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputJudulHasilBaru(hasilSkrip.judul || "")
+                    setIsEditingJudulHasil(false)
+                  }}
+                  className="cursor-pointer h-11 px-3 rounded-lg bg-[#F4F5F7] text-slate-600 text-xs font-bold"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-lg sm:text-xl font-bold text-[#14141F] leading-snug">
+                {hasilSkrip.judul}
+              </h1>
+              <button
+                type="button"
+                onClick={() => {
+                  setInputJudulHasilBaru(hasilSkrip.judul || "")
+                  setIsEditingJudulHasil(true)
+                }}
+                title="Edit Judul Naskah"
+                className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4F5F7] hover:bg-slate-200 text-[#14141F] text-xs font-bold border border-[#E2E8F0] transition"
+              >
+                <FlatIcon name="edit" className="w-3.5 h-3.5" />
+                <span>Edit Judul</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
             <span className="bg-[#F4F5F7] px-2.5 py-1 rounded-md font-semibold text-[#14141F]">
               {daftarBagianAktif.length} Bagian Dinamis
@@ -1124,7 +1221,7 @@ export default function ScriptProducerView({
               }`}
             >
               <FlatIcon name="edit" className="w-4 h-4" />
-              <span>Edit</span>
+              <span>Edit Naskah</span>
             </button>
           </div>
         </div>
@@ -1335,7 +1432,7 @@ export default function ScriptProducerView({
           })}
         </div>
 
-        {/* 5. Kritik & Saran Pembawaan Naskah (Directly ABOVE Upload Package) */}
+        {/* 5. Kritik & Saran Pembawaan Naskah */}
         <div className="bg-[#F5FBD4] border border-[#D4F34A] rounded-xl p-4 space-y-2.5">
           <div className="flex items-center gap-2">
             <FlatIcon name="bolt" className="w-5 h-5 text-[#4E6100]" />
@@ -1516,11 +1613,10 @@ export default function ScriptProducerView({
   }
 
   // ============================================================================
-  // LAYAR BUAT SKRIP KONTEN & ASESMEN (BAGIAN A & BAGIAN B - SESUAI GAMBAR 3.JPG)
+  // LAYAR BUAT SKRIP KONTEN & ASESMEN (BAGIAN A & BAGIAN B)
   // ============================================================================
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-10">
-      {/* Account Switcher Bar */}
       <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -1596,7 +1692,6 @@ export default function ScriptProducerView({
         </div>
       </section>
 
-      {/* BAGIAN A: PENGATURAN ARAH & TOPIK NASKAH */}
       <div className="space-y-6">
         <div className="flex items-center gap-3 pt-1">
           <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-bold text-xs">
@@ -1607,7 +1702,6 @@ export default function ScriptProducerView({
           </h2>
         </div>
 
-        {/* Section 1: Pilih Fase Tujuan Konten */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1695,15 +1789,12 @@ export default function ScriptProducerView({
             })}
           </div>
 
-          {/* Sub-Panel Fase 2 (Trust) */}
           {contentPhase === "fase_2_trust" && (
             <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-4 space-y-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#14141F] flex items-center gap-1.5">
-                  <FlatIcon name="shield" className="w-4 h-4 text-[#4D6B14]" />
-                  <span>4 Pendekatan Membangun Trust (Pilih Salah Satu):</span>
-                </span>
-              </div>
+              <span className="text-xs font-bold text-[#14141F] flex items-center gap-1.5">
+                <FlatIcon name="shield" className="w-4 h-4 text-[#4D6B14]" />
+                <span>4 Pendekatan Membangun Trust (Pilih Salah Satu):</span>
+              </span>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                 {EMPAT_PENDEKATAN_TRUST.map((tr) => {
@@ -1754,7 +1845,6 @@ export default function ScriptProducerView({
             </div>
           )}
 
-          {/* Sub-Panel Fase 3 (Konversi & Jualan) */}
           {contentPhase === "fase_3_konversi" && (
             <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1866,7 +1956,6 @@ export default function ScriptProducerView({
           )}
         </section>
 
-        {/* Section 2: Pilih Format Pembawaan Konten (3x3 Grid of 9 Formats) */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1924,7 +2013,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* Section 3: Pilih Faktor Pemicu Perhatian & Viral (5 Cards) */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1984,7 +2072,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* Section 4: Kepadatan Kata, Konteks Bidang & Durasi Riil */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
@@ -2080,7 +2167,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* Section 5: Input Topik Mandiri (Placed ABOVE Topic Recommendations) */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
@@ -2115,7 +2201,6 @@ export default function ScriptProducerView({
             />
           </div>
 
-          {/* Rekomendasi Ide Materi dari Analisis Profil Akun (Hanya muncul jika Sesuai Bidang Profil) */}
           {contextMode === "sesuai_niche" && (
             <div className="border-t border-[#E2E8F0] pt-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2204,9 +2289,6 @@ export default function ScriptProducerView({
         </section>
       </div>
 
-      {/* ====================================================================
-          BAGIAN B: TAHAP ASESMEN TERPANDU (TEXTBOX-FIRST DALAM 1 LAYAR)
-      ==================================================================== */}
       <div className="space-y-6 pt-2">
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-bold text-xs">
@@ -2224,7 +2306,6 @@ export default function ScriptProducerView({
           />
         )}
 
-        {/* 1. Producer Note Card & Set History Bar */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
           <div className="bg-[#14141F] text-white p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3">
@@ -2292,7 +2373,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* 2. Pilih Sudut Pandang Bahasan (3 Cards + Textbox) */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
@@ -2391,7 +2471,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* 3. Ilustrasi / Perumpamaan Sehari-hari (Textbox-First, Optional) */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -2498,7 +2577,6 @@ export default function ScriptProducerView({
           )}
         </section>
 
-        {/* 4. Pondasi Fakta & Alasan Masuk Akal */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -2565,7 +2643,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* 5. Struktur Alur, Formula Hook & Call-To-Action */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-5 space-y-5">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#14141F]">
@@ -2728,7 +2805,6 @@ export default function ScriptProducerView({
           </div>
         </section>
 
-        {/* 6. Tahap Periksa Rancangan Konten */}
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 sm:p-6 space-y-4">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-[#14141F]">

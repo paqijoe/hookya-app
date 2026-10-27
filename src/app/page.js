@@ -230,6 +230,17 @@ export default function HookyaMainApp() {
     setTimeout(() => setToastMsg(""), 3200)
   }
 
+  const ubahViewModeStabil = (modeBaru) => {
+    setViewMode(modeBaru)
+    if (typeof window !== "undefined") {
+      if (modeBaru === "dev") {
+        sessionStorage.setItem("hookya_active_view_mode", "dev")
+      } else {
+        sessionStorage.removeItem("hookya_active_view_mode")
+      }
+    }
+  }
+
   const [profil, setProfil] = useState({
     nama: "Kreator",
     username: "kreator",
@@ -252,6 +263,7 @@ export default function HookyaMainApp() {
     idAkunAktif: "akun_utama",
     labelAkunSosmed: "@satria.creator",
     daftarAkunTernak: [],
+    telemetry: { recentLogs: [] },
   })
 
   const [rawWritingSamples, setRawWritingSamples] = useState("")
@@ -269,15 +281,17 @@ export default function HookyaMainApp() {
   const [semuaUserDB, setSemuaUserDB] = useState([])
   const [daftarTransaksi, setDaftarTransaksi] = useState([])
 
-  // State Arsip Skrip Tersimpan (Sesuai 1.jpg)
+  // State Arsip Skrip Tersimpan & Edit Judul di Arsip
   const [keywordCariArsip, setKeywordCariArsip] = useState("")
   const [filterArsipPill, setFilterArsipPill] = useState("all")
   const [urutkanArsipTerbaru, setUrutkanArsipTerbaru] = useState(true)
   const [folderTerbukaMap, setFolderTerbukaMap] = useState({})
   const [pilihanGandakanArsip, setPilihanGandakanArsip] = useState({})
   const [multiplyingArchiveId, setMultiplyingArchiveId] = useState(null)
+  const [editingArsipId, setEditingArsipId] = useState(null)
+  const [inputJudulArsipBaru, setInputJudulArsipBaru] = useState("")
 
-  // State Kalender Arsip Konten (Sesuai 7.jpg)
+  // State Kalender Arsip Konten
   const [kalenderBulan, setKalenderBulan] = useState(() =>
     new Date().getMonth(),
   )
@@ -291,7 +305,9 @@ export default function HookyaMainApp() {
   const [idSkripPlotTerpilih, setIdSkripPlotTerpilih] = useState("")
   const [jamPublikasiInput, setJamPublikasiInput] = useState("12:00 WIB")
 
-  // State Pembelian Koin & Voucher (Sesuai 8.png)
+  // State Menu Koin & Tab Rincian Penggunaan Koin / Refund
+  const [tabMenuKoin, setTabMenuKoin] = useState("beli_paket")
+  const [filterRiwayatKoin, setFilterRiwayatKoin] = useState("semua")
   const [inputKodeVoucherUser, setInputKodeVoucherUser] = useState("")
   const [checkoutModal, setCheckoutModal] = useState(null)
   const [buktiBayarBase64, setBuktiBayarBase64] = useState("")
@@ -434,7 +450,19 @@ export default function HookyaMainApp() {
           if (activeUser.profil_dna?.bentukKonten) {
             setBentukKonten(activeUser.profil_dna.bentukKonten)
           }
-          setViewMode("user")
+
+          // PERBAIKAN BUG DEV CONSOLE KELUAR TIBA-TIBA:
+          // Jangan timpa viewMode jika user sedang berada di dalam Developer Console ("dev")
+          const savedSessionMode =
+            typeof window !== "undefined"
+              ? sessionStorage.getItem("hookya_active_view_mode")
+              : null
+          setViewMode((prevMode) => {
+            if (prevMode === "dev" || savedSessionMode === "dev") {
+              return "dev"
+            }
+            return "user"
+          })
         }
       }
 
@@ -541,7 +569,7 @@ export default function HookyaMainApp() {
     try {
       const targetIds = new Set()
       if (userId) targetIds.add(userId)
-      if (semuaUserDB[0]?.id) targetIds.add(semuaUserDB[0].id)
+      if (semuaUserDB[0]?.id) targetIds.add(userId)
       for (const idTarget of targetIds) {
         const rowLama = semuaUserDB.find((u) => u.id === idTarget)
         await supabase
@@ -558,7 +586,7 @@ export default function HookyaMainApp() {
           })
           .eq("id", idTarget)
       }
-      await muatUlangDataSupabase()
+      await muatUlangDataSupabase(userId)
       showToast("Konfigurasi sistem berhasil disimpan.")
     } catch (err) {
       showToast("Gagal menyimpan: " + err.message)
@@ -615,6 +643,24 @@ export default function HookyaMainApp() {
     return skripObj
   }
 
+  const handleSimpanEditJudulArsip = async (itemArsip) => {
+    const judulBersih = inputJudulArsipBaru.trim()
+    if (!judulBersih) {
+      alert("Judul skrip tidak boleh kosong.")
+      return
+    }
+    const updated = { ...itemArsip, judul: judulBersih }
+    setEditingArsipId(null)
+    setKoleksiSkripTersimpan((prev) =>
+      prev.map((s) => (s.id === itemArsip.id ? updated : s)),
+    )
+    if (hasilSkrip?.id === itemArsip.id) {
+      setHasilSkrip(updated)
+    }
+    await simpanAtauUpdateSkripDatabase(updated)
+    showToast("Judul skrip di Arsip berhasil diperbarui.")
+  }
+
   const handleGandakanDariArsip = async (itemArsip) => {
     if (multiplyingArchiveId) return
     const jmlX = parseInt(pilihanGandakanArsip[itemArsip.id] || "2") || 2
@@ -650,6 +696,7 @@ export default function HookyaMainApp() {
         if (data.silentCoinUpdated != null) {
           updateKoinDatabase(data.silentCoinUpdated)
         }
+        await muatUlangDataSupabase(userId)
         throw new Error("Gagal menggandakan")
       }
 
@@ -686,9 +733,12 @@ export default function HookyaMainApp() {
         prev.map((s) => (s.id === itemArsip.id ? tersimpanDB : s)),
       )
       setFolderTerbukaMap((prev) => ({ ...prev, [itemArsip.id]: true }))
+      await muatUlangDataSupabase(userId)
       showToast(`${itemVariasiBaru.length} sub-variasi ditambahkan ke Folder.`)
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast(
+        "Request gagal diproses. Koin Anda telah dikembalikan otomatis (Auto-Refund).",
+      )
     } finally {
       setMultiplyingArchiveId(null)
     }
@@ -878,6 +928,65 @@ export default function HookyaMainApp() {
 
   const statusVIPFinal = Boolean(isAdminAccount || isPremiumUser)
 
+  // Gabungan Riwayat Penggunaan Koin, Top-Up, & Request Gagal (Refund) untuk User Aktif
+  const daftarLogTelemetryUser = Array.isArray(profil.telemetry?.recentLogs)
+    ? profil.telemetry.recentLogs
+    : []
+
+  const daftarTopupUser = daftarTransaksi
+    .filter((t) => t.user_id === userId)
+    .map((t) => ({
+      id: `trx_${t.id}`,
+      waktu: t.created_at
+        ? new Date(t.created_at).toLocaleString("id-ID", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }) + " WIB"
+        : "Baru saja",
+      timestamp: t.created_at || new Date().toISOString(),
+      action: `Pembelian ${t.nama_paket} (#${t.invoice_id})`,
+      detail:
+        t.status === "lunas"
+          ? `Top-up paket disetujui Admin (+${t.jumlah_koin} Koin)`
+          : t.status === "ditolak"
+            ? "Bukti transfer ditolak / tidak sesuai"
+            : "Menunggu verifikasi bukti transfer oleh Admin",
+      status:
+        t.status === "lunas"
+          ? "topup_lunas"
+          : t.status === "ditolak"
+            ? "gagal_refund"
+            : "pending",
+      koinDelta: t.status === "lunas" ? Number(t.jumlah_koin) || 0 : 0,
+      refundInfo:
+        t.status === "ditolak"
+          ? "Silakan unggah ulang bukti transfer yang sesuai"
+          : "",
+    }))
+
+  const semuaRiwayatKoinUser = [...daftarLogTelemetryUser, ...daftarTopupUser]
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp || 0).getTime() -
+        new Date(a.timestamp || 0).getTime(),
+    )
+    .filter((item) => {
+      if (filterRiwayatKoin === "terpakai") return item.koinDelta < 0
+      if (filterRiwayatKoin === "refund")
+        return item.status === "gagal_refund" || Boolean(item.refundInfo)
+      return true
+    })
+
+  const jumlahLogGagalRefund = [
+    ...daftarLogTelemetryUser,
+    ...daftarTopupUser,
+  ].filter(
+    (item) => item.status === "gagal_refund" || Boolean(item.refundInfo),
+  ).length
+
   // Filter Arsip Skrip
   const jmlTerjadwal = koleksiSkripTersimpan.filter(
     (s) => s.sudahUpload && s.tanggalUpload,
@@ -910,7 +1019,7 @@ export default function HookyaMainApp() {
     })
     .sort((a, b) => (urutkanArsipTerbaru ? b.id - a.id : a.id - b.id))
 
-  // Grid Kalender (Sen - Min sesuai 7.jpg)
+  // Grid Kalender (Sen - Min)
   const buatGridKalenderSeninMinggu = (tahun, bulan) => {
     const hariPertamaMinggu0 = new Date(tahun, bulan, 1).getDay()
     const offsetSenin = (hariPertamaMinggu0 + 6) % 7
@@ -951,10 +1060,11 @@ export default function HookyaMainApp() {
           if (userRow?.id) {
             if (typeof window !== "undefined") {
               localStorage.setItem("hookya_active_user_id", userRow.id)
+              sessionStorage.removeItem("hookya_active_view_mode")
             }
             await muatUlangDataSupabase(userRow.id)
           }
-          setViewMode("user")
+          ubahViewModeStabil("user")
         }}
       />
     )
@@ -963,7 +1073,7 @@ export default function HookyaMainApp() {
   if (viewMode === "dev") {
     return (
       <DeveloperDashboardView
-        onSwitchToUserView={() => setViewMode("user")}
+        onSwitchToUserView={() => ubahViewModeStabil("user")}
         semuaUserDB={semuaUserDB}
         daftarTransaksi={daftarTransaksi}
         pengaturanPayment={pengaturanPayment}
@@ -1056,11 +1166,11 @@ export default function HookyaMainApp() {
               )
             }
           }
-          await muatUlangDataSupabase()
+          await muatUlangDataSupabase(userId)
           showToast("Pembayaran di-ACC & info login dikirim ke WA User.")
         }}
         simpanPengaturanDevKeDB={simpanPengaturanDevPermanen}
-        muatUlangDataSupabase={muatUlangDataSupabase}
+        muatUlangDataSupabase={() => muatUlangDataSupabase(userId)}
         showToast={showToast}
       />
     )
@@ -1139,7 +1249,7 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* FIXED TOP HEADER (SESUAI STITCH SHELL) */}
+      {/* FIXED TOP HEADER */}
       <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-[#E2E8F0] px-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5 max-w-4xl">
           {activeMenu !== "produksi" && (
@@ -1225,6 +1335,19 @@ export default function HookyaMainApp() {
                 <span>Profil Akun & Gaya Bicara</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false)
+                  setTabMenuKoin("rincian_koin")
+                  setActiveMenu("topup")
+                }}
+                className="cursor-pointer w-full py-2.5 px-3 rounded-lg bg-[#F3F4F6] hover:bg-slate-200 text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <FlatIcon name="coin" className="w-4 h-4" />
+                <span>Rincian Penggunaan Koin & Refund</span>
+              </button>
+
               {isAdminAccount && (
                 <button
                   type="button"
@@ -1245,8 +1368,9 @@ export default function HookyaMainApp() {
                   setShowProfileMenu(false)
                   if (typeof window !== "undefined") {
                     localStorage.removeItem("hookya_active_user_id")
+                    sessionStorage.removeItem("hookya_active_view_mode")
                   }
-                  setViewMode("auth")
+                  ubahViewModeStabil("auth")
                 }}
                 className="cursor-pointer w-full py-2 px-3 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold"
               >
@@ -1257,9 +1381,9 @@ export default function HookyaMainApp() {
         </div>
       </header>
 
-      {/* MAIN WORKSPACE */}
+      {/* MAIN WORKSPACE — MENGGUNAKAN PERSISTENT MOUNT AGAR EKSTRAK VIDEO & BUAT SKRIP TIDAK HILANG SAAT PINDAH TAB */}
       <main className="flex-1 w-full px-4 pt-4">
-        {activeMenu === "dna" && (
+        <div className={activeMenu === "dna" ? "block" : "hidden"}>
           <PersonaDNAView
             userId={userId}
             isPremiumUser={statusVIPFinal}
@@ -1281,9 +1405,9 @@ export default function HookyaMainApp() {
             showToast={showToast}
             customPrompts={customPrompts}
           />
-        )}
+        </div>
 
-        {activeMenu === "produksi" && (
+        <div className={activeMenu === "produksi" ? "block" : "hidden"}>
           <ScriptProducerView
             userId={userId}
             namaUser={profil.nama}
@@ -1312,10 +1436,11 @@ export default function HookyaMainApp() {
             SEPULUH_BENTUK_KONTEN={SEPULUH_BENTUK_KONTEN}
             setModeTeleprompter={setModeTeleprompter}
             modeTampilanSkrip={modeTampilanSkrip}
+            onRefreshDataUser={() => muatUlangDataSupabase(userId)}
           />
-        )}
+        </div>
 
-        {activeMenu === "rewrite" && (
+        <div className={activeMenu === "rewrite" ? "block" : "hidden"}>
           <VideoExtractorView
             userId={userId}
             namaUser={profil.nama}
@@ -1332,9 +1457,9 @@ export default function HookyaMainApp() {
             setActiveMenu={setActiveMenu}
             showToast={showToast}
           />
-        )}
+        </div>
 
-        {/* MENU ARSIP SKRIP TERSIMPAN (SESUAI 1.JPG) */}
+        {/* MENU ARSIP SKRIP TERSIMPAN (DILENGKAPI FITUR EDIT JUDUL LANGSUNG) */}
         {activeMenu === "tersimpan" && (
           <div className="max-w-3xl mx-auto space-y-4 pb-8">
             <section className="space-y-3">
@@ -1352,8 +1477,8 @@ export default function HookyaMainApp() {
                   Arsip Skrip Tersimpan
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-600">
-                  Kelola, gandakan variasi hook, dan jadwalkan naskah kontenmu
-                  ke kalender publikasi.
+                  Kelola, edit judul, gandakan variasi hook, dan jadwalkan
+                  naskah kontenmu ke kalender publikasi.
                 </p>
               </div>
 
@@ -1441,6 +1566,7 @@ export default function HookyaMainApp() {
                     : []
                   const isFolderOpen = Boolean(folderTerbukaMap[item.id])
                   const sedangGandakanIni = multiplyingArchiveId === item.id
+                  const sedangEditJudulIni = editingArsipId === item.id
 
                   return (
                     <article
@@ -1476,10 +1602,59 @@ export default function HookyaMainApp() {
                         </button>
                       </div>
 
+                      {/* Baris Judul dengan Fitur Edit Judul di Arsip */}
                       <div className="space-y-1.5">
-                        <h2 className="text-sm sm:text-base font-bold text-[#191C1E] leading-snug">
-                          {item.judul}
-                        </h2>
+                        {sedangEditJudulIni ? (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              value={inputJudulArsipBaru}
+                              onChange={(e) =>
+                                setInputJudulArsipBaru(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  handleSimpanEditJudulArsip(item)
+                              }}
+                              autoFocus
+                              className="flex-1 h-10 px-3 rounded-lg border-2 border-[#14141F] text-base sm:text-xs font-bold text-[#14141F] focus:outline-none"
+                            />
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleSimpanEditJudulArsip(item)}
+                                className="cursor-pointer h-10 px-3.5 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold"
+                              >
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingArsipId(null)}
+                                className="cursor-pointer h-10 px-3 rounded-lg bg-[#F3F4F6] text-slate-600 text-xs font-bold"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            <h2 className="text-sm sm:text-base font-bold text-[#191C1E] leading-snug">
+                              {item.judul}
+                            </h2>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingArsipId(item.id)
+                                setInputJudulArsipBaru(item.judul || "")
+                              }}
+                              className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#F3F4F6] hover:bg-slate-200 text-[#191C1E] text-[11px] font-bold border border-[#E2E8F0]"
+                            >
+                              <FlatIcon name="edit" className="w-3 h-3" />
+                              <span>Edit Judul</span>
+                            </button>
+                          </div>
+                        )}
+
                         <div>
                           <span className="inline-flex items-center gap-1 bg-[#F0EEFF] text-[#362B6B] px-2.5 py-0.5 rounded-md text-xs font-semibold">
                             {item.bentuk}
@@ -1637,7 +1812,7 @@ export default function HookyaMainApp() {
           </div>
         )}
 
-        {/* MENU KALENDER ARSIP KONTEN (SESUAI 7.JPG) */}
+        {/* MENU KALENDER ARSIP KONTEN */}
         {activeMenu === "kalender" && (
           <div className="max-w-3xl mx-auto space-y-4 pb-8">
             <div className="space-y-2">
@@ -1718,7 +1893,6 @@ export default function HookyaMainApp() {
               ))}
             </div>
 
-            {/* Compact Monthly Calendar View */}
             <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-[#191C1E]">
@@ -1781,7 +1955,6 @@ export default function HookyaMainApp() {
               </div>
             </div>
 
-            {/* Selected Date Details */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <div>
@@ -1858,7 +2031,6 @@ export default function HookyaMainApp() {
                 </div>
               ))}
 
-              {/* Tambahkan Skrip dari Arsip */}
               <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="w-6 h-6 rounded-md bg-[#D4F34A] text-[#14141F] font-bold flex items-center justify-center">
@@ -1918,22 +2090,22 @@ export default function HookyaMainApp() {
           </div>
         )}
 
-        {/* MENU BELI PAKET KOIN HOOKYA (SESUAI 8.PNG) */}
+        {/* MENU KOIN: BELI PAKET KOIN + TAB RINCIAN PENGGUNAAN KOIN & REFUND */}
         {activeMenu === "topup" && (
           <div className="max-w-3xl mx-auto space-y-5 pb-8">
             <section className="space-y-1.5">
               <div className="inline-flex items-center gap-1.5 bg-[#E7E8EA] px-2.5 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-[#D4F34A]" />
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                  Top-up Akun Hookya
+                  Manajemen Saldo & Paket Koin
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-[#191C1E]">
-                Beli Paket Koin Hookya
+                Paket Koin & Riwayat Pemakaian
               </h1>
               <p className="text-xs sm:text-sm text-slate-600">
-                Koin digunakan untuk generate naskah AI, ekstrak audio video,
-                dan penggandaan variasi naskah.
+                Pantau sisa koin aktif, beli paket koin, atau periksa rincian
+                waktu penggunaan koin dan status Auto-Refund.
               </p>
             </section>
 
@@ -1963,129 +2135,356 @@ export default function HookyaMainApp() {
                   className="w-4 h-4 text-[#2A6C00] shrink-0"
                 />
                 <span>
-                  Koin aktif diakumulasi dan tidak hangus selama akun aktif.
+                  Koin aktif diakumulasi (Rollover) dan otomatis di-refund jika
+                  terjadi kegagalan sistem.
                 </span>
               </div>
             </section>
 
-            {/* Voucher Code Section */}
-            <section className="bg-white rounded-xl p-4 border border-[#E2E8F0] space-y-2.5">
-              <label className="text-xs font-bold text-[#191C1E] block">
-                Punya Kode Voucher / Kupon Promo?
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={inputKodeVoucherUser}
-                  onChange={(e) =>
-                    setInputKodeVoucherUser(e.target.value.toUpperCase())
-                  }
-                  placeholder="MASUKKAN KODE VOUCHER PROMO..."
-                  className="flex-1 h-12 bg-[#F3F4F6] rounded-lg px-4 text-base sm:text-xs font-bold uppercase focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleKlaimVoucherUser}
-                  className="cursor-pointer h-12 px-5 bg-[#14141F] text-[#D4F34A] text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <span>Klaim Voucher</span>
-                  <FlatIcon name="arrowRight" className="w-4 h-4" />
-                </button>
-              </div>
-            </section>
+            {/* Segmented Tab: Beli Paket Koin vs Rincian Penggunaan Koin & Refund */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#E7E8EA] rounded-xl border border-[#C8C5CC]">
+              <button
+                type="button"
+                onClick={() => setTabMenuKoin("beli_paket")}
+                className={`cursor-pointer min-h-[44px] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                  tabMenuKoin === "beli_paket"
+                    ? "bg-[#14141F] text-[#D4F34A]"
+                    : "bg-white text-[#191C1E]"
+                }`}
+              >
+                <FlatIcon name="bag" className="w-4 h-4" />
+                <span>Beli Paket & Voucher</span>
+              </button>
 
-            {/* 7 Coin Packages Grid */}
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-[#191C1E]">
-                  Pilih Nominal Paket
-                </h2>
-                <span className="text-xs text-slate-500">7 Opsi Tersedia</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTabMenuKoin("rincian_koin")
+                  muatUlangDataSupabase(userId)
+                }}
+                className={`cursor-pointer min-h-[44px] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                  tabMenuKoin === "rincian_koin"
+                    ? "bg-[#14141F] text-[#D4F34A]"
+                    : "bg-white text-[#191C1E]"
+                }`}
+              >
+                <FlatIcon name="clock" className="w-4 h-4" />
+                <span>Rincian Penggunaan Koin</span>
+                {jumlahLogGagalRefund > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px]">
+                    {jumlahLogGagalRefund}
+                  </span>
+                )}
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {DAFTAR_PAKET_KOIN.map((pk) => (
-                  <article
-                    key={pk.nama}
-                    className={`bg-white rounded-xl p-4 border border-[#E2E8F0] flex flex-col justify-between relative overflow-hidden ${
-                      pk.agency ? "sm:col-span-2 lg:col-span-3" : ""
-                    }`}
-                  >
-                    {pk.populer && (
-                      <span className="absolute top-0 right-0 bg-[#E3E0F1] text-[#1B1B26] text-[10px] px-3 py-1 rounded-bl-lg font-bold">
-                        Paling Populer
-                      </span>
-                    )}
-                    {pk.bestValue && (
-                      <span className="absolute top-0 right-0 bg-[#D4F34A] text-[#14141F] text-[10px] px-3 py-1 rounded-bl-lg font-bold">
-                        Best Value
-                      </span>
-                    )}
+            {/* TAB 1: BELI PAKET KOIN & VOUCHER */}
+            {tabMenuKoin === "beli_paket" && (
+              <>
+                <section className="bg-white rounded-xl p-4 border border-[#E2E8F0] space-y-2.5">
+                  <label className="text-xs font-bold text-[#191C1E] block">
+                    Punya Kode Voucher / Kupon Promo?
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={inputKodeVoucherUser}
+                      onChange={(e) =>
+                        setInputKodeVoucherUser(e.target.value.toUpperCase())
+                      }
+                      placeholder="MASUKKAN KODE VOUCHER PROMO..."
+                      className="flex-1 h-12 bg-[#F3F4F6] rounded-lg px-4 text-base sm:text-xs font-bold uppercase focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleKlaimVoucherUser}
+                      className="cursor-pointer h-12 px-5 bg-[#14141F] text-[#D4F34A] text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      <span>Klaim Voucher</span>
+                      <FlatIcon name="arrowRight" className="w-4 h-4" />
+                    </button>
+                  </div>
+                </section>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                            pk.agency
-                              ? "bg-[#14141F] text-white"
-                              : "text-slate-500"
-                          }`}
-                        >
-                          {pk.tier}
-                        </span>
-                        <span className="text-[11px] text-slate-600 bg-[#E7E8EA] px-2 py-0.5 rounded font-semibold">
-                          Maks {pk.kuotaAkun} Akun Sosmed
-                        </span>
-                      </div>
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-[#191C1E]">
+                      Pilih Nominal Paket
+                    </h2>
+                    <span className="text-xs text-slate-500">
+                      7 Opsi Tersedia
+                    </span>
+                  </div>
 
-                      <h3 className="text-sm font-bold text-[#191C1E]">
-                        {pk.nama}
-                      </h3>
-
-                      {pk.ket && (
-                        <p className="text-xs text-slate-500">{pk.ket}</p>
-                      )}
-
-                      <div className="flex items-baseline gap-1.5 pt-1">
-                        <span className="text-2xl font-bold text-[#191C1E]">
-                          {pk.koin}
-                        </span>
-                        <span className="text-xs font-bold text-[#556500]">
-                          Koin
-                        </span>
-                      </div>
-                      <p className="text-lg font-bold text-[#191C1E]">
-                        {pk.harga}
-                      </p>
-                    </div>
-
-                    <div className="pt-4 mt-4 space-y-2.5">
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                        <FlatIcon
-                          name="clock"
-                          className="w-3.5 h-3.5 text-[#556500]"
-                        />
-                        <span>Rollover Aktif 30 Hari</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => bukaLayarCheckoutPaket(pk)}
-                        className={`cursor-pointer w-full h-11 rounded-lg text-xs font-bold flex items-center justify-center transition ${
-                          pk.bestValue
-                            ? "bg-[#D4F34A] text-[#14141F]"
-                            : pk.populer || pk.agency
-                              ? "bg-[#14141F] text-[#D4F34A]"
-                              : "bg-[#E7E8EA] text-[#191C1E] hover:bg-slate-300"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {DAFTAR_PAKET_KOIN.map((pk) => (
+                      <article
+                        key={pk.nama}
+                        className={`bg-white rounded-xl p-4 border border-[#E2E8F0] flex flex-col justify-between relative overflow-hidden ${
+                          pk.agency ? "sm:col-span-2 lg:col-span-3" : ""
                         }`}
                       >
-                        Beli
-                      </button>
+                        {pk.populer && (
+                          <span className="absolute top-0 right-0 bg-[#E3E0F1] text-[#1B1B26] text-[10px] px-3 py-1 rounded-bl-lg font-bold">
+                            Paling Populer
+                          </span>
+                        )}
+                        {pk.bestValue && (
+                          <span className="absolute top-0 right-0 bg-[#D4F34A] text-[#14141F] text-[10px] px-3 py-1 rounded-bl-lg font-bold">
+                            Best Value
+                          </span>
+                        )}
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                                pk.agency
+                                  ? "bg-[#14141F] text-white"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {pk.tier}
+                            </span>
+                            <span className="text-[11px] text-slate-600 bg-[#E7E8EA] px-2 py-0.5 rounded font-semibold">
+                              Maks {pk.kuotaAkun} Akun Sosmed
+                            </span>
+                          </div>
+
+                          <h3 className="text-sm font-bold text-[#191C1E]">
+                            {pk.nama}
+                          </h3>
+
+                          {pk.ket && (
+                            <p className="text-xs text-slate-500">{pk.ket}</p>
+                          )}
+
+                          <div className="flex items-baseline gap-1.5 pt-1">
+                            <span className="text-2xl font-bold text-[#191C1E]">
+                              {pk.koin}
+                            </span>
+                            <span className="text-xs font-bold text-[#556500]">
+                              Koin
+                            </span>
+                          </div>
+                          <p className="text-lg font-bold text-[#191C1E]">
+                            {pk.harga}
+                          </p>
+                        </div>
+
+                        <div className="pt-4 mt-4 space-y-2.5">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                            <FlatIcon
+                              name="clock"
+                              className="w-3.5 h-3.5 text-[#556500]"
+                            />
+                            <span>Rollover Aktif 30 Hari</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => bukaLayarCheckoutPaket(pk)}
+                            className={`cursor-pointer w-full h-11 rounded-lg text-xs font-bold flex items-center justify-center transition ${
+                              pk.bestValue
+                                ? "bg-[#D4F34A] text-[#14141F]"
+                                : pk.populer || pk.agency
+                                  ? "bg-[#14141F] text-[#D4F34A]"
+                                  : "bg-[#E7E8EA] text-[#191C1E] hover:bg-slate-300"
+                            }`}
+                          >
+                            Beli
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* TAB 2: RINCIAN PENGGUNAAN KOIN, WAKTU, & KETERANGAN REFUND */}
+            {tabMenuKoin === "rincian_koin" && (
+              <div className="space-y-4">
+                {/* Panduan Tarif Penggunaan Koin */}
+                <section className="bg-white rounded-xl p-4 border border-[#E2E8F0] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-[#191C1E]">
+                      Ketentuan Penggunaan Koin & Jaminan Auto-Refund
+                    </h3>
+                    <span className="text-[11px] font-bold text-[#4D6B14] bg-[#F2FCE2] px-2.5 py-0.5 rounded-md">
+                      Safeguard Aktif
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-lg bg-[#F3F4F6] flex items-center justify-between">
+                      <span className="text-slate-600">
+                        Susun Naskah Skrip Utuh
+                      </span>
+                      <strong className="text-[#191C1E]">1 Koin</strong>
                     </div>
-                  </article>
-                ))}
+                    <div className="p-2.5 rounded-lg bg-[#F3F4F6] flex items-center justify-between">
+                      <span className="text-slate-600">
+                        Ekstrak Suara Video ke Naskah
+                      </span>
+                      <strong className="text-[#191C1E]">1 Koin</strong>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[#F3F4F6] flex items-center justify-between">
+                      <span className="text-slate-600">
+                        Gandakan 2 / 5 / 10 Variasi Folder
+                      </span>
+                      <strong className="text-[#191C1E]">1 / 2 / 3 Koin</strong>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[#F3F4F6] flex items-center justify-between">
+                      <span className="text-slate-600">
+                        Regenerasi Bagian (Tiap Kelipatan 3x)
+                      </span>
+                      <strong className="text-[#191C1E]">1 Koin</strong>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Apabila permintaan AI gagal diproses karena kendala jaringan
+                    atau server, koin yang terpotong akan langsung dikembalikan
+                    ke saldo Anda secara otomatis (Auto-Refund).
+                  </p>
+                </section>
+
+                {/* Filter Riwayat Penggunaan Koin */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    {[
+                      { id: "semua", label: "Semua Riwayat" },
+                      { id: "terpakai", label: "Pemakaian Koin" },
+                      {
+                        id: "refund",
+                        label: `Request Gagal & Refund (${jumlahLogGagalRefund})`,
+                      },
+                    ].map((flt) => (
+                      <button
+                        key={flt.id}
+                        type="button"
+                        onClick={() => setFilterRiwayatKoin(flt.id)}
+                        className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition ${
+                          filterRiwayatKoin === flt.id
+                            ? "bg-[#14141F] text-[#D4F34A]"
+                            : "bg-white border border-[#C8C5CC] text-slate-600"
+                        }`}
+                      >
+                        {flt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => muatUlangDataSupabase(userId)}
+                    className="cursor-pointer px-3 py-1.5 rounded-lg bg-white border border-[#C8C5CC] text-xs font-bold flex items-center gap-1"
+                  >
+                    <FlatIcon name="refresh" className="w-3.5 h-3.5" />
+                    <span>Segarkan</span>
+                  </button>
+                </div>
+
+                {/* Daftar Log Penggunaan Koin & Refund */}
+                <section className="space-y-2.5">
+                  {semuaRiwayatKoinUser.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center text-xs text-slate-500">
+                      Belum ada riwayat penggunaan koin atau catatan refund pada
+                      filter ini.
+                    </div>
+                  ) : (
+                    semuaRiwayatKoinUser.map((logItem, idx) => {
+                      const isGagalRefund = logItem.status === "gagal_refund"
+                      const isTopupLunas = logItem.status === "topup_lunas"
+                      const delta = Number(logItem.koinDelta) || 0
+
+                      return (
+                        <div
+                          key={logItem.id || idx}
+                          className={`bg-white rounded-xl p-4 border space-y-2 ${
+                            isGagalRefund
+                              ? "border-rose-300 bg-rose-50/20"
+                              : "border-[#E2E8F0]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs sm:text-sm font-bold text-[#191C1E]">
+                                  {logItem.action}
+                                </span>
+                                {isGagalRefund ? (
+                                  <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold">
+                                    Request Gagal • Auto-Refund
+                                  </span>
+                                ) : isTopupLunas ? (
+                                  <span className="px-2 py-0.5 rounded bg-[#F2FCE2] text-[#244605] text-[10px] font-bold">
+                                    Top-Up Lunas
+                                  </span>
+                                ) : logItem.status === "pending" ? (
+                                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                    Menunggu Verifikasi
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded bg-[#F3F4F6] text-slate-600 text-[10px] font-semibold">
+                                    Berhasil
+                                  </span>
+                                )}
+                              </div>
+
+                              {logItem.detail && (
+                                <p className="text-xs text-slate-600">
+                                  {logItem.detail}
+                                </p>
+                              )}
+
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
+                                <FlatIcon
+                                  name="clock"
+                                  className="w-3.5 h-3.5"
+                                />
+                                <span>{logItem.waktu}</span>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              {isGagalRefund && delta > 0 ? (
+                                <span className="inline-block px-2.5 py-1 rounded-lg bg-[#F2FCE2] text-[#244605] font-mono text-xs font-bold border border-[#4D6B14]/25">
+                                  +{delta} Koin (Refund)
+                                </span>
+                              ) : delta < 0 ? (
+                                <span className="inline-block px-2.5 py-1 rounded-lg bg-[#14141F] text-[#D4F34A] font-mono text-xs font-bold">
+                                  {delta} Koin
+                                </span>
+                              ) : delta > 0 ? (
+                                <span className="inline-block px-2.5 py-1 rounded-lg bg-[#D4F34A] text-[#14141F] font-mono text-xs font-bold">
+                                  +{delta} Koin
+                                </span>
+                              ) : (
+                                <span className="inline-block px-2.5 py-1 rounded-lg bg-[#F3F4F6] text-slate-600 font-mono text-xs font-semibold">
+                                  0 Koin (Gratis)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {logItem.refundInfo && (
+                            <div className="p-2.5 rounded-lg bg-[#F2FCE2] border border-[#4D6B14]/30 flex items-center gap-2 text-xs text-[#244605] font-semibold">
+                              <FlatIcon
+                                name="shield"
+                                className="w-4 h-4 shrink-0"
+                              />
+                              <span>
+                                Keterangan Refund: {logItem.refundInfo}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </section>
               </div>
-            </section>
+            )}
           </div>
         )}
       </main>
@@ -2273,6 +2672,13 @@ export default function HookyaMainApp() {
               type="password"
               value={inputPinDev}
               onChange={(e) => setInputPinDev(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && inputPinDev === pinAdminResmi) {
+                  setShowPinModal(false)
+                  setInputPinDev("")
+                  ubahViewModeStabil("dev")
+                }
+              }}
               placeholder="Masukkan PIN Admin..."
               className="w-full bg-[#F4F5F7] border border-slate-200 rounded-lg px-4 py-3 text-center text-base sm:text-sm font-bold outline-none"
             />
@@ -2290,7 +2696,7 @@ export default function HookyaMainApp() {
                   if (inputPinDev === pinAdminResmi) {
                     setShowPinModal(false)
                     setInputPinDev("")
-                    setViewMode("dev")
+                    ubahViewModeStabil("dev")
                   } else {
                     alert("PIN Admin belum sesuai.")
                   }

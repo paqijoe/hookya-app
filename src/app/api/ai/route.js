@@ -8,6 +8,20 @@ function getSupabase() {
   return createClient(url, key)
 }
 
+function formatWaktuLengkapID() {
+  const skr = new Date()
+  const tgl = skr.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+  const jam = skr.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  return `${tgl}, ${jam} WIB`
+}
+
 const KAMUS_FORMAT_KONTEN = {
   ugc: "User-Generated Content (UGC): Gaya berbagi pengalaman sebagai pengguna langsung yang jujur, kasual, dan natural.",
   edukasi:
@@ -113,6 +127,7 @@ async function catatTelemetriTokenKeSupabase({
   userId,
   namaUser,
   action,
+  detailKeterangan = "",
   promptTokens = 0,
   completionTokens = 0,
   koinDipakai = 0,
@@ -124,7 +139,6 @@ async function catatTelemetriTokenKeSupabase({
   const outTok =
     Number(completionTokens) || Math.floor(Math.random() * 550) + 750
   const totalTok = inTok + outTok
-  // Rata-rata Rp 47.9 per 1.000 token gabungan sesuai telemetri finansial
   const biayaRp = Math.max(15, Math.round((totalTok / 1000) * 47.9))
 
   try {
@@ -147,25 +161,25 @@ async function catatTelemetriTokenKeSupabase({
       }
 
       const isRegen =
-        action === "regenerate_satu_kerangka" || action === "assessment_copilot"
+        action.includes("Regenerasi") ||
+        action === "regenerate_satu_kerangka" ||
+        action === "assessment_copilot"
 
       const logBaru = {
-        id: `log_${Date.now()}`,
-        waktu:
-          new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          }) + " WIB",
+        id: `log_${Date.now()}_${Math.floor(Math.random() * 999)}`,
+        waktu: formatWaktuLengkapID(),
         timestamp: new Date().toISOString(),
         username: uRow.username || namaUser || uRow.nama || "user",
         action,
+        detail: detailKeterangan || "Proses berhasil dijalankan",
+        status: "sukses",
         tokens: totalTok,
         costRp: biayaRp,
-        koinDelta: koinDipakai,
+        koinDelta: koinDipakai > 0 ? -Math.abs(koinDipakai) : 0,
+        refundInfo: "",
       }
 
-      const recentLogs = [logBaru, ...(telLama.recentLogs || [])].slice(0, 25)
+      const recentLogs = [logBaru, ...(telLama.recentLogs || [])].slice(0, 60)
 
       const telemetryBaru = {
         totalRequests: (Number(telLama.totalRequests) || 0) + 1,
@@ -189,7 +203,7 @@ async function catatTelemetriTokenKeSupabase({
         .eq("id", userId)
     }
   } catch {
-    // Abaikan jika gagal update telemetri agar tidak memutus alur user
+    // Ignore telemetry error
   }
 }
 
@@ -204,20 +218,68 @@ async function catatErrorKeAdminDanRefund({
   if (!supabase) return null
   let koinTerbaru = null
   try {
-    if (userId && koinKompensasi > 0) {
+    if (userId) {
       const { data: uRow } = await supabase
         .from("users")
-        .select("koin")
+        .select("koin, profil_dna, nama, username")
         .eq("id", userId)
         .single()
+
       if (uRow) {
-        koinTerbaru = (uRow.koin || 0) + koinKompensasi
+        koinTerbaru =
+          koinKompensasi > 0
+            ? (uRow.koin || 0) + koinKompensasi
+            : uRow.koin || 0
+
+        const dnaLama = uRow.profil_dna || {}
+        const telLama = dnaLama.telemetry || {
+          totalRequests: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          totalCostRp: 0,
+          regenRequests: 0,
+          recentLogs: [],
+        }
+
+        const logGagal = {
+          id: `err_${Date.now()}_${Math.floor(Math.random() * 999)}`,
+          waktu: formatWaktuLengkapID(),
+          timestamp: new Date().toISOString(),
+          username: uRow.username || namaUser || uRow.nama || "user",
+          action: fitur || "Permintaan AI",
+          detail: "Permintaan gagal diproses oleh server AI",
+          status: "gagal_refund",
+          tokens: 0,
+          costRp: 0,
+          koinDelta: koinKompensasi > 0 ? koinKompensasi : 0,
+          refundInfo:
+            koinKompensasi > 0
+              ? `Auto-Refund +${koinKompensasi} Koin telah dikembalikan ke saldo Anda`
+              : "Tidak memotong saldo koin",
+        }
+
+        const recentLogs = [logGagal, ...(telLama.recentLogs || [])].slice(
+          0,
+          60,
+        )
+
         await supabase
           .from("users")
-          .update({ koin: koinTerbaru })
+          .update({
+            koin: koinTerbaru,
+            profil_dna: {
+              ...dnaLama,
+              telemetry: {
+                ...telLama,
+                recentLogs,
+              },
+            },
+          })
           .eq("id", userId)
       }
     }
+
     await supabase.from("error_logs").insert([
       {
         user_id: userId || null,
@@ -228,7 +290,7 @@ async function catatErrorKeAdminDanRefund({
       },
     ])
   } catch {
-    // Abaikan jika tabel error_logs belum siap
+    // Ignore logging error
   }
   return koinTerbaru
 }
@@ -727,7 +789,6 @@ export async function POST(request) {
       contextMode = "sesuai_niche",
       catatanAkhirUser = "",
       contentBrief,
-      stageNumber,
       stageInput,
       aiDraft,
       userEditedScript,
@@ -735,7 +796,6 @@ export async function POST(request) {
       bentukKontenBaru,
       durasiTargetBaru,
       jumlahMultiplier,
-      ugcConfig,
       segmenTarget,
       skripSebelumnya,
       namaFileVideo,
@@ -756,6 +816,7 @@ export async function POST(request) {
       opsiSebelumnya,
       dataKinerja,
       transkripMentahInput,
+      isBillableRegen,
     } = body
 
     const geminiKey = process.env.GEMINI_API_KEY
@@ -779,9 +840,11 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action,
+        action: "Referensi Kolom Profil",
+        detailKeterangan: `Kolom: ${fieldLabel}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(parsed)
     }
@@ -824,9 +887,11 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action,
+        action: "Scan Screenshot Produk Marketplace",
+        detailKeterangan: parsed?.namaProduk || "Ekstraksi spesifikasi produk",
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(parsed)
     }
@@ -854,14 +919,15 @@ Balas HANYA dalam format JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action,
+        action: "Ketik Suara Mikrofon (Voice Typing)",
+        detailKeterangan: "Konversi rekaman suara ke teks",
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(parsed)
     }
 
-    // TAHAP 1 EKSTRAK VIDEO: HANYA TRANSKRIP SUARA ASLI / FRAME VIDEO
     if (action === "transkrip_file_video") {
       const promptTranskrip = `
 Dengarkan jalur audio dan perhatikan potongan frame video yang dilampirkan.
@@ -892,14 +958,15 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action,
+        action: "Urai Audio Video ke Transkrip",
+        detailKeterangan: `File: ${namaFileVideo || "video_referensi.mp4"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(parsed)
     }
 
-    // TAHAP 2 EKSTRAK VIDEO: TRANSFORMASI TRANSKRIP MENJADI NASKAH PERSONA + 2 VARIASI DRAFT
     if (action === "rewrite_video") {
       const instruksiPersona = susunInstruksiPersona(
         personaProfile,
@@ -974,7 +1041,10 @@ Keluarkan HANYA valid JSON:
         await catatTelemetriTokenKeSupabase({
           userId,
           namaUser,
-          action: "Ekstrak Audio ke Naskah",
+          action: "Ekstrak Suara Video ke Naskah",
+          detailKeterangan: `Transformasi: ${
+            parsed?.intiPesanVideo || namaFileVideo || "Video Referensi"
+          }`,
           promptTokens: usage?.prompt_tokens,
           completionTokens: usage?.completion_tokens,
           koinDipakai: 1,
@@ -1056,7 +1126,8 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action: `Ekstrak Audio ke Naskah • ${namaFileVideo || "video.mp4"}`,
+        action: "Ekstrak Suara Video ke Naskah",
+        detailKeterangan: `File: ${namaFileVideo || "video.mp4"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
         koinDipakai: 1,
@@ -1075,38 +1146,78 @@ Susun matriks identitas akun kreator dari data berikut:
 Keluarkan HANYA valid JSON:
 {
   "user_id": "${onboardingAnswers?.user_id || "usr_99281"}",
-  "account_label": "${onboardingAnswers?.nama_akun || onboardingAnswers?.minat_utama || "Akun Utama"}",
-  "dna_badge": "DNA: ${onboardingAnswers?.gaya_kepribadian || "Satir-Realistis"} | Direct Tone | Level 4 Trust",
-  "niche_badge": "Niche: ${onboardingAnswers?.minat_utama || "Kreator"} | Target: ${onboardingAnswers?.target_segmen || "Audiens"}",
+  "account_label": "${
+    onboardingAnswers?.nama_akun ||
+    onboardingAnswers?.minat_utama ||
+    "Akun Utama"
+  }",
+  "dna_badge": "DNA: ${
+    onboardingAnswers?.gaya_kepribadian || "Satir-Realistis"
+  } | Direct Tone | Level 4 Trust",
+  "niche_badge": "Niche: ${
+    onboardingAnswers?.minat_utama || "Kreator"
+  } | Target: ${onboardingAnswers?.target_segmen || "Audiens"}",
   "persona_summary": "Ringkasan jelas tentang karakter suara akun ini, jam terbang/spesifikasi dirinya, dan fokus bahasan utamanya.",
   "voice_dna": {
     "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Gue"}",
     "audience_pronoun": "${onboardingAnswers?.sapaan_audiens || "Temen-temen"}",
     "spoken_particles": ["sih", "tuh", "kan", "deh", "banget"],
-    "delivery_style": "${onboardingAnswers?.gaya_kepribadian || "To-the-point, Tajam, Santai"}"
+    "delivery_style": "${
+      onboardingAnswers?.gaya_kepribadian || "To-the-point, Tajam, Santai"
+    }"
   },
   "niche_context": {
-    "primary_niche": "${onboardingAnswers?.minat_utama || "Edukasi & Konten Harian"}",
+    "primary_niche": "${
+      onboardingAnswers?.minat_utama || "Edukasi & Konten Harian"
+    }",
     "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi"}",
-    "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"}",
-    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Gimmick motivasi tanpa langkah eksekusi nyata"}",
-    "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"}",
+    "unique_selling_point": "${
+      onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"
+    }",
+    "common_enemy": "${
+      onboardingAnswers?.pandangan_kontra ||
+      "Gimmick motivasi tanpa langkah eksekusi nyata"
+    }",
+    "personal_analogies": "${
+      onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"
+    }",
     "segment_profile": "${onboardingAnswers?.target_segmen || "Penonton umum"}",
-    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Bingung ide konten & sulit konsisten"}",
-    "secret_desires": "${onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"}",
-    "common_objections": "${onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"}"
+    "deepest_pain_points": "${
+      onboardingAnswers?.target_ketakutan ||
+      "Bingung ide konten & sulit konsisten"
+    }",
+    "secret_desires": "${
+      onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"
+    }",
+    "common_objections": "${
+      onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"
+    }"
   },
   "positioning_and_usp": {
     "authority_role": "${onboardingAnswers?.peran_dan_otoritas || "Praktisi"}",
-    "unique_selling_point": "${onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"}",
-    "common_enemy": "${onboardingAnswers?.pandangan_kontra || "Gimmick motivasi tanpa langkah eksekusi nyata"}",
-    "personal_analogies": "${onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"}"
+    "unique_selling_point": "${
+      onboardingAnswers?.usp_diri || "Berbagi pengalaman praktik langsung"
+    }",
+    "common_enemy": "${
+      onboardingAnswers?.pandangan_kontra ||
+      "Gimmick motivasi tanpa langkah eksekusi nyata"
+    }",
+    "personal_analogies": "${
+      onboardingAnswers?.analogi_khas || "Kejadian sehari-hari"
+    }"
   },
   "target_audience": {
     "segment_profile": "${onboardingAnswers?.target_segmen || "Penonton umum"}",
-    "deepest_pain_points": "${onboardingAnswers?.target_ketakutan || "Bingung ide konten & sulit konsisten"}",
-    "secret_desires": "${onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"}",
-    "common_objections": "${onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"}"
+    "deepest_pain_points": "${
+      onboardingAnswers?.target_ketakutan ||
+      "Bingung ide konten & sulit konsisten"
+    }",
+    "secret_desires": "${
+      onboardingAnswers?.target_impian || "Hasil nyata yang langsung terasa"
+    }",
+    "common_objections": "${
+      onboardingAnswers?.target_keraguan || "Bingung mulai dari mana"
+    }"
   },
   "linguistic_matrix": {
     "self_pronoun": "${onboardingAnswers?.sapaan_diri || "Gue"}",
@@ -1157,7 +1268,11 @@ Balas HANYA dalam format JSON:
 
       const catatanHindariDuplikat =
         opsiSebelumnya && opsiSebelumnya.length > 0
-          ? `\nPENGGUNA MEMINTA SET ARAHAN BARU (SET KE-${batchKe || 2}): Berikan opsi yang berbeda dari sebelumnya: ${JSON.stringify(opsiSebelumnya)}`
+          ? `\nPENGGUNA MEMINTA SET ARAHAN BARU (SET KE-${
+              batchKe || 2
+            }): Berikan opsi yang berbeda dari sebelumnya: ${JSON.stringify(
+              opsiSebelumnya,
+            )}`
           : ""
 
       promptFinal = `
@@ -1282,7 +1397,10 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action: "Hookya Synthesizer Prompting • Buat Skrip",
+        action: "Buat Naskah Skrip Konten",
+        detailKeterangan: `Topik: ${
+          contentBrief?.core_idea || "Naskah Baru"
+        } (${aturanDurasi.targetDuration})`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
         koinDipakai: 1,
@@ -1333,17 +1451,15 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action: `Ubah Durasi (${aturanDurasi.targetDuration})`,
+        action: `Ubah Durasi Naskah (${aturanDurasi.targetDuration})`,
+        detailKeterangan: `Skrip: ${body.subyek || "Naskah"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(hasilNormal)
     } else if (action === "multiply_script_variations") {
       const jml = Math.min(10, Math.max(2, parseInt(jumlahMultiplier) || 2))
-      const jumlahBeatInduk =
-        Array.isArray(skripSebelumnya) && skripSebelumnya.length >= 3
-          ? skripSebelumnya.length
-          : 4
       const blokPersona = susunInstruksiPersona(
         personaProfile,
         contextMode,
@@ -1400,7 +1516,8 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action: `Gandakan ${jml} Variasi Folder`,
+        action: `Gandakan ${jml} Variasi ke Folder Arsip`,
+        detailKeterangan: `Topik Induk: ${body.subyek || "Naskah"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
         koinDipakai: parseInt(body?.koinDipakai) || 1,
@@ -1413,7 +1530,9 @@ Keluarkan HANYA valid JSON:
         body.subyek,
       )
       promptFinal = `
-Tulis ulang SATU bagian naskah ini saja ("${segmenTarget?.partTitle || segmenTarget?.labelMini}") dengan variasi kalimat baru yang tetap padat.
+Tulis ulang SATU bagian naskah ini saja ("${
+        segmenTarget?.partTitle || segmenTarget?.labelMini
+      }") dengan variasi kalimat baru yang tetap padat.
 ${blokPersona}
 Topik: "${body.subyek || "Konten Video"}"
 Bagian saat ini: ${JSON.stringify(segmenTarget)}
@@ -1429,6 +1548,25 @@ Keluarkan HANYA valid JSON:
   "teksLayar": "...",
   "visual": "..."
 }`
+      const { parsed, usage } = await panggilTeksPintar(
+        openRouterKey,
+        geminiKey,
+        promptFinal,
+      )
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: `Regenerasi Bagian Skrip (${
+          segmenTarget?.partTitle || "Bagian"
+        })`,
+        detailKeterangan: isBillableRegen
+          ? "Pembaruan ke-3 (Potong 1 Koin)"
+          : "Pembaruan bagian gratis",
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: isBillableRegen ? 1 : 0,
+      })
+      return NextResponse.json(parsed)
     } else if (action === "analyze_script_diff") {
       promptFinal = `
 Pelajari perubahan kata yang dilakukan pengguna antara draf awal dan hasil editannya:
@@ -1467,9 +1605,11 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriTokenKeSupabase({
         userId,
         namaUser,
-        action: `Ubah Bentuk (${bentukKontenBaru})`,
+        action: `Ubah Bentuk Konten (${bentukKontenBaru})`,
+        detailKeterangan: `Skrip: ${body.subyek || "Naskah"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
       })
       return NextResponse.json(hasilNormal)
     } else if (action === "evaluasi_kinerja_vt") {
@@ -1488,25 +1628,47 @@ Balas HANYA dalam format JSON:
     await catatTelemetriTokenKeSupabase({
       userId,
       namaUser,
-      action: action || "AI Request",
+      action:
+        action === "extract_persona_dna"
+          ? "Analisis & Simpan Profil DNA"
+          : action === "buat_10_ide_topik"
+            ? "Analisis Profil & Cari 10 Ide Materi"
+            : action === "assessment_copilot"
+              ? "Muat Opsi Asesmen Terpandu"
+              : action || "Permintaan AI",
+      detailKeterangan: "Proses AI selesai",
       promptTokens: usage?.prompt_tokens,
       completionTokens: usage?.completion_tokens,
+      koinDipakai: 0,
     })
 
     return NextResponse.json(parsed)
   } catch (err) {
+    const namaFiturGagal =
+      body?.action === "rewrite_video"
+        ? "Ekstrak Suara Video ke Naskah"
+        : body?.action === "assemble_humanized_script"
+          ? "Buat Naskah Skrip Konten"
+          : body?.action === "multiply_script_variations"
+            ? `Gandakan ${body?.jumlahMultiplier || 2} Variasi Skrip`
+            : body?.action === "regenerate_satu_kerangka"
+              ? "Regenerasi Bagian Skrip"
+              : body?.action || "Fitur AI"
+
     const koinKompensasi =
       body?.action === "rewrite_video" ||
       body?.action === "assemble_humanized_script"
         ? 1
         : body?.action === "multiply_script_variations"
           ? parseInt(body?.koinDipakai) || 1
-          : 0
+          : body?.action === "regenerate_satu_kerangka" && body?.isBillableRegen
+            ? 1
+            : 0
 
     const koinGanti = await catatErrorKeAdminDanRefund({
       userId: body?.userId,
       namaUser: body?.namaUser,
-      fitur: body?.action || "Fitur AI",
+      fitur: namaFiturGagal,
       pesanErrorAsli: err.message || "Gagal memproses AI",
       koinKompensasi,
     })
