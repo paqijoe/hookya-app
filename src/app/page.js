@@ -212,6 +212,7 @@ export default function HookyaMainApp() {
   const [activeMenu, setActiveMenuState] = useState("produksi")
   const [stage, setStageState] = useState(0)
   const [subTabKalender, setSubTabKalender] = useState("jadwal")
+  const [modeTeleprompter, setModeTeleprompter] = useState(false)
 
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showUpgradeVIPModal, setShowUpgradeVIPModal] = useState(false)
@@ -373,7 +374,6 @@ export default function HookyaMainApp() {
   const [daftar10IdeTopik, setDaftar10IdeTopik] = useState([])
   const [hasilSkrip, setHasilSkrip] = useState(null)
   const [modeTampilanSkrip, setModeTampilanSkrip] = useState("voiceover")
-  const [modeTeleprompter, setModeTeleprompter] = useState(false)
 
   const [koleksiSkripTersimpan, setKoleksiSkripTersimpan] = useState([])
   const [semuaUserDB, setSemuaUserDB] = useState([])
