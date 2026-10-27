@@ -1,51 +1,47 @@
-"use client";
-import { useState, useEffect, useRef } from "react";
+"use client"
+import { useState, useEffect, useRef } from "react"
 
 export function formatKoinSingkat(jumlah) {
-  const n = Number(jumlah) || 0;
-  if (n < 1000) return String(n);
+  const n = Number(jumlah) || 0
+  if (n < 1000) return String(n)
   if (n < 10000) {
-    const desimal = (n / 1000).toFixed(1).replace(/\.0$/, "");
-    return `${desimal}k`;
+    const desimal = (n / 1000).toFixed(1).replace(/\.0$/, "")
+    return `${desimal}k`
   }
-  return `${Math.floor(n / 1000)}k`;
+  return `${Math.floor(n / 1000)}k`
 }
 
 export function hitungKuotaAkunDariPaket(
   namaPaket = "",
   nominal = 0,
-  isAdmin = false
+  isAdmin = false,
 ) {
-  if (isAdmin) return 10;
-  const p = (namaPaket || "").toLowerCase();
-  const nom = Number(nominal) || 0;
-  if (p.includes("90") || nom >= 85000) return 10;
-  if (p.includes("50") || nom >= 45000) return 5;
-  if (p.includes("25") || nom >= 24000) return 3;
+  if (isAdmin) return 10
+  const p = (namaPaket || "").toLowerCase()
+  const nom = Number(nominal) || 0
+  if (p.includes("90") || nom >= 85000) return 10
+  if (p.includes("50") || nom >= 45000) return 5
+  if (p.includes("25") || nom >= 24000) return 3
   if (
     p.includes("20") ||
     p.includes("15") ||
     p.includes("10") ||
     (nom >= 9000 && nom < 24000)
   ) {
-    return 2;
+    return 2
   }
-  return 1;
+  return 1
 }
 
 // Fungsi utilitas Gudang Ingatan untuk merekam ketikan & editan user dari semua textbox
-export function rekamKetikanKeGudangIngatan(
-  userId,
-  sumberKolom,
-  teksKetikan
-) {
-  if (typeof window === "undefined") return null;
-  const bersih = (teksKetikan || "").trim();
-  if (bersih.length < 12) return null;
+export function rekamKetikanKeGudangIngatan(userId, sumberKolom, teksKetikan) {
+  if (typeof window === "undefined") return null
+  const bersih = (teksKetikan || "").trim()
+  if (bersih.length < 12) return null
 
-  const storageKey = `hookya_memory_vault_${userId || "guest"}`;
+  const storageKey = `hookya_memory_vault_${userId || "guest"}`
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = localStorage.getItem(storageKey)
     const lama = raw
       ? JSON.parse(raw)
       : {
@@ -54,12 +50,12 @@ export function rekamKetikanKeGudangIngatan(
             "Otak AI sedang mengumpulkan pola kalimat dari ketikan dan editanmu.",
           rincianAnalisa: null,
           lastUpdated: null,
-        };
+        }
 
     const sudahAdaSamaPersis = (lama.samples || []).some(
-      (s) => s.teks === bersih
-    );
-    if (sudahAdaSamaPersis) return lama;
+      (s) => s.teks === bersih,
+    )
+    if (sudahAdaSamaPersis) return lama
 
     const sampelBaru = {
       id: `mem_${Date.now()}`,
@@ -69,29 +65,29 @@ export function rekamKetikanKeGudangIngatan(
         hour: "2-digit",
         minute: "2-digit",
       }),
-    };
+    }
 
-    const listSamples = [sampelBaru, ...(lama.samples || [])].slice(0, 30);
+    const listSamples = [sampelBaru, ...(lama.samples || [])].slice(0, 30)
     const dataUpdate = {
       ...lama,
       samples: listSamples,
       lastUpdated: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dataUpdate));
-    return dataUpdate;
+    }
+    localStorage.setItem(storageKey, JSON.stringify(dataUpdate))
+    return dataUpdate
   } catch {
-    return null;
+    return null
   }
 }
 
 export function ambilDataGudangIngatan(userId) {
   if (typeof window === "undefined") {
-    return { samples: [], reviewSingkat: "", rincianAnalisa: null };
+    return { samples: [], reviewSingkat: "", rincianAnalisa: null }
   }
-  const storageKey = `hookya_memory_vault_${userId || "guest"}`;
+  const storageKey = `hookya_memory_vault_${userId || "guest"}`
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem(storageKey)
+    if (raw) return JSON.parse(raw)
   } catch {
     // Ignore parse error
   }
@@ -100,14 +96,14 @@ export function ambilDataGudangIngatan(userId) {
     reviewSingkat:
       "Belum ada cukup rekaman ketikan. Ketik ide di Brainstorm, kotak topik, atau edit naskah agar Gudang Ingatan mempelajari gaya bicaramu.",
     rincianAnalisa: null,
-  };
+  }
 }
 
 export function simpanAnalisaGudangIngatan(userId, objekAnalisa) {
-  if (typeof window === "undefined") return null;
-  const storageKey = `hookya_memory_vault_${userId || "guest"}`;
+  if (typeof window === "undefined") return null
+  const storageKey = `hookya_memory_vault_${userId || "guest"}`
   try {
-    const lama = ambilDataGudangIngatan(userId);
+    const lama = ambilDataGudangIngatan(userId)
     const baru = {
       ...lama,
       reviewSingkat:
@@ -116,11 +112,11 @@ export function simpanAnalisaGudangIngatan(userId, objekAnalisa) {
         "Gaya bicara pengguna berhasil dianalisis.",
       rincianAnalisa: objekAnalisa?.rincianAnalisa || objekAnalisa || null,
       lastUpdated: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(baru));
-    return baru;
+    }
+    localStorage.setItem(storageKey, JSON.stringify(baru))
+    return baru
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -135,7 +131,7 @@ export function HookyaMark({ className = "w-8 h-8", fill = "#14141F" }) {
       />
       <circle cx="177" cy="84" r="28" fill={fill} />
     </svg>
-  );
+  )
 }
 
 // Komponen Logo Dinamis untuk Header & Login (Mendukung Upload PNG & Pengaturan Jarak dari Dev Console)
@@ -144,12 +140,12 @@ export function HookyaLogo({
   brandConfig = null,
   isLoginScreen = false,
 }) {
-  const customLogoUrl = brandConfig?.logoPngUrl || "";
+  const customLogoUrl = brandConfig?.logoPngUrl || ""
   const gapPx =
-    brandConfig?.logoGapPx !== undefined ? Number(brandConfig.logoGapPx) : 6;
+    brandConfig?.logoGapPx !== undefined ? Number(brandConfig.logoGapPx) : 6
   const teksBrand =
-    brandConfig?.brandText !== undefined ? brandConfig.brandText : "OOKYA";
-  const tampilkanTeks = brandConfig?.showBrandText !== false;
+    brandConfig?.brandText !== undefined ? brandConfig.brandText : "OOKYA"
+  const tampilkanTeks = brandConfig?.showBrandText !== false
 
   if (isLoginScreen) {
     return (
@@ -172,7 +168,7 @@ export function HookyaLogo({
           </span>
         )}
       </div>
-    );
+    )
   }
 
   return (
@@ -195,69 +191,69 @@ export function HookyaLogo({
         </span>
       )}
     </div>
-  );
+  )
 }
 
 async function ubahBlobSuaraKeWavBase64(audioBlob) {
   try {
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return null;
+    const arrayBuffer = await audioBlob.arrayBuffer()
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtx) return null
 
-    const audioCtx = new AudioCtx();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    audioCtx.close();
+    const audioCtx = new AudioCtx()
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+    audioCtx.close()
 
-    const targetRate = 12000;
-    const durasiMaks = Math.min(audioBuffer.duration, 45);
-    const numSamples = Math.floor(durasiMaks * targetRate);
+    const targetRate = 12000
+    const durasiMaks = Math.min(audioBuffer.duration, 45)
+    const numSamples = Math.floor(durasiMaks * targetRate)
 
-    const offlineCtx = new OfflineAudioContext(1, numSamples, targetRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start(0);
+    const offlineCtx = new OfflineAudioContext(1, numSamples, targetRate)
+    const source = offlineCtx.createBufferSource()
+    source.buffer = audioBuffer
+    source.connect(offlineCtx.destination)
+    source.start(0)
 
-    const rendered = await offlineCtx.startRendering();
-    const channelData = rendered.getChannelData(0);
+    const rendered = await offlineCtx.startRendering()
+    const channelData = rendered.getChannelData(0)
 
-    const wavBuffer = new ArrayBuffer(44 + channelData.length * 2);
-    const view = new DataView(wavBuffer);
+    const wavBuffer = new ArrayBuffer(44 + channelData.length * 2)
+    const view = new DataView(wavBuffer)
     const writeStr = (offset, str) => {
       for (let i = 0; i < str.length; i++) {
-        view.setUint8(offset + i, str.charCodeAt(i));
+        view.setUint8(offset + i, str.charCodeAt(i))
       }
-    };
+    }
 
-    writeStr(0, "RIFF");
-    view.setUint32(4, 36 + channelData.length * 2, true);
-    writeStr(8, "WAVE");
-    writeStr(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, targetRate, true);
-    view.setUint32(28, targetRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeStr(36, "data");
-    view.setUint32(40, channelData.length * 2, true);
+    writeStr(0, "RIFF")
+    view.setUint32(4, 36 + channelData.length * 2, true)
+    writeStr(8, "WAVE")
+    writeStr(12, "fmt ")
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, targetRate, true)
+    view.setUint32(28, targetRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeStr(36, "data")
+    view.setUint32(40, channelData.length * 2, true)
 
-    let offset = 44;
+    let offset = 44
     for (let i = 0; i < channelData.length; i++, offset += 2) {
-      const s = Math.max(-1, Math.min(1, channelData[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      const s = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
     }
 
-    const bytes = new Uint8Array(wavBuffer);
-    let binary = "";
-    const chunk = 8192;
+    const bytes = new Uint8Array(wavBuffer)
+    let binary = ""
+    const chunk = 8192
     for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
     }
-    return { base64: btoa(binary), mimeType: "audio/wav" };
+    return { base64: btoa(binary), mimeType: "audio/wav" }
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -268,7 +264,9 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
     arrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
     plus: <path d="M12 5v14M5 12h14" />,
     bolt: <path d="M13 2L3 14h7v8l10-12h-7V2z" />,
-    dna: <path d="M7 2v2c0 4 10 4 10 8s-10 4-10 8v2M17 2v2c0 4-10 4-10 8s10 4 10 8v2M6 6h12M6 18h12M8 12h8" />,
+    dna: (
+      <path d="M7 2v2c0 4 10 4 10 8s-10 4-10 8v2M17 2v2c0 4-10 4-10 8s10 4 10 8v2M6 6h12M6 18h12M8 12h8" />
+    ),
     brain: (
       <>
         <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z" />
@@ -439,7 +437,7 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
         <path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 19h3M19 14v3" />
       </>
     ),
-  };
+  }
 
   return (
     <svg
@@ -453,29 +451,29 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
     >
       {icons[name] || icons.bolt}
     </svg>
-  );
+  )
 }
 
 export function AILoadingBox({
   label = "Sistem sedang menyusun rekomendasi untukmu...",
   onRefresh,
 }) {
-  const [detik, setDetik] = useState(0);
+  const [detik, setDetik] = useState(0)
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setDetik((d) => d + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+      setDetik((d) => d + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="py-8 px-6 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] flex flex-col items-center justify-center text-center space-y-3">
       <button
         type="button"
         onClick={() => {
-          setDetik(0);
-          if (onRefresh) onRefresh();
+          setDetik(0)
+          if (onRefresh) onRefresh()
         }}
         title="Klik untuk mengulang proses"
         className="cursor-pointer w-11 h-11 rounded-xl bg-[#14141F] text-[#D4F34A] flex items-center justify-center transition"
@@ -499,8 +497,8 @@ export function AILoadingBox({
             <button
               type="button"
               onClick={() => {
-                setDetik(0);
-                onRefresh();
+                setDetik(0)
+                onRefresh()
               }}
               className="cursor-pointer underline text-[#5B4BC4] font-bold block mx-auto"
             >
@@ -510,7 +508,7 @@ export function AILoadingBox({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 export function StoryVoiceInput({
@@ -522,35 +520,35 @@ export function StoryVoiceInput({
   userId = "guest",
   memorySourceLabel = "Ketikan Textbox",
 }) {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const speechRecRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const valueRef = useRef(value);
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const mediaRecorderRef = useRef(null)
+  const speechRecRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const valueRef = useRef(value)
 
   useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
+    valueRef.current = value
+  }, [value])
 
   const kirimBlobKeAI = async (audioBlob, mimeAsli) => {
-    if (!audioBlob || audioBlob.size < 200) return;
-    setIsTranscribing(true);
-    if (onNotify) onNotify("Mengubah rekaman suaramu menjadi teks...");
+    if (!audioBlob || audioBlob.size < 200) return
+    setIsTranscribing(true)
+    if (onNotify) onNotify("Mengubah rekaman suaramu menjadi teks...")
 
     try {
-      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob);
-      let base64Final = hasilWav?.base64 || "";
-      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav";
+      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob)
+      let base64Final = hasilWav?.base64 || ""
+      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav"
 
       if (!base64Final) {
         base64Final = await new Promise((resolve) => {
-          const reader = new FileReader();
+          const reader = new FileReader()
           reader.onloadend = () =>
-            resolve((reader.result || "").toString().split(",")[1] || "");
-          reader.onerror = () => resolve("");
-          reader.readAsDataURL(audioBlob);
-        });
+            resolve((reader.result || "").toString().split(",")[1] || "")
+          reader.onerror = () => resolve("")
+          reader.readAsDataURL(audioBlob)
+        })
       }
 
       const res = await fetch("/api/ai", {
@@ -561,137 +559,135 @@ export function StoryVoiceInput({
           audioBase64: base64Final,
           audioMimeType: mimeFinal,
         }),
-      });
-      const data = await res.json();
+      })
+      const data = await res.json()
       if (res.ok && data.teks) {
-        const teksLama = (valueRef.current || "").trim();
-        const gabungan = teksLama ? `${teksLama} ${data.teks}` : data.teks;
-        onChange(gabungan);
-        rekamKetikanKeGudangIngatan(userId, memorySourceLabel, gabungan);
-        if (onNotify) onNotify("Suara berhasil diubah menjadi teks.");
+        const teksLama = (valueRef.current || "").trim()
+        const gabungan = teksLama ? `${teksLama} ${data.teks}` : data.teks
+        onChange(gabungan)
+        rekamKetikanKeGudangIngatan(userId, memorySourceLabel, gabungan)
+        if (onNotify) onNotify("Suara berhasil diubah menjadi teks.")
       } else {
         if (onNotify)
-          onNotify("Error sistem, silakan refresh atau hubungi admin.");
+          onNotify("Error sistem, silakan refresh atau hubungi admin.")
       }
     } catch {
       if (onNotify)
-        onNotify("Error sistem, silakan refresh atau hubungi admin.");
+        onNotify("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
-      setIsTranscribing(false);
+      setIsTranscribing(false)
     }
-  };
+  }
 
   const mulaiMediaRecorder = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      if (onNotify)
-        onNotify("Browser ini tidak mendukung perekaman mikrofon.");
-      return;
+      if (onNotify) onNotify("Browser ini tidak mendukung perekaman mikrofon.")
+      return
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
+          audioChunksRef.current.push(e.data)
         }
-      };
+      }
 
       recorder.onstop = () => {
-        setIsRecording(false);
-        stream.getTracks().forEach((track) => track.stop());
-        const mime = recorder.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
-        kirimBlobKeAI(audioBlob, mime);
-      };
+        setIsRecording(false)
+        stream.getTracks().forEach((track) => track.stop())
+        const mime = recorder.mimeType || "audio/webm"
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime })
+        kirimBlobKeAI(audioBlob, mime)
+      }
 
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecording(true)
       if (onNotify)
         onNotify(
-          "Merekam suara... Klik tombol merah lagi setelah selesai bicara."
-        );
+          "Merekam suara... Klik tombol merah lagi setelah selesai bicara.",
+        )
     } catch {
       if (onNotify)
         onNotify(
-          "Izin mikrofon belum aktif. Izinkan akses mikrofon di browser kamu."
-        );
+          "Izin mikrofon belum aktif. Izinkan akses mikrofon di browser kamu.",
+        )
     }
-  };
+  }
 
   const handleMicClick = () => {
-    if (isTranscribing) return;
+    if (isTranscribing) return
 
     if (isRecording) {
       if (speechRecRef.current) {
         try {
-          speechRecRef.current.stop();
+          speechRecRef.current.stop()
         } catch {
           // Ignore stop error
         }
-        speechRecRef.current = null;
+        speechRecRef.current = null
       }
       if (
         mediaRecorderRef.current &&
         mediaRecorderRef.current.state !== "inactive"
       ) {
-        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stop()
       } else {
-        setIsRecording(false);
+        setIsRecording(false)
       }
-      return;
+      return
     }
 
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return
 
-    const SpeechRec =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRec && !navigator.userAgent.includes("iPhone")) {
       try {
-        const rec = new SpeechRec();
-        rec.lang = "id-ID";
-        rec.continuous = false;
-        rec.interimResults = false;
-        let dapatHasil = false;
+        const rec = new SpeechRec()
+        rec.lang = "id-ID"
+        rec.continuous = false
+        rec.interimResults = false
+        let dapatHasil = false
 
         rec.onstart = () => {
-          setIsRecording(true);
-          if (onNotify) onNotify("Silakan bicara sekarang...");
-        };
+          setIsRecording(true)
+          if (onNotify) onNotify("Silakan bicara sekarang...")
+        }
         rec.onresult = (event) => {
-          const teksHasil = event.results?.[0]?.[0]?.transcript || "";
+          const teksHasil = event.results?.[0]?.[0]?.transcript || ""
           if (teksHasil) {
-            dapatHasil = true;
-            const teksLama = (valueRef.current || "").trim();
-            const gabungan = teksLama ? `${teksLama} ${teksHasil}` : teksHasil;
-            onChange(gabungan);
-            rekamKetikanKeGudangIngatan(userId, memorySourceLabel, gabungan);
-            if (onNotify) onNotify("Suara berhasil ditulis.");
+            dapatHasil = true
+            const teksLama = (valueRef.current || "").trim()
+            const gabungan = teksLama ? `${teksLama} ${teksHasil}` : teksHasil
+            onChange(gabungan)
+            rekamKetikanKeGudangIngatan(userId, memorySourceLabel, gabungan)
+            if (onNotify) onNotify("Suara berhasil ditulis.")
           }
-        };
+        }
         rec.onerror = () => {
-          setIsRecording(false);
-          speechRecRef.current = null;
+          setIsRecording(false)
+          speechRecRef.current = null
           if (!dapatHasil) {
-            mulaiMediaRecorder();
+            mulaiMediaRecorder()
           }
-        };
+        }
         rec.onend = () => {
-          setIsRecording(false);
-          speechRecRef.current = null;
-        };
-        speechRecRef.current = rec;
-        rec.start();
-        return;
+          setIsRecording(false)
+          speechRecRef.current = null
+        }
+        speechRecRef.current = rec
+        rec.start()
+        return
       } catch {
         // Fallback to MediaRecorder
       }
     }
 
-    mulaiMediaRecorder();
-  };
+    mulaiMediaRecorder()
+  }
 
   return (
     <div className="rounded-xl border border-[#E2E8F0] bg-[#F8F9FA] focus-within:border-[#14141F] focus-within:bg-white transition overflow-hidden">
@@ -701,7 +697,7 @@ export function StoryVoiceInput({
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => {
           if (value && value.trim().length >= 12) {
-            rekamKetikanKeGudangIngatan(userId, memorySourceLabel, value);
+            rekamKetikanKeGudangIngatan(userId, memorySourceLabel, value)
           }
         }}
         placeholder={placeholder}
@@ -712,8 +708,8 @@ export function StoryVoiceInput({
           {isRecording
             ? "Sedang merekam... Klik ikon merah untuk selesai"
             : isTranscribing
-            ? "Mengubah suara menjadi teks..."
-            : "Terekam otomatis ke Gudang Ingatan AI"}
+              ? "Mengubah suara menjadi teks..."
+              : "Terekam otomatis ke Gudang Ingatan AI"}
         </span>
         <div className="flex items-center gap-1.5">
           {value && value.trim().length > 0 && (
@@ -734,8 +730,8 @@ export function StoryVoiceInput({
               isRecording
                 ? "bg-rose-600 text-white animate-pulse"
                 : isTranscribing
-                ? "bg-amber-400 text-[#14141F]"
-                : "bg-[#D4F34A] text-[#14141F] hover:opacity-90"
+                  ? "bg-amber-400 text-[#14141F]"
+                  : "bg-[#D4F34A] text-[#14141F] hover:opacity-90"
             }`}
           >
             <FlatIcon
@@ -747,73 +743,73 @@ export function StoryVoiceInput({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
-  const canvasRef = useRef(null);
-  const imgRef = useRef(null);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const canvasRef = useRef(null)
+  const imgRef = useRef(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [dragging, setDragging] = useState(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
-    if (!imageSrc) return;
-    const img = new Image();
+    if (!imageSrc) return
+    const img = new Image()
     img.onload = () => {
-      imgRef.current = img;
-      setImgLoaded(true);
-      setZoom(1);
-      setOffset({ x: 0, y: 0 });
-    };
-    img.src = imageSrc;
-  }, [imageSrc]);
+      imgRef.current = img
+      setImgLoaded(true)
+      setZoom(1)
+      setOffset({ x: 0, y: 0 })
+    }
+    img.src = imageSrc
+  }, [imageSrc])
 
   useEffect(() => {
-    if (!imgLoaded || !canvasRef.current || !imgRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const size = 260;
-    const img = imgRef.current;
+    if (!imgLoaded || !canvasRef.current || !imgRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext("2d")
+    const size = 260
+    const img = imgRef.current
 
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "#14141f";
-    ctx.fillRect(0, 0, size, size);
+    ctx.clearRect(0, 0, size, size)
+    ctx.fillStyle = "#14141f"
+    ctx.fillRect(0, 0, size, size)
 
-    const baseScale = Math.max(size / img.width, size / img.height);
-    const finalScale = baseScale * zoom;
-    const drawW = img.width * finalScale;
-    const drawH = img.height * finalScale;
-    const drawX = (size - drawW) / 2 + offset.x;
-    const drawY = (size - drawH) / 2 + offset.y;
+    const baseScale = Math.max(size / img.width, size / img.height)
+    const finalScale = baseScale * zoom
+    const drawW = img.width * finalScale
+    const drawH = img.height * finalScale
+    const drawX = (size - drawW) / 2 + offset.x
+    const drawY = (size - drawH) / 2 + offset.y
 
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-  }, [imgLoaded, zoom, offset]);
+    ctx.drawImage(img, drawX, drawY, drawW, drawH)
+  }, [imgLoaded, zoom, offset])
 
   const mulaiGeser = (clientX, clientY) => {
-    setDragging(true);
-    dragStartRef.current = { x: clientX - offset.x, y: clientY - offset.y };
-  };
+    setDragging(true)
+    dragStartRef.current = { x: clientX - offset.x, y: clientY - offset.y }
+  }
 
   const sedangGeser = (clientX, clientY) => {
-    if (!dragging) return;
+    if (!dragging) return
     setOffset({
       x: clientX - dragStartRef.current.x,
       y: clientY - dragStartRef.current.y,
-    });
-  };
+    })
+  }
 
-  const selesaiGeser = () => setDragging(false);
+  const selesaiGeser = () => setDragging(false)
 
   const handleSimpan = () => {
-    if (!canvasRef.current) return;
-    const hasilBase64 = canvasRef.current.toDataURL("image/jpeg", 0.85);
-    onSaveCrop(hasilBase64);
-  };
+    if (!canvasRef.current) return
+    const hasilBase64 = canvasRef.current.toDataURL("image/jpeg", 0.85)
+    onSaveCrop(hasilBase64)
+  }
 
-  if (!imageSrc) return null;
+  if (!imageSrc) return null
 
   return (
     <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
@@ -836,12 +832,12 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
               onMouseUp={selesaiGeser}
               onMouseLeave={selesaiGeser}
               onTouchStart={(e) => {
-                const t = e.touches[0];
-                if (t) mulaiGeser(t.clientX, t.clientY);
+                const t = e.touches[0]
+                if (t) mulaiGeser(t.clientX, t.clientY)
               }}
               onTouchMove={(e) => {
-                const t = e.touches[0];
-                if (t) sedangGeser(t.clientX, t.clientY);
+                const t = e.touches[0]
+                if (t) sedangGeser(t.clientX, t.clientY)
               }}
               onTouchEnd={selesaiGeser}
               className="w-full h-full block"
@@ -883,7 +879,7 @@ export function AvatarCropModal({ imageSrc, onCancel, onSaveCrop }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function SelectWithCustom({
@@ -893,21 +889,21 @@ export function SelectWithCustom({
   onChange,
   placeholderCustom = "Ketik sendiri sesuai kondisimu...",
 }) {
-  const isPredefined = options.includes(value);
+  const isPredefined = options.includes(value)
   const [modeIsiSendiri, setModeIsiSendiri] = useState(
-    !isPredefined && Boolean(value)
-  );
+    !isPredefined && Boolean(value),
+  )
 
   const handleSelectChange = (e) => {
-    const val = e.target.value;
+    const val = e.target.value
     if (val === "__CUSTOM__") {
-      setModeIsiSendiri(true);
-      onChange("");
+      setModeIsiSendiri(true)
+      onChange("")
     } else {
-      setModeIsiSendiri(false);
-      onChange(val);
+      setModeIsiSendiri(false)
+      onChange(val)
     }
-  };
+  }
 
   return (
     <div className="space-y-1.5">
@@ -945,5 +941,5 @@ export function SelectWithCustom({
         />
       )}
     </div>
-  );
+  )
 }
