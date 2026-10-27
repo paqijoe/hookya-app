@@ -1,6 +1,13 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { FlatIcon, StoryVoiceInput, AILoadingBox } from "./SharedUI"
+import {
+  FlatIcon,
+  StoryVoiceInput,
+  AILoadingBox,
+  rekamKetikanKeGudangIngatan,
+  ambilDataGudangIngatan,
+  simpanAnalisaGudangIngatan,
+} from "./SharedUI"
 
 const PILIHAN_DURASI_KONTEN = [
   "15 Detik (3 Bagian, 40-50 Kata)",
@@ -276,6 +283,15 @@ export default function ScriptProducerView({
     PILIHAN_DURASI_KONTEN[5],
   )
 
+  // State Gudang Ingatan (Otak AI)
+  const [memoryVault, setMemoryVault] = useState({
+    samples: [],
+    reviewSingkat: "",
+    rincianAnalisa: null,
+  })
+  const [bukaRincianIngatan, setBukaRincianIngatan] = useState(false)
+  const [isAnalyzingMemory, setIsAnalyzingMemory] = useState(false)
+
   // State Edit Judul Naskah di Layar Hasil Akhir (Stage 5)
   const [isEditingJudulHasil, setIsEditingJudulHasil] = useState(false)
   const [inputJudulHasilBaru, setInputJudulHasilBaru] = useState("")
@@ -292,6 +308,7 @@ export default function ScriptProducerView({
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    setMemoryVault(ambilDataGudangIngatan(userId))
     try {
       const rawTernak = localStorage.getItem(
         `hookya_ternak_akun_${userId || "guest"}`,
@@ -368,6 +385,149 @@ export default function ScriptProducerView({
   const [pilihanMultiplierDropdown, setPilihanMultiplierDropdown] =
     useState("2")
 
+  const handleAnalisisGudangIngatan = async () => {
+    const vaultSekarang = ambilDataGudangIngatan(userId)
+    if (!vaultSekarang.samples || vaultSekarang.samples.length === 0) {
+      showToast(
+        "Ketik ide topik atau edit kalimat naskah terlebih dahulu agar Gudang Ingatan memiliki rekaman teks.",
+      )
+      return
+    }
+
+    setIsAnalyzingMemory(true)
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_memory_vault",
+          userId,
+          namaUser,
+          memoryVaultSamples: vaultSekarang.samples,
+          personaProfile,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.reviewSingkat) {
+        const disimpan = simpanAnalisaGudangIngatan(userId, data)
+        if (disimpan) setMemoryVault(disimpan)
+        setBukaRincianIngatan(true)
+        showToast("Otak AI selesai memperbarui analisa dari Gudang Ingatan.")
+      }
+    } catch {
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
+    } finally {
+      setIsAnalyzingMemory(false)
+    }
+  }
+
+  const renderPanelGudangIngatan = () => (
+    <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0">
+            <FlatIcon name="brain" className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-[#14141F] block truncate">
+              Gudang Ingatan Otak AI ({(memoryVault.samples || []).length}{" "}
+              Ketikan & Editan Terekam)
+            </span>
+            <span className="text-[11px] text-slate-500 block truncate">
+              Otomatis mempelajari gaya bahasamu dari setiap textbox dan revisi
+              naskah
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={isAnalyzingMemory}
+          onClick={handleAnalisisGudangIngatan}
+          className="cursor-pointer shrink-0 px-3 py-1.5 rounded-lg bg-[#14141F] text-[#D4F34A] text-[11px] font-bold flex items-center gap-1"
+        >
+          <FlatIcon
+            name="refresh"
+            className={`w-3.5 h-3.5 ${isAnalyzingMemory ? "animate-spin" : ""}`}
+          />
+          <span>
+            {isAnalyzingMemory ? "Menganalisa..." : "Analisa Otak AI"}
+          </span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setBukaRincianIngatan(!bukaRincianIngatan)}
+        className="cursor-pointer w-full text-left p-3 rounded-xl bg-[#F8F9FA] border border-[#E2E8F0] hover:border-[#14141F] transition space-y-1"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-[#4D6B14] bg-[#F2FCE2] px-2 py-0.5 rounded">
+            Teks Review Analisa Otak AI (Klik untuk Lihat Rincian)
+          </span>
+          <FlatIcon
+            name="chevronDown"
+            className={`w-4 h-4 text-slate-500 transition-transform ${
+              bukaRincianIngatan ? "rotate-180" : ""
+            }`}
+          />
+        </div>
+        <p className="text-xs font-semibold text-[#14141F] leading-relaxed">
+          {memoryVault.reviewSingkat ||
+            "Setiap kalimat yang kamu ketik atau edit di halaman ini direkam ke Gudang Ingatan agar naskah berikutnya semakin mirip gaya bicaramu."}
+        </p>
+      </button>
+
+      {bukaRincianIngatan && (
+        <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5 text-xs">
+          <div className="font-bold text-[#14141F] border-b border-[#E2E8F0] pb-1.5">
+            Rincian Analisa Gaya Bahasa dari Gudang Ingatan:
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="p-2.5 rounded-lg bg-white border border-[#E2E8F0]">
+              <strong className="block text-[#14141F] mb-0.5">
+                Gaya Bahasa Terdeteksi:
+              </strong>
+              <span className="text-slate-600">
+                {memoryVault.rincianAnalisa?.gayaBahasaTerdeteksi ||
+                  personaProfile?.voice_dna?.delivery_style ||
+                  "Mengalir natural dan langsung ke inti bahasan."}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-[#E2E8F0]">
+              <strong className="block text-[#14141F] mb-0.5">
+                Pola Kalimat & Transisi:
+              </strong>
+              <span className="text-slate-600">
+                {memoryVault.rincianAnalisa?.polaKalimat ||
+                  "Kalimat lugas dengan penekanan pada contoh kejadian nyata."}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-[#E2E8F0]">
+              <strong className="block text-[#14141F] mb-0.5">
+                Kosakata Khas Baru:
+              </strong>
+              <span className="text-slate-600">
+                {Array.isArray(memoryVault.rincianAnalisa?.kosakataKhasBaru)
+                  ? memoryVault.rincianAnalisa.kosakataKhasBaru.join(", ")
+                  : "Terekam dari ketikan textbox"}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-white border border-[#E2E8F0]">
+              <strong className="block text-[#14141F] mb-0.5">
+                Saran Optimalisasi Otak AI:
+              </strong>
+              <span className="text-slate-600">
+                {memoryVault.rincianAnalisa?.saranOptimalisasi ||
+                  "Gunakan tombol Analisa Otak AI setelah mengetik atau mengedit naskah."}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+
   const handleSimpanJudulHasil = async () => {
     if (!hasilSkrip) return
     const judulBersih = inputJudulHasilBaru.trim()
@@ -375,6 +535,13 @@ export default function ScriptProducerView({
       alert("Judul skrip tidak boleh kosong.")
       return
     }
+    const vBaru = rekamKetikanKeGudangIngatan(
+      userId,
+      "Edit Judul Naskah",
+      judulBersih,
+    )
+    if (vBaru) setMemoryVault(vBaru)
+
     const skripUpdate = { ...hasilSkrip, judul: judulBersih }
     setHasilSkrip(skripUpdate)
     setIsEditingJudulHasil(false)
@@ -418,6 +585,7 @@ export default function ScriptProducerView({
       return
     }
     setIsLoadingIdeTopik(true)
+    const vaultAktif = ambilDataGudangIngatan(userId)
     showToast("Menganalisis profil akun untuk mencari 10 ide materi...")
     try {
       const res = await fetch("/api/ai", {
@@ -435,6 +603,7 @@ export default function ScriptProducerView({
           personalSpecs: personalSpecsInput,
           contextMode: "sesuai_niche",
           personaProfile,
+          memoryVaultSamples: vaultAktif.samples || [],
         }),
       })
       const data = await res.json()
@@ -518,6 +687,13 @@ export default function ScriptProducerView({
       return
     }
 
+    const vBaru = rekamKetikanKeGudangIngatan(
+      userId,
+      "Input Topik Mandiri",
+      topikAktif,
+    )
+    if (vBaru) setMemoryVault(vBaru)
+
     setIsLoadingOpsi(true)
     if (!isNewSet) {
       setStage(1)
@@ -534,6 +710,8 @@ export default function ScriptProducerView({
           (b.angle_options || []).map((a) => a.angle_text),
         )
       : []
+
+    const vaultAktif = vBaru || ambilDataGudangIngatan(userId)
 
     try {
       const res = await fetch("/api/ai", {
@@ -555,6 +733,7 @@ export default function ScriptProducerView({
           batchKe: isNewSet ? assessmentBatches.length + 1 : 1,
           opsiSebelumnya,
           personaProfile,
+          memoryVaultSamples: vaultAktif.samples || [],
           stageInput: {
             rawTopic: topikAktif,
             contentPhase,
@@ -614,6 +793,23 @@ export default function ScriptProducerView({
       return
     }
 
+    // Rekam seluruh input asesmen ke Gudang Ingatan
+    if (pengalamanInput.trim()) {
+      rekamKetikanKeGudangIngatan(userId, "Pengalaman Asesmen", pengalamanInput)
+    }
+    if (ilustrasiInput.trim()) {
+      rekamKetikanKeGudangIngatan(userId, "Ilustrasi Asesmen", ilustrasiInput)
+    }
+    if (faktaInput.trim()) {
+      rekamKetikanKeGudangIngatan(userId, "Pondasi Fakta", faktaInput)
+    }
+    if (koreksiAkhirInput.trim()) {
+      rekamKetikanKeGudangIngatan(userId, "Koreksi Akhir", koreksiAkhirInput)
+    }
+
+    const vaultTerbaru = ambilDataGudangIngatan(userId)
+    setMemoryVault(vaultTerbaru)
+
     const topikInti =
       rawTopicInput.trim() ||
       currentAssessment?.refined_core_idea ||
@@ -666,6 +862,7 @@ export default function ScriptProducerView({
           contextMode,
           catatanAkhirUser: koreksiAkhirInput.trim(),
           personaProfile,
+          memoryVaultSamples: vaultTerbaru.samples || [],
           contentBrief: briefFinal,
           bentukKonten: bentukKontenFinal,
           customPrompts,
@@ -753,6 +950,7 @@ export default function ScriptProducerView({
   ) => {
     if (!hasilSkrip || isChangingDuration) return
     setIsChangingDuration(true)
+    const vaultAktif = ambilDataGudangIngatan(userId)
     showToast(`Menyesuaikan durasi naskah ke ${durasiPilihan}...`)
 
     try {
@@ -772,6 +970,7 @@ export default function ScriptProducerView({
           personalSpecs: personalSpecsInput,
           contextMode,
           personaProfile,
+          memoryVaultSamples: vaultAktif.samples || [],
           subyek: hasilSkrip.judul,
           skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
           durasiTargetBaru: durasiPilihan,
@@ -865,6 +1064,7 @@ export default function ScriptProducerView({
     const bagianLama = daftarBagianSaatIni[indexBaris]
     if (!bagianLama) return
 
+    const vaultAktif = ambilDataGudangIngatan(userId)
     setRegeneratingIndex(indexBaris)
     try {
       const res = await fetch("/api/ai", {
@@ -879,6 +1079,7 @@ export default function ScriptProducerView({
           viralTrigger,
           contextMode,
           personaProfile,
+          memoryVaultSamples: vaultAktif.samples || [],
           subyek: hasilSkrip.judul,
           segmenTarget: bagianLama,
           isBillableRegen: potongKoinRegen,
@@ -941,6 +1142,7 @@ export default function ScriptProducerView({
 
     setIsMultiplyingScript(true)
     await updateKoinDatabase(coins - biayaKoin)
+    const vaultAktif = ambilDataGudangIngatan(userId)
     showToast(`Menyusun ${jumlahX} variasi skrip ke dalam Folder Arsip...`)
 
     try {
@@ -960,6 +1162,7 @@ export default function ScriptProducerView({
           personalSpecs: personalSpecsInput,
           contextMode,
           personaProfile,
+          memoryVaultSamples: vaultAktif.samples || [],
           subyek: hasilSkrip.judul,
           skripSebelumnya: ambilDaftarBagianSkrip(hasilSkrip),
           jumlahMultiplier: jumlahX,
@@ -1079,7 +1282,7 @@ export default function ScriptProducerView({
   const infoFaktorAktif = LIMA_FAKTOR_VIRAL.find((v) => v.id === viralTrigger)
 
   // ============================================================================
-  // LAYAR HASIL AKHIR NASKAH SKRIP (STAGE 5 - DILENGKAPI FITUR EDIT JUDUL)
+  // LAYAR HASIL AKHIR NASKAH SKRIP (STAGE 5)
   // ============================================================================
   if (stage === 5 && hasilSkrip) {
     return (
@@ -1168,6 +1371,9 @@ export default function ScriptProducerView({
             </span>
           </div>
         </div>
+
+        {/* Panel Gudang Ingatan Otak AI di Layar Hasil Akhir */}
+        {renderPanelGudangIngatan()}
 
         {/* 2. Top Dark Action Bar */}
         <div className="bg-[#1B1B26] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
@@ -1377,7 +1583,15 @@ export default function ScriptProducerView({
                       }
                       setHasilSkrip(skripEdit)
                     }}
-                    onBlur={() => simpanAtauUpdateSkripDatabase(hasilSkrip)}
+                    onBlur={(e) => {
+                      const vBaru = rekamKetikanKeGudangIngatan(
+                        userId,
+                        `Edit Naskah Bagian ${sec.partNumber || idx + 1}`,
+                        e.target.value,
+                      )
+                      if (vBaru) setMemoryVault(vBaru)
+                      simpanAtauUpdateSkripDatabase(hasilSkrip)
+                    }}
                     className={`w-full bg-transparent text-base sm:text-sm text-[#14141F] resize-none focus:outline-none leading-relaxed ${
                       isEditMode
                         ? "bg-white p-2 rounded border border-[#14141F]"
@@ -1569,7 +1783,7 @@ export default function ScriptProducerView({
             </div>
             <span className="text-xs text-white/60 block mt-0.5">
               Hasilkan variasi angle & hook otomatis ke dalam 1 folder di menu
-              Arsip
+              Kalender/Arsip
             </span>
           </div>
 
@@ -1691,6 +1905,9 @@ export default function ScriptProducerView({
           </div>
         </div>
       </section>
+
+      {/* Kartu Gudang Ingatan Otak AI */}
+      {renderPanelGudangIngatan()}
 
       <div className="space-y-6">
         <div className="flex items-center gap-3 pt-1">
@@ -1838,6 +2055,14 @@ export default function ScriptProducerView({
                   type="text"
                   value={personalSpecsInput}
                   onChange={(e) => setPersonalSpecsInput(e.target.value)}
+                  onBlur={() => {
+                    const v = rekamKetikanKeGudangIngatan(
+                      userId,
+                      "Jam Terbang Fase 2",
+                      personalSpecsInput,
+                    )
+                    if (v) setMemoryVault(v)
+                  }}
                   placeholder="Contoh: 5 tahun mengelola usaha & 120 klien produk..."
                   className="w-full text-base sm:text-sm px-3.5 py-2.5 rounded-lg border border-[#E2E8F0] bg-white text-[#14141F] focus:outline-none focus:border-[#14141F]"
                 />
@@ -2195,7 +2420,11 @@ export default function ScriptProducerView({
             <StoryVoiceInput
               rows={3}
               value={rawTopicInput}
-              onChange={setRawTopicInput}
+              onChange={(val) => {
+                setRawTopicInput(val)
+              }}
+              userId={userId}
+              memorySourceLabel="Input Topik Mandiri"
               placeholder="Tuliskan topik bahasan, keresahan yang ingin diangkat, atau tempel draf ide kasarmu di sini..."
               onNotify={showToast}
             />
@@ -2465,6 +2694,8 @@ export default function ScriptProducerView({
               rows={2}
               value={pengalamanInput}
               onChange={setPengalamanInput}
+              userId={userId}
+              memorySourceLabel="Pengalaman Personal"
               placeholder="Tuliskan pengalaman nyata singkat jika ingin dimasukkan ke dalam cerita..."
               onNotify={showToast}
             />
@@ -2515,6 +2746,8 @@ export default function ScriptProducerView({
               rows={2}
               value={ilustrasiInput}
               onChange={setIlustrasiInput}
+              userId={userId}
+              memorySourceLabel="Ilustrasi & Metafora"
               placeholder="Ketik perumpamaan versimu sendiri, atau klik tombol Minta Rekomendasi Ilustrasi..."
               onNotify={showToast}
             />
@@ -2637,6 +2870,8 @@ export default function ScriptProducerView({
               rows={2}
               value={faktaInput}
               onChange={setFaktaInput}
+              userId={userId}
+              memorySourceLabel="Pondasi Fakta"
               placeholder="Tuliskan data, realita lapangan, atau argumen logis yang sulit dibantah penonton..."
               onNotify={showToast}
             />
@@ -2870,6 +3105,8 @@ export default function ScriptProducerView({
               rows={2}
               value={koreksiAkhirInput}
               onChange={setKoreksiAkhirInput}
+              userId={userId}
+              memorySourceLabel="Koreksi Akhir Asesmen"
               placeholder="Masukkan instruksi khusus untuk memastikan hasil naskah sesuai keinginanmu..."
               onNotify={showToast}
             />

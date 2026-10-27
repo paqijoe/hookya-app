@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { supabase } from "../lib/supabase"
-import { FlatIcon, HookyaMark, hitungKuotaAkunDariPaket } from "./SharedUI"
+import { FlatIcon, HookyaLogo, hitungKuotaAkunDariPaket } from "./SharedUI"
 
 const PILIHAN_PAKET_PENDAFTARAN = [
   {
@@ -108,6 +108,12 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
     infoRekening: "NMID: ID1024398129031",
     noWaAdmin: "6281234567890",
     qrisImageUrl: "",
+    brandConfig: {
+      logoPngUrl: "",
+      logoGapPx: 6,
+      brandText: "OOKYA",
+      showBrandText: false,
+    },
   })
   const [voucherListDB, setVoucherListDB] = useState([
     { kode: "HOOKYA20", koin: 20, kuota: 50, terpakai: 0 },
@@ -125,22 +131,26 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
           .order("created_at", { ascending: true })
 
         if (rows && rows.length > 0) {
-          const rowDenganQRIS =
-            rows.find((r) => r.profil_dna?.pengaturanPayment?.qrisImageUrl) ||
+          const rowDenganConfig =
+            rows.find(
+              (r) =>
+                r.profil_dna?.pengaturanPayment?.brandConfig?.logoPngUrl ||
+                r.profil_dna?.pengaturanPayment?.qrisImageUrl,
+            ) ||
             rows.find(
               (r) => r.role === "admin" && r.profil_dna?.pengaturanPayment,
             ) ||
             rows.find((r) => r.profil_dna?.pengaturanPayment) ||
             rows[0]
 
-          if (rowDenganQRIS?.profil_dna?.pengaturanPayment) {
+          if (rowDenganConfig?.profil_dna?.pengaturanPayment) {
             setPaymentConfigDB((prev) => ({
               ...prev,
-              ...rowDenganQRIS.profil_dna.pengaturanPayment,
+              ...rowDenganConfig.profil_dna.pengaturanPayment,
             }))
           }
-          if (Array.isArray(rowDenganQRIS?.profil_dna?.daftarVoucher)) {
-            setVoucherListDB(rowDenganQRIS.profil_dna.daftarVoucher)
+          if (Array.isArray(rowDenganConfig?.profil_dna?.daftarVoucher)) {
+            setVoucherListDB(rowDenganConfig.profil_dna.daftarVoucher)
           }
         }
       } catch {
@@ -622,12 +632,17 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
           </div>
         )}
 
-        {/* VIEW 1: MASUK (LOGIN VIEW SESUAI GAMBAR 2.PNG) */}
+        {/* VIEW 1: MASUK (LOGIN VIEW DENGAN LOGO PNG & JARAK DINAMIS) */}
         {mode === "login" && (
           <section className="flex flex-col gap-4 py-4">
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#C8C5CC]/70 flex flex-col gap-5">
               <div className="flex flex-col items-center text-center pt-2 pb-1">
-                <HookyaMark className="w-16 h-16 mb-3" fill="#14141F" />
+                <div className="mb-3">
+                  <HookyaLogo
+                    brandConfig={paymentConfigDB.brandConfig}
+                    isLoginScreen={true}
+                  />
+                </div>
                 <h1 className="text-xl font-bold text-[#14141F]">
                   Masuk ke Hookya
                 </h1>
@@ -928,7 +943,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   </button>
                 </div>
 
-                {/* Indikator Kekuatan Sandi 3 Bar */}
                 <div className="flex items-center gap-1.5 pt-1">
                   <div
                     className={`h-1.5 flex-1 rounded transition-colors ${
@@ -1114,7 +1128,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
                   })}
                 </div>
 
-                {/* Live Selection Summary Card */}
                 <div className="bg-white rounded-2xl p-5 border border-[#C8C5CC]/70 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-500">Paket Terpilih:</span>
@@ -1237,7 +1250,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               </p>
             </div>
 
-            {/* Nominal Transfer dengan 3 Digit Kode Unik */}
             <div className="bg-white rounded-2xl p-4 border border-[#C8C5CC]/70 flex flex-col gap-2">
               <span className="text-xs text-slate-500">
                 Jumlah Total yang Harus Ditransfer:
@@ -1281,7 +1293,6 @@ export default function AuthFullscreen({ onAuthSuccess, onNotify }) {
               </div>
             </div>
 
-            {/* Kotak Upload Bukti Struk Pembayaran */}
             <div className="bg-white rounded-2xl p-4 border border-[#C8C5CC]/70 flex flex-col gap-3">
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className="text-[#14141F]">

@@ -36,6 +36,61 @@ export default function DeveloperDashboardView({
   const [kodeVoucherBaru, setKodeVoucherBaru] = useState("")
   const [koinVoucherBaru, setKoinVoucherBaru] = useState(20)
 
+  const brandConfig = pengaturanPayment.brandConfig || {
+    logoPngUrl: "",
+    logoGapPx: 6,
+    brandText: "OOKYA",
+    showBrandText: true,
+  }
+
+  const updateBrandConfig = (key, val) => {
+    const nextBrand = { ...brandConfig, [key]: val }
+    setPengaturanPayment({
+      ...pengaturanPayment,
+      brandConfig: nextBrand,
+    })
+  }
+
+  const handleUploadLogoPngAdmin = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        const maxDim = 400
+        let w = img.width
+        let h = img.height
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w)
+            w = maxDim
+          } else {
+            w = Math.round((w * maxDim) / h)
+            h = maxDim
+          }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext("2d")
+        ctx.clearRect(0, 0, w, h)
+        ctx.drawImage(img, 0, 0, w, h)
+        const dataUrl = canvas.toDataURL("image/png")
+        const nextBrand = { ...brandConfig, logoPngUrl: dataUrl }
+        const updatedPayment = {
+          ...pengaturanPayment,
+          brandConfig: nextBrand,
+        }
+        setPengaturanPayment(updatedPayment)
+        simpanPengaturanDevKeDB(updatedPayment)
+        showToast("File PNG Logo berhasil diunggah dan diterapkan.")
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
   const telemetriAgregat = useMemo(() => {
     const trxLunas = daftarTransaksi.filter((t) => t.status === "lunas")
     const trxPending = daftarTransaksi.filter((t) => t.status === "pending")
@@ -227,7 +282,9 @@ export default function DeveloperDashboardView({
           }`,
       )
       .join("\n")
-    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" })
+    const blob = new Blob([header + rows], {
+      type: "text/csv;charset=utf-8;",
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -299,7 +356,7 @@ export default function DeveloperDashboardView({
       {/* TOP HEADER BAR */}
       <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-[#E7E8EA] px-4 sm:px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <HookyaLogo />
+          <HookyaLogo brandConfig={brandConfig} />
           <span className="px-2 py-0.5 rounded bg-[#D1F047] text-[#181E00] text-xs font-bold uppercase tracking-wider">
             Developer Console
           </span>
@@ -339,6 +396,11 @@ export default function DeveloperDashboardView({
                   id: "qris",
                   label: "Verifikasi QRIS",
                   href: "#sec-verifikasi",
+                },
+                {
+                  id: "branding",
+                  label: "Pengaturan Logo & Brand",
+                  href: "#sec-branding",
                 },
                 { id: "users", label: "Database User", href: "#sec-users" },
                 {
@@ -397,8 +459,8 @@ export default function DeveloperDashboardView({
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Audit Keuangan, Alokasi Token LLM, Validasi Gerbang QRIS &
-                  Automasi Siklus Pengguna
+                  Audit Keuangan, Alokasi Token LLM, Validasi Gerbang QRIS,
+                  Kustomisasi Logo & Automasi Siklus Pengguna
                 </p>
               </div>
             </div>
@@ -426,7 +488,6 @@ export default function DeveloperDashboardView({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Total Uang Masuk */}
               <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] text-slate-500 uppercase font-bold">
@@ -450,7 +511,6 @@ export default function DeveloperDashboardView({
                 </div>
               </div>
 
-              {/* Card 2: Total Pengeluaran Token API */}
               <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] text-slate-500 uppercase font-bold">
@@ -477,7 +537,6 @@ export default function DeveloperDashboardView({
                 </div>
               </div>
 
-              {/* Card 3: Estimasi Laba Bersih & Margin */}
               <div className="bg-white p-5 rounded-xl border border-[#E7E8EA] flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] text-slate-500 uppercase font-bold">
@@ -500,7 +559,6 @@ export default function DeveloperDashboardView({
                 </div>
               </div>
 
-              {/* Card 4: Tindakan Prioritas Admin */}
               <div className="bg-white p-5 rounded-xl border-2 border-[#D1F047] flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] text-slate-500 uppercase font-bold">
@@ -528,6 +586,185 @@ export default function DeveloperDashboardView({
                   >
                     Buka Antrean Kerja
                   </a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION BARU: PENGATURAN LOGO PNG & JARAK TEKS BRAND (HEADER & LAMAN LOGIN) */}
+          <section
+            id="sec-branding"
+            className="bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-5"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#EDEFF0]">
+              <div>
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  Pengaturan Logo PNG & Jarak Teks Brand (Header & Laman Login)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Unggah file PNG logo kustom dan sesuaikan jarak piksel antara
+                  gambar logo dengan tulisan brand
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => simpanPengaturanDevKeDB(pengaturanPayment)}
+                className="cursor-pointer h-10 px-4 rounded-lg bg-[#D1F047] text-[#181E00] text-xs font-bold flex items-center gap-1.5 self-start"
+              >
+                <FlatIcon name="check" className="w-4 h-4" />
+                <span>Simpan Pengaturan Logo</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Kontrol Upload Logo PNG & Slider Jarak (7 Cols) */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-[#F3F4F6] flex flex-col sm:flex-row items-center gap-4">
+                  <div className="w-20 h-20 rounded-xl bg-white border border-[#E7E8EA] flex items-center justify-center p-2 shrink-0">
+                    {brandConfig.logoPngUrl ? (
+                      <img
+                        src={brandConfig.logoPngUrl}
+                        alt="Logo Kustom"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <HookyaLogo brandConfig={{ showBrandText: false }} />
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1 text-center sm:text-left">
+                    <div className="text-xs font-bold text-[#191C1E]">
+                      File Gambar Logo (.PNG Transparan / .SVG / .JPG)
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Gunakan file PNG transparan rasio 1:1 atau persegi panjang
+                      agar menyatu rapi di Header dan Laman Login.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                      <label className="cursor-pointer px-3.5 py-2 rounded-lg bg-[#1B1B26] text-[#D1F047] text-xs font-bold inline-flex items-center gap-1.5">
+                        <FlatIcon name="upload" className="w-3.5 h-3.5" />
+                        <span>Upload File PNG Logo</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                          onChange={handleUploadLogoPngAdmin}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {brandConfig.logoPngUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextBrand = {
+                              ...brandConfig,
+                              logoPngUrl: "",
+                            }
+                            const updated = {
+                              ...pengaturanPayment,
+                              brandConfig: nextBrand,
+                            }
+                            setPengaturanPayment(updated)
+                            simpanPengaturanDevKeDB(updated)
+                            showToast("Kembali menggunakan ikon vektor bawaan.")
+                          }}
+                          className="cursor-pointer px-3 py-2 rounded-lg bg-white border border-rose-300 text-rose-600 text-xs font-bold"
+                        >
+                          Reset ke Logo Default
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pengaturan Jarak Antara Logo dan Teks */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E7E8EA] space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span>Jarak Antara Logo & Teks:</span>
+                      <span className="px-2 py-0.5 rounded bg-[#D1F047] text-[#181E00] font-mono">
+                        {brandConfig.logoGapPx ?? 6} px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="32"
+                      step="1"
+                      value={brandConfig.logoGapPx ?? 6}
+                      onChange={(e) =>
+                        updateBrandConfig("logoGapPx", Number(e.target.value))
+                      }
+                      className="w-full accent-[#14141F] cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400">
+                      <span>0px (Rapat)</span>
+                      <span>16px (Sedang)</span>
+                      <span>32px (Lebar)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E7E8EA] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-[#191C1E]">
+                        Teks di Samping/Bawah Logo:
+                      </label>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 text-[11px] font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={brandConfig.showBrandText !== false}
+                          onChange={(e) =>
+                            updateBrandConfig("showBrandText", e.target.checked)
+                          }
+                          className="w-3.5 h-3.5 accent-[#14141F]"
+                        />
+                        <span>Tampilkan Teks</span>
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      value={brandConfig.brandText ?? "OOKYA"}
+                      onChange={(e) =>
+                        updateBrandConfig("brandText", e.target.value)
+                      }
+                      placeholder="Contoh: OOKYA atau HOOKYA"
+                      className="w-full h-10 px-3 rounded-lg border border-[#E7E8EA] bg-white text-xs font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pratinjau Langsung Header & Laman Login (5 Cols) */}
+              <div className="lg:col-span-5 bg-[#F3F4F6] rounded-xl p-4 border border-[#E7E8EA] space-y-4">
+                <span className="text-xs font-bold text-[#191C1E] uppercase tracking-wider block">
+                  Pratinjau Langsung (Live Preview):
+                </span>
+
+                <div className="space-y-1.5">
+                  <span className="text-[11px] text-slate-500 font-semibold block">
+                    1. Tampilan pada Header Atas Aplikasi:
+                  </span>
+                  <div className="h-14 bg-white rounded-xl border border-[#E2E8F0] px-4 flex items-center justify-between">
+                    <HookyaLogo brandConfig={brandConfig} />
+                    <span className="px-3 py-1 rounded-full bg-[#D4F34A] text-[#14141F] text-[11px] font-bold">
+                      85 Koin
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[11px] text-slate-500 font-semibold block">
+                    2. Tampilan pada Laman Login:
+                  </span>
+                  <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 flex flex-col items-center text-center">
+                    <HookyaLogo
+                      brandConfig={brandConfig}
+                      isLoginScreen={true}
+                    />
+                    <div className="text-sm font-bold text-[#14141F] mt-2">
+                      Masuk ke Hookya
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -675,7 +912,6 @@ export default function DeveloperDashboardView({
             id="sec-verifikasi"
             className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
           >
-            {/* Left Column: Konfigurasi QRIS Statis (5 cols) */}
             <div className="lg:col-span-5 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
               <div className="pb-3 border-b border-[#EDEFF0]">
                 <h2 className="text-lg font-bold text-[#191C1E]">
@@ -781,7 +1017,6 @@ export default function DeveloperDashboardView({
               </div>
             </div>
 
-            {/* Right Column: Antrean Verifikasi Bukti QRIS (7 cols) */}
             <div className="lg:col-span-7 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#EDEFF0]">
                 <div>
@@ -1089,7 +1324,6 @@ export default function DeveloperDashboardView({
             id="sec-logs"
             className="grid grid-cols-1 lg:grid-cols-12 gap-6"
           >
-            {/* Left: Log Aktivitas Pengguna Real-Time (7 cols) */}
             <div className="lg:col-span-7 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#EDEFF0]">
                 <div>
@@ -1139,7 +1373,6 @@ export default function DeveloperDashboardView({
               )}
             </div>
 
-            {/* Right: Kelola Voucher & PIN Admin (5 cols) */}
             <div className="lg:col-span-5 bg-white rounded-xl border border-[#E7E8EA] p-5 space-y-4">
               <div className="pb-3 border-b border-[#EDEFF0]">
                 <h2 className="text-lg font-bold text-[#191C1E]">

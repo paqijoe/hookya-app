@@ -1,6 +1,12 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { FlatIcon, AILoadingBox } from "./SharedUI"
+import {
+  FlatIcon,
+  AILoadingBox,
+  rekamKetikanKeGudangIngatan,
+  ambilDataGudangIngatan,
+  simpanAnalisaGudangIngatan,
+} from "./SharedUI"
 
 const KALIMAT_DUMMY_LAMA =
   "Gini bro, jujur ya banyak banget yang boncos gara-gara cuma modal semangat doang tapi eksekusinya ngaco. Intinya simpel: benerin dulu fondasinya baru jalan."
@@ -47,6 +53,15 @@ export default function PersonaDNAView({
   const [namaAkunBaru, setNamaAkunBaru] = useState("")
   const [showFormTambahAkun, setShowFormTambahAkun] = useState(false)
 
+  // State Gudang Ingatan (Otak AI)
+  const [memoryVault, setMemoryVault] = useState({
+    samples: [],
+    reviewSingkat: "",
+    rincianAnalisa: null,
+  })
+  const [showDetailGudangIngatan, setShowDetailGudangIngatan] = useState(false)
+  const [isAnalyzingMemory, setIsAnalyzingMemory] = useState(false)
+
   const [selectedFormats, setSelectedFormats] = useState([
     "1. Carousel Slide Edukasi",
     "2. Talking Head Video Pendek",
@@ -71,6 +86,10 @@ export default function PersonaDNAView({
   }, [rawWritingSamples, setRawWritingSamples])
 
   useEffect(() => {
+    setMemoryVault(ambilDataGudangIngatan(userId))
+  }, [userId])
+
+  useEffect(() => {
     if (daftarAkunTernak.length > kuotaAkunMaksimal) {
       const idxAktif = daftarAkunTernak.findIndex((a) => a.id === idAkunAktif)
       if (idxAktif >= kuotaAkunMaksimal && daftarAkunTernak[0]) {
@@ -78,6 +97,49 @@ export default function PersonaDNAView({
       }
     }
   }, [kuotaAkunMaksimal, daftarAkunTernak.length])
+
+  const handleAnalisisGudangIngatanOtakAI = async () => {
+    const vaultSekarang = ambilDataGudangIngatan(userId)
+    const semuaSampel = [
+      ...(vaultSekarang.samples || []),
+      rawWritingSamples
+        ? { sumber: "Sampel Kalimat Profil", teks: rawWritingSamples }
+        : null,
+    ].filter(Boolean)
+
+    if (semuaSampel.length === 0) {
+      showToast(
+        "Ketik sampel kalimat atau buat skrip terlebih dahulu agar Gudang Ingatan memiliki bahan analisa.",
+      )
+      return
+    }
+
+    setIsAnalyzingMemory(true)
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_memory_vault",
+          userId,
+          namaUser: profil.nama,
+          memoryVaultSamples: semuaSampel,
+          personaProfile,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.reviewSingkat) {
+        const disimpan = simpanAnalisaGudangIngatan(userId, data)
+        if (disimpan) setMemoryVault(disimpan)
+        setShowDetailGudangIngatan(true)
+        showToast("Otak AI selesai memperbarui analisa Gudang Ingatan.")
+      }
+    } catch {
+      showToast("Error sistem, silakan refresh atau hubungi admin.")
+    } finally {
+      setIsAnalyzingMemory(false)
+    }
+  }
 
   const sinkronkanKeDaftarAkun = (
     profilUpdate,
@@ -438,9 +500,14 @@ export default function PersonaDNAView({
         rec.onresult = (ev) => {
           const t = ev.results?.[0]?.[0]?.transcript || ""
           if (t) {
-            setRawWritingSamples(
-              rawWritingSamples ? `${rawWritingSamples} ${t}` : t,
+            const gabungan = rawWritingSamples ? `${rawWritingSamples} ${t}` : t
+            setRawWritingSamples(gabungan)
+            const vBaru = rekamKetikanKeGudangIngatan(
+              userId,
+              "Sampel Suara Profil",
+              gabungan,
             )
+            if (vBaru) setMemoryVault(vBaru)
           }
         }
         rec.onend = () => setIsRecordingVoice(false)
@@ -474,7 +541,17 @@ export default function PersonaDNAView({
 
   const handleSimpanKonfigurasiProfil = async () => {
     setIsGenerating(true)
-    showToast("Menyimpan konfigurasi profil & menganalisis parameter DNA...")
+    showToast("Menyimpan konfigurasi profil & memperbarui Gudang Ingatan...")
+
+    if (rawWritingSamples.trim()) {
+      rekamKetikanKeGudangIngatan(
+        userId,
+        "Sampel Kalimat Profil",
+        rawWritingSamples.trim(),
+      )
+    }
+
+    const vaultAktif = ambilDataGudangIngatan(userId)
 
     try {
       const res = await fetch("/api/ai", {
@@ -505,6 +582,7 @@ export default function PersonaDNAView({
             target_ketakutan: profil.targetKetakutanInput,
           },
           rawWritingSamples: rawWritingSamples.trim(),
+          memoryVaultSamples: vaultAktif.samples || [],
           customPrompts,
         }),
       })
@@ -543,7 +621,7 @@ export default function PersonaDNAView({
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4 pb-8">
-      {/* 1. TOP MULTI-ACCOUNT MANAGER BAR (SESUAI SCREEN.PNG) */}
+      {/* 1. TOP MULTI-ACCOUNT MANAGER BAR */}
       <section className="bg-[#F3F4F6] rounded-xl p-4 border border-[#E2E8F0]">
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -655,13 +733,6 @@ export default function PersonaDNAView({
               )
             })
           )}
-
-          {daftarAkunTernak.length < kuotaAkunMaksimal && (
-            <div className="shrink-0 bg-[#E1E2E4]/50 border border-dashed border-[#C8C5CC] text-slate-500 font-medium px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 min-h-[44px]">
-              <FlatIcon name="lock" className="w-3.5 h-3.5" />
-              <span>Terkunci (Upgrade Paket)</span>
-            </div>
-          )}
         </div>
       </section>
 
@@ -680,7 +751,6 @@ export default function PersonaDNAView({
           </p>
         </div>
 
-        {/* 3-Column Demographic Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div>
             <label className="block text-xs font-semibold text-[#14141F] mb-1.5">
@@ -739,7 +809,6 @@ export default function PersonaDNAView({
           </div>
         </div>
 
-        {/* 2-Column Persona Parameters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div>
             {renderHeaderKolomReferensi("Sebutan Diri", "selfPronoun", (v) =>
@@ -806,6 +875,13 @@ export default function PersonaDNAView({
               value={profil.minatUtama || ""}
               onChange={(e) =>
                 setProfil({ ...profil, minatUtama: e.target.value })
+              }
+              onBlur={() =>
+                rekamKetikanKeGudangIngatan(
+                  userId,
+                  "Bidang Profil",
+                  profil.minatUtama,
+                )
               }
               placeholder="Contoh: SaaS & Productivity / Kuliner / Keuangan"
               className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
@@ -882,7 +958,6 @@ export default function PersonaDNAView({
           </div>
         </div>
 
-        {/* Pilih Inspirasi Persona Cepat */}
         <div className="bg-[#F3F4F6] p-3 rounded-xl border border-[#E2E8F0]">
           <div className="flex items-center gap-1.5 mb-2">
             <FlatIcon name="bolt" className="w-4 h-4 text-[#14141F]" />
@@ -910,7 +985,7 @@ export default function PersonaDNAView({
         </div>
       </section>
 
-      {/* 3. BLOCK 2: SPESIFIKASI PERSONAL DIRI (AMUNISI FASE 2 TRUST) & SAMPEL KALIMAT */}
+      {/* 3. BLOCK 2: SPESIFIKASI PERSONAL DIRI & SAMPEL KALIMAT + GUDANG INGATAN OTAK AI */}
       <section className="bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5">
         <div className="border-b border-[#E2E8F0] pb-3 mb-4">
           <div className="flex items-center gap-2">
@@ -935,6 +1010,13 @@ export default function PersonaDNAView({
               value={profil.uspDiriInput || ""}
               onChange={(e) =>
                 setProfil({ ...profil, uspDiriInput: e.target.value })
+              }
+              onBlur={() =>
+                rekamKetikanKeGudangIngatan(
+                  userId,
+                  "Jam Terbang Profil",
+                  profil.uspDiriInput,
+                )
               }
               placeholder="Contoh: 5 tahun build tech startup & remote engineer"
               className="w-full h-11 px-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F]"
@@ -987,7 +1069,7 @@ export default function PersonaDNAView({
           </div>
         </div>
 
-        {/* Sampel Kalimat Gaya Bicara dengan Tombol Hapus & Rekam Suara */}
+        {/* Sampel Kalimat Gaya Bicara */}
         <div className="mb-4">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <label className="text-xs font-semibold text-[#14141F]">
@@ -1021,23 +1103,167 @@ export default function PersonaDNAView({
             rows={3}
             value={rawWritingSamples}
             onChange={(e) => setRawWritingSamples(e.target.value)}
+            onBlur={() => {
+              if (rawWritingSamples.trim()) {
+                const v = rekamKetikanKeGudangIngatan(
+                  userId,
+                  "Sampel Kalimat Profil",
+                  rawWritingSamples,
+                )
+                if (v) setMemoryVault(v)
+              }
+            }}
             placeholder="Ketik atau rekam 2-3 kalimat sesuai cara ngobrol aslimu sehari-hari..."
             className="w-full p-3 bg-white border border-[#C8C5CC] rounded-lg text-base sm:text-sm text-[#14141F] focus:outline-none focus:border-[#14141F] leading-relaxed"
           />
         </div>
 
-        {/* Kartu Analisis Parameter Otomatis Hookya */}
-        <div className="bg-[#F3F4F6] border border-[#E2E8F0] rounded-xl p-3 mb-4 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs text-[#14141F] font-bold">
-            <FlatIcon name="dna" className="w-4 h-4 text-[#14141F]" />
-            <span>Analisis Parameter Otomatis Hookya</span>
+        {/* GUDANG INGATAN (OTAK AI): TEKS REVIEW & RINCIAN SAAT DIKLIK */}
+        <div className="bg-[#F3F4F6] border border-[#E2E8F0] rounded-xl p-3.5 mb-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0">
+                <FlatIcon name="brain" className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-[#14141F] block">
+                  Gudang Ingatan Otak AI (Mempelajari Ketikan & Editanmu)
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {(memoryVault.samples || []).length} rekaman teks tersimpan •
+                  Klik kartu di bawah untuk melihat rincian analisa
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={isAnalyzingMemory}
+              onClick={handleAnalisisGudangIngatanOtakAI}
+              className="cursor-pointer shrink-0 px-3 py-1.5 rounded-lg bg-[#14141F] text-[#D4F34A] text-[11px] font-bold flex items-center gap-1"
+            >
+              <FlatIcon
+                name="refresh"
+                className={`w-3.5 h-3.5 ${
+                  isAnalyzingMemory ? "animate-spin" : ""
+                }`}
+              />
+              <span>
+                {isAnalyzingMemory ? "Menganalisa..." : "Analisa Ingatan"}
+              </span>
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          {/* Teks Review Analisa yang Bisa Diklik untuk Membuka Rincian */}
+          <button
+            type="button"
+            onClick={() => setShowDetailGudangIngatan(!showDetailGudangIngatan)}
+            className="cursor-pointer w-full text-left p-3 rounded-lg bg-white border border-[#C8C5CC] hover:border-[#14141F] transition space-y-1.5"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-[#4D6B14] bg-[#F2FCE2] px-2 py-0.5 rounded">
+                Teks Review Analisa Otak AI (Klik untuk Rincian)
+              </span>
+              <FlatIcon
+                name="chevronDown"
+                className={`w-4 h-4 text-slate-500 transition-transform ${
+                  showDetailGudangIngatan ? "rotate-180" : ""
+                }`}
+              />
+            </div>
+            <p className="text-xs font-semibold text-[#14141F] leading-relaxed">
+              {memoryVault.reviewSingkat ||
+                personaProfile?.persona_summary ||
+                "Otak AI terus merekam dan mempelajari gaya bicaramu dari setiap textbox dan revisi naskah."}
+            </p>
+          </button>
+
+          {/* Rincian Hasil Analisa Otak AI (Muncul Saat Diklik) */}
+          {showDetailGudangIngatan && (
+            <div className="bg-white rounded-lg border border-[#E2E8F0] p-3.5 space-y-3 text-xs">
+              <div className="font-bold text-[#14141F] border-b border-[#E2E8F0] pb-1.5">
+                Rincian Hasil Analisa Otak AI dari Gudang Ingatan:
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-2.5 rounded-lg bg-[#F8F9FA] border border-[#E2E8F0]">
+                  <span className="font-bold text-[#14141F] block mb-0.5">
+                    1. Gaya Bahasa Terdeteksi:
+                  </span>
+                  <span className="text-slate-600">
+                    {memoryVault.rincianAnalisa?.gayaBahasaTerdeteksi ||
+                      personaProfile?.voice_dna?.delivery_style ||
+                      "Lugas, mengalir, dan langsung ke inti bahasan."}
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[#F8F9FA] border border-[#E2E8F0]">
+                  <span className="font-bold text-[#14141F] block mb-0.5">
+                    2. Pola Kalimat & Transisi:
+                  </span>
+                  <span className="text-slate-600">
+                    {memoryVault.rincianAnalisa?.polaKalimat ||
+                      "Kalimat pendek-menengah dengan penekanan pada contoh kejadian nyata."}
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[#F8F9FA] border border-[#E2E8F0]">
+                  <span className="font-bold text-[#14141F] block mb-0.5">
+                    3. Kosakata Khas yang Dipelajari:
+                  </span>
+                  <span className="text-slate-600">
+                    {Array.isArray(memoryVault.rincianAnalisa?.kosakataKhasBaru)
+                      ? memoryVault.rincianAnalisa.kosakataKhasBaru.join(", ")
+                      : (
+                          personaProfile?.linguistic_matrix
+                            ?.signature_vocabulary || ["sih", "tuh", "kan"]
+                        ).join(", ")}
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[#F8F9FA] border border-[#E2E8F0]">
+                  <span className="font-bold text-[#14141F] block mb-0.5">
+                    4. Fokus Topik & Saran Optimalisasi:
+                  </span>
+                  <span className="text-slate-600">
+                    {memoryVault.rincianAnalisa?.saranOptimalisasi ||
+                      memoryVault.rincianAnalisa?.topikSeringDibahas ||
+                      "Pertahankan contoh kasus nyata di 3 detik pertama."}
+                  </span>
+                </div>
+              </div>
+
+              {(memoryVault.samples || []).length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500 block">
+                    Rekaman Ketikan & Editan Terakhir di Gudang Ingatan:
+                  </span>
+                  <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                    {memoryVault.samples.slice(0, 6).map((smp) => (
+                      <div
+                        key={smp.id}
+                        className="p-2 rounded bg-[#F3F4F6] text-[11px] flex items-start justify-between gap-2"
+                      >
+                        <span className="text-[#14141F] line-clamp-1">
+                          <strong>[{smp.sumber}]</strong> {smp.teks}
+                        </span>
+                        <span className="text-slate-400 shrink-0">
+                          {smp.waktu}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#D4F34A] text-[#14141F] text-[11px] font-bold">
               <FlatIcon name="lock" className="w-3 h-3" />
               <span>
                 {personaProfile?.dna_badge ||
-                  `DNA: ${profil.kepribadianSosial || "Satir-Realistis"} | Direct Tone | Level 4 Trust`}
+                  `DNA: ${profil.kepribadianSosial || "Satir-Realistis"} | Direct Tone`}
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#E1E2E4] text-[#14141F] text-[11px] font-semibold">
@@ -1091,7 +1317,6 @@ export default function PersonaDNAView({
         </div>
       </section>
 
-      {/* BOTTOM STICKY ACTION BAR */}
       <div className="sticky bottom-20 z-20 pt-2">
         {isGenerating ? (
           <AILoadingBox

@@ -399,7 +399,12 @@ Setiap bagian WAJIB berisi 3-4 kalimat utuh (~30 kata per bagian).`,
   }
 }
 
-function susunInstruksiPersona(personaProfile, contextMode, topikAtauProduk) {
+function susunInstruksiPersona(
+  personaProfile,
+  contextMode,
+  topikAtauProduk,
+  memoryVaultSamples = [],
+) {
   const voiceDNA = {
     sapaan_diri:
       personaProfile?.voice_dna?.self_pronoun ||
@@ -441,15 +446,22 @@ function susunInstruksiPersona(personaProfile, contextMode, topikAtauProduk) {
       "",
   }
 
+  const cuplikanIngatan =
+    Array.isArray(memoryVaultSamples) && memoryVaultSamples.length > 0
+      ? `\nREKAMAN GUDANG INGATAN (Gaya ketikan & editan asli user dari textbox sebelumnya yang WAJIB ditiru ritme dan pilihan katanya):\n${JSON.stringify(
+          memoryVaultSamples.slice(0, 8).map((s) => s.teks),
+        )}`
+      : ""
+
   if (contextMode === "lintas_produk") {
-    return `VOICE DNA KREATOR: ${JSON.stringify(voiceDNA)}
+    return `VOICE DNA KREATOR: ${JSON.stringify(voiceDNA)}${cuplikanIngatan}
 MODE LINTAS TOPIK AKTIF: Fokuskan 100% bahasan pada "${
       topikAtauProduk || "Topik Baru"
     }" tanpa membawa topik bidang lama (${nicheContext.bidang_utama}).`
   }
 
   return `VOICE DNA KREATOR: ${JSON.stringify(voiceDNA)}
-KONTEKS PROFIL AKUN: ${JSON.stringify(nicheContext)}`
+KONTEKS PROFIL AKUN: ${JSON.stringify(nicheContext)}${cuplikanIngatan}`
 }
 
 function normalisasiHasilSkripDinamis(rawObj, aturanDurasi) {
@@ -817,10 +829,197 @@ export async function POST(request) {
       dataKinerja,
       transkripMentahInput,
       isBillableRegen,
+      // Parameter baru untuk Brainstorm & Gudang Ingatan
+      pesanBrainstorm,
+      riwayatChatBrainstorm = [],
+      gunakanPersona = false,
+      akunPersonaTerpilih = null,
+      memoryVaultSamples = [],
     } = body
 
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
+
+    // =========================================================================
+    // ENDPOINT BARU 1: CHAT BRAINSTORM COPYWRITING POWERFUL
+    // =========================================================================
+    if (action === "brainstorm_chat_script") {
+      const instruksiGayaBahasa =
+        gunakanPersona && akunPersonaTerpilih
+          ? `MODE GAYA BAHASA: GUNAKAN AKUN PERSONA AKTIF (${
+              akunPersonaTerpilih.labelAkun || "@akun"
+            }).
+- Sapaan Diri: "${akunPersonaTerpilih.selfPronounInput || "Gue"}"
+- Sapaan Penonton: "${
+              akunPersonaTerpilih.audiencePronounInput || "Temen-temen"
+            }"
+- Bidang: "${akunPersonaTerpilih.minatUtama || "-"}"
+- Kesan Pembawaan: "${
+              akunPersonaTerpilih.kepribadianSosial ||
+              "To-the-point, Tajam, Santai"
+            }"
+- Jam Terbang / Pengalaman: "${akunPersonaTerpilih.uspDiriInput || "-"}"
+- Sampel Kalimat Khas: "${akunPersonaTerpilih.rawWritingSamples || "-"}"`
+          : `MODE GAYA BAHASA: DEFAULT (BAHASA SOSIAL MEDIA SANTAI YANG FORMAL).
+- Gunakan bahasa Indonesia sosial media yang santai namun tetap sopan, rapi, semi-formal, terstruktur, menggunakan sapaan "Aku / Kamu" atau "Saya / Teman-teman" yang enak didengar semua kalangan.`
+
+      const konteksIngatan =
+        Array.isArray(memoryVaultSamples) && memoryVaultSamples.length > 0
+          ? `\nREKAMAN GUDANG INGATAN PENGGUNA (Pelajari kebiasaan kata dan gaya berpikir user dari ketikan sebelumnya):\n${JSON.stringify(
+              memoryVaultSamples.slice(0, 8).map((s) => s.teks),
+            )}`
+          : ""
+
+      const promptBrainstorm = `
+Pengguna sedang berada di ruang "Brainstorm" dan menjelaskan keinginannya membuat konten secara bebas:
+Pesan Pengguna Saat Ini: "${pesanBrainstorm}"
+Riwayat Obrolan Sebelumnya: ${JSON.stringify(riwayatChatBrainstorm.slice(-4))}
+
+${instruksiGayaBahasa}
+${konteksIngatan}
+
+TUGASMU SEBAGAI MASTER COPYWRITER:
+1. Terjemahkan, rapikan, dan pertajam penjelasan mentah dari pengguna di atas menjadi naskah konten dengan teknik copywriting yang sangat kuat (memiliki Hook yang menghentikan scroll, alur persuasi/cerita yang mengikat, bukti/alasan logis, serta Call-To-Action yang jelas).
+2. Berikan balasan pengantar yang ramah dan solutif di "balasanProduser" (jelaskan teknik copywriting apa yang kamu terapkan pada naskah ini).
+3. Susun naskah lengkap di dalam "naskahHasil" yang berisi 4 sampai 6 bagian ("sections") yang padat berisi.
+4. Analisis juga gaya ketikan pengguna dari pesan ini untuk disimpan ke Gudang Ingatan pada objek "analisaGudangIngatan".
+
+Keluarkan HANYA valid JSON dengan struktur berikut:
+{
+  "balasanProduser": "Penjelasan singkat bagaimana ide mentah kamu dirapikan dengan teknik copywriting...",
+  "teknikCopywriting": "Nama Teknik (Misal: Problem-Agitate-Proof-Solution / Story-Bridge-Offer)",
+  "naskahHasil": {
+    "judul": "Judul Naskah yang Tajam...",
+    "targetDuration": "60 Detik",
+    "sections": [
+      {
+        "partNumber": 1,
+        "partTitle": "Pembuka (Hook Penghenti Scroll)",
+        "estimatedSeconds": "0:00 - 0:08",
+        "cameraCue": "Tatap lensa kamera dengan meyakinkan",
+        "intonationCue": "Tegas di kalimat pertama",
+        "spokenText": "...",
+        "onScreenText": "..."
+      },
+      {
+        "partNumber": 2,
+        "partTitle": "Situasi & Agitasi Masalah",
+        "estimatedSeconds": "0:08 - 0:22",
+        "cameraCue": "...",
+        "intonationCue": "...",
+        "spokenText": "...",
+        "onScreenText": "..."
+      },
+      {
+        "partNumber": 3,
+        "partTitle": "Inti Bahasan & Bukti Logis",
+        "estimatedSeconds": "0:22 - 0:45",
+        "cameraCue": "...",
+        "intonationCue": "...",
+        "spokenText": "...",
+        "onScreenText": "..."
+      },
+      {
+        "partNumber": 4,
+        "partTitle": "Kesimpulan & Call-To-Action",
+        "estimatedSeconds": "0:45 - 1:00",
+        "cameraCue": "...",
+        "intonationCue": "...",
+        "spokenText": "...",
+        "onScreenText": "..."
+      }
+    ],
+    "kritikDetail": {
+      "kelebihan": "...",
+      "catatanPembawaan": "...",
+      "kecepatanBicara": "Jaga tempo bicara di ~140-150 kata per menit."
+    },
+    "uploadPackage": {
+      "coverTitle": "...",
+      "caption": "...",
+      "pinnedComment": "..."
+    }
+  },
+  "analisaGudangIngatan": {
+    "reviewSingkat": "1 kalimat review gaya bahasa dan fokus materi yang dipelajari otak AI dari ketikan pengguna...",
+    "rincianAnalisa": {
+      "gayaBahasaTerdeteksi": "...",
+      "kosakataKhasBaru": ["kata 1", "kata 2", "kata 3"],
+      "polaKalimat": "...",
+      "topikSeringDibahas": "...",
+      "saranOptimalisasi": "..."
+    }
+  }
+}`
+
+      const { parsed, usage } = await panggilTeksPintar(
+        openRouterKey,
+        geminiKey,
+        promptBrainstorm,
+      )
+
+      if (parsed?.naskahHasil) {
+        parsed.naskahHasil = normalisasiHasilSkripDinamis(
+          parsed.naskahHasil,
+          null,
+        )
+      }
+
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: "Brainstorm Copywriting AI",
+        detailKeterangan: `Ide: ${(pesanBrainstorm || "").slice(0, 45)}...`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: 1,
+      })
+
+      return NextResponse.json(parsed)
+    }
+
+    // =========================================================================
+    // ENDPOINT BARU 2: ANALISA OTAK AI GUDANG INGATAN (MEMORY VAULT)
+    // =========================================================================
+    if (action === "analyze_memory_vault") {
+      const promptMemory = `
+Kamu adalah Otak AI "Gudang Ingatan" Hookya yang bertugas mempelajari gaya bicara, pilihan kosakata, ritme kalimat, dan pola pikir pengguna dari seluruh rekaman ketikan dan editan teks mereka berikut:
+Daftar Sampel Ketikan & Editan Pengguna:
+${JSON.stringify(memoryVaultSamples)}
+
+Data Profil Saat Ini:
+${JSON.stringify(personaProfile)}
+
+Buat laporan analisa mendalam tentang gaya bahasa asli pengguna ini.
+Keluarkan HANYA valid JSON:
+{
+  "reviewSingkat": "1 kalimat ringkasan tajam tentang karakter gaya bicara dan kebiasaan penulisan pengguna (ditampilkan sebagai teks review utama).",
+  "rincianAnalisa": {
+    "gayaBahasaTerdeteksi": "Penjelasan karakter suara dan nada bicara pengguna berdasarkan ketikannya...",
+    "kosakataKhasBaru": ["kata1", "kata2", "kata3", "kata4", "kata5"],
+    "polaKalimat": "Penjelasan panjang-pendek kalimat, cara membuka obrolan, dan cara menyambung ide...",
+    "topikSeringDibahas": "Rangkuman tema, masalah, atau sudut pandang yang paling sering diketik pengguna...",
+    "saranOptimalisasi": "Saran praktis bagaimana otak AI menggunakan ingatan ini agar skrip berikutnya makin mirip manusia asli."
+  }
+}`
+      const { parsed, usage } = await panggilTeksPintar(
+        openRouterKey,
+        geminiKey,
+        promptMemory,
+      )
+      await catatTelemetriTokenKeSupabase({
+        userId,
+        namaUser,
+        action: "Analisa Otak AI Gudang Ingatan",
+        detailKeterangan: `Mempelajari ${
+          (memoryVaultSamples || []).length
+        } rekaman ketikan & editan`,
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+        koinDipakai: 0,
+      })
+      return NextResponse.json(parsed)
+    }
 
     if (action === "suggest_profiling_field") {
       const promptSaran = `
@@ -972,6 +1171,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         "lintas_produk",
         detailInput || namaFileVideo,
+        memoryVaultSamples,
       )
 
       if (transkripMentahInput && transkripMentahInput.trim()) {
@@ -1051,88 +1251,6 @@ Keluarkan HANYA valid JSON:
         })
         return NextResponse.json(parsed)
       }
-
-      const promptVideo = `
-Tugasmu:
-1. Perhatikan potongan frame video dan dengarkan audio untuk menyalin isi video ke dalam "transkripAsliVideo".
-2. Jelaskan struktur video pada "bedahKompetitor".
-3. Buat 2 variasi draf naskah baru ("draftVariasi") sesuai Persona Kreator:
-${instruksiPersona}
-Catatan: "${detailInput || "-"}"
-
-Keluarkan HANYA valid JSON:
-{
-  "transkripAsliVideo": "...",
-  "intiPesanVideo": "...",
-  "bedahKompetitor": {
-    "jenisHookAsli": "...",
-    "pemicuEmosi": "...",
-    "rahasiaRetensi": "..."
-  },
-  "draftVariasi": [
-    {
-      "idDraft": "Draft #01",
-      "badgeFormat": "Hook Kontras / Anti-Gimmick",
-      "judul": "...",
-      "cuplikanHook": "...",
-      "estimasiDurasi": "45s",
-      "struktur": "PAPC (Problem-Agitate-Proof-CTA)",
-      "segmen": [
-        { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:25)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:25 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:45 - 1:00)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
-      ]
-    },
-    {
-      "idDraft": "Draft #02",
-      "badgeFormat": "Format Carousel Slide Edukasi",
-      "judul": "...",
-      "cuplikanHook": "...",
-      "estimasiDurasi": "7 Slide Edukasi",
-      "struktur": "Poin-poin padat & realistis",
-      "segmen": [
-        { "idSegmen": "HOOK", "labelMini": "Slide 1 • Judul & Hook", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "BODY_STORY", "labelMini": "Slide 2-3 • Masalah Inti", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "VALUE_SOLUTION", "labelMini": "Slide 4-6 • Langkah Solusi", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "CTA", "labelMini": "Slide 7 • Kesimpulan & CTA", "voiceover": "...", "teksLayar": "...", "visual": "..." }
-      ]
-    }
-  ],
-  "segmen": [
-    { "idSegmen": "HOOK", "labelMini": "Bagian 1 • Pembuka (0:00 - 0:08)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "BODY_STORY", "labelMini": "Bagian 2 • Situasi & Masalah (0:08 - 0:25)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "VALUE_SOLUTION", "labelMini": "Bagian 3 • Penjelasan & Solusi (0:25 - 0:45)", "voiceover": "...", "teksLayar": "...", "visual": "..." },
-    { "idSegmen": "CTA", "labelMini": "Bagian 4 • Penutup & Ajakan (0:45 - 1:00)", "voiceover": "...", "teksLayar": "...", "visual": "..." }
-  ]
-}`
-      const listFrames = (framesBase64 || []).slice(0, 6).map((f) => ({
-        mimeType: "image/jpeg",
-        data: f,
-      }))
-      const itemAudio =
-        mediaBase64 && mediaMimeType
-          ? { mimeType: mediaMimeType, data: mediaBase64 }
-          : null
-
-      const { parsed, usage } = await panggilMultimodalPintar({
-        openRouterKey,
-        geminiKey,
-        promptText: promptVideo,
-        imagesList: listFrames,
-        audioItem: itemAudio,
-      })
-
-      await catatTelemetriTokenKeSupabase({
-        userId,
-        namaUser,
-        action: "Ekstrak Suara Video ke Naskah",
-        detailKeterangan: `File: ${namaFileVideo || "video.mp4"}`,
-        promptTokens: usage?.prompt_tokens,
-        completionTokens: usage?.completion_tokens,
-        koinDipakai: 1,
-      })
-      return NextResponse.json(parsed)
     }
 
     let promptFinal = ""
@@ -1142,6 +1260,9 @@ Keluarkan HANYA valid JSON:
 Susun matriks identitas akun kreator dari data berikut:
 - Data Profil Akun: ${JSON.stringify(onboardingAnswers)}
 - Sampel Kalimat Lisan Pengguna: "${rawWritingSamples || ""}"
+- Rekaman Gudang Ingatan: ${JSON.stringify(
+        (memoryVaultSamples || []).slice(0, 6),
+      )}
 
 Keluarkan HANYA valid JSON:
 {
@@ -1230,6 +1351,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         "sesuai_niche",
         personaProfile?.niche_context?.primary_niche || "Bidang Profil Akun",
+        memoryVaultSamples,
       )
       promptFinal = `
 Analisis Profil Akun Sosial Media kreator berikut dan buat 10 rekomendasi ide materi yang spesifik sesuai bidangnya:
@@ -1264,6 +1386,7 @@ Balas HANYA dalam format JSON:
         personaProfile,
         stageInput?.contextMode || contextMode,
         topikSaatIni,
+        memoryVaultSamples,
       )
 
       const catatanHindariDuplikat =
@@ -1343,6 +1466,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         modeKonteksAktif,
         contentBrief?.core_idea,
+        memoryVaultSamples,
       )
 
       promptFinal = `
@@ -1416,6 +1540,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         contextMode,
         body.subyek,
+        memoryVaultSamples,
       )
 
       promptFinal = `
@@ -1464,6 +1589,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         contextMode,
         body.subyek,
+        memoryVaultSamples,
       )
 
       promptFinal = `
@@ -1528,6 +1654,7 @@ Keluarkan HANYA valid JSON:
         personaProfile,
         contextMode,
         body.subyek,
+        memoryVaultSamples,
       )
       promptFinal = `
 Tulis ulang SATU bagian naskah ini saja ("${
@@ -1645,17 +1772,20 @@ Balas HANYA dalam format JSON:
     return NextResponse.json(parsed)
   } catch (err) {
     const namaFiturGagal =
-      body?.action === "rewrite_video"
-        ? "Ekstrak Suara Video ke Naskah"
-        : body?.action === "assemble_humanized_script"
-          ? "Buat Naskah Skrip Konten"
-          : body?.action === "multiply_script_variations"
-            ? `Gandakan ${body?.jumlahMultiplier || 2} Variasi Skrip`
-            : body?.action === "regenerate_satu_kerangka"
-              ? "Regenerasi Bagian Skrip"
-              : body?.action || "Fitur AI"
+      body?.action === "brainstorm_chat_script"
+        ? "Brainstorm Copywriting AI"
+        : body?.action === "rewrite_video"
+          ? "Ekstrak Suara Video ke Naskah"
+          : body?.action === "assemble_humanized_script"
+            ? "Buat Naskah Skrip Konten"
+            : body?.action === "multiply_script_variations"
+              ? `Gandakan ${body?.jumlahMultiplier || 2} Variasi Skrip`
+              : body?.action === "regenerate_satu_kerangka"
+                ? "Regenerasi Bagian Skrip"
+                : body?.action || "Fitur AI"
 
     const koinKompensasi =
+      body?.action === "brainstorm_chat_script" ||
       body?.action === "rewrite_video" ||
       body?.action === "assemble_humanized_script"
         ? 1
