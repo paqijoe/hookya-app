@@ -1433,40 +1433,41 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* TOP HEADER SESUAI REVISI: TOMBOL KEMBALI DI KIRI ATAS + LOGO DI SAMPINGNYA, TANPA IKON PROFIL, CUKUP TOTAL KOIN */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-[#E2E8F0] px-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          {tampilkanTombolBackHeader && (
-            <button
-              type="button"
-              onClick={handleTombolBackHeader}
-              title="Kembali ke List Chat Topik"
-              aria-label="Kembali ke List Chat Topik"
-              className="cursor-pointer w-9 h-9 rounded-lg bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] flex items-center justify-center text-[#14141F] transition"
-            >
-              <FlatIcon name="arrowLeft" className="w-5 h-5" />
-            </button>
-          )}
-          <div
-            onClick={() => {
-              setStage(0)
-              setIsInsideChatRoom(false)
-              setActiveMenu("chat")
-            }}
-            className="cursor-pointer"
+      {/* TOP HEADER: TANDA '<' FLAT DI KIRI, LOGO 'HOOKYA' DI TENGAH, & TOTAL KOIN DI KANAN */}
+      <header className="fixed top-0 left-0 right-0 z-40 h-14 bg-white border-b border-[#E2E8F0] px-3 flex items-center justify-between">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={handleTombolBackHeader}
+            title="Kembali"
+            aria-label="Kembali"
+            className="cursor-pointer w-9 h-9 rounded-lg hover:bg-[#F4F5F7] flex items-center justify-center text-[#14141F] transition"
           >
-            <HookyaLogo brandConfig={pengaturanPayment.brandConfig} />
-          </div>
+            <FlatIcon name="chevronLeft" className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* KANAN ATAS: HANYA TAMPILKAN TOTAL KOIN SAJA (TANPA IKON PROFIL) */}
+        <div
+          onClick={() => {
+            setStage(0)
+            setIsInsideChatRoom(false)
+            setActiveMenu("chat")
+          }}
+          className="cursor-pointer absolute left-1/2 -translate-x-1/2"
+        >
+          <HookyaLogo
+            brandConfig={pengaturanPayment.brandConfig}
+            hideMarkOnHeader={true}
+          />
+        </div>
+
         <div className="flex items-center">
           <button
             type="button"
             onClick={() => setActiveMenu("topup")}
-            className="cursor-pointer flex items-center gap-1.5 bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] px-3.5 py-2 rounded-full text-xs font-extrabold tabular-nums active:scale-95 transition"
+            className="cursor-pointer flex items-center gap-1 bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] px-3 py-1.5 rounded-full text-xs font-extrabold tabular-nums active:scale-95 transition"
           >
-            <FlatIcon name="plusCircle" className="w-4 h-4" />
+            <FlatIcon name="plusCircle" className="w-3.5 h-3.5" />
             <span>{coins.toLocaleString("id-ID")} KOIN</span>
           </button>
         </div>
