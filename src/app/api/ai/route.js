@@ -22,7 +22,6 @@ function formatWaktuLengkapID() {
   return `${tgl}, ${jam} WIB`
 }
 
-// Tabel Harga Model OpenRouter per 1.000 Token dalam Rupiah
 const TARIF_MODEL_OPENROUTER = {
   "google/gemini-2.5-flash": { inRp: 2.5, outRp: 10.0 },
   "anthropic/claude-3.5-sonnet": { inRp: 48.0, outRp: 240.0 },
@@ -92,7 +91,6 @@ function uraiJSONAman(teksMentah) {
   }
 }
 
-// Mencatat pemakaian token per model, menyimpan riwayat koin user, dan menyimpan percakapan ke Global Developer Brain
 async function catatTelemetriDanGlobalBrain({
   userId,
   namaUser,
@@ -308,7 +306,7 @@ function normalisasiHasilSkripDinamis(rawObj) {
       sec.partTitle ||
       (sec.labelMini
         ? sec.labelMini.replace(/^Bagian \d+\s*•\s*/i, "")
-        : `Langkah ${partNumber}`)
+        : `Bagian ${partNumber}`)
     const estimatedSeconds =
       sec.estimatedSeconds || `${idx * 10}s - ${(idx + 1) * 10}s`
     const spokenText = sec.spokenText || sec.voiceover || ""
@@ -338,7 +336,7 @@ function normalisasiHasilSkripDinamis(rawObj) {
     partNumber: sec.partNumber,
     partTitle: sec.partTitle,
     estimatedSeconds: sec.estimatedSeconds,
-    labelMini: `Langkah ${sec.partNumber} • ${sec.partTitle}`,
+    labelMini: `Bagian ${sec.partNumber} • ${sec.partTitle}`,
     voiceover: sec.spokenText,
     spokenText: sec.spokenText,
     teksLayar: sec.onScreenText,
@@ -543,17 +541,11 @@ export async function POST(request) {
       preferredModel = "google/gemini-2.5-flash",
       personaProfile,
       akunPersonaTerpilih,
-      gunakanPersona = true,
+      gunakanPersona = false,
       memoryVaultSamples = [],
       pesanUser = "",
-      pesanBrainstorm = "",
       riwayatChat = [],
-      formatKonten = "60s Reel / TikTok",
-      toneBicara = "Santai & To-the-point",
-      tujuanKonten = "",
-      angleTerpilih = "",
-      masalahTerpilih = "",
-      hookTerpilih = "",
+      flowState = {},
       uploadedImages = [],
       audioBase64,
       audioMimeType,
@@ -571,20 +563,25 @@ export async function POST(request) {
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
 
-    const sapaanDiri =
-      akunPersonaTerpilih?.selfPronounInput ||
-      personaProfile?.voice_dna?.self_pronoun ||
-      personaProfile?.linguistic_matrix?.self_pronoun ||
-      "Gue"
-    const sapaanAudiens =
-      akunPersonaTerpilih?.audiencePronounInput ||
-      personaProfile?.voice_dna?.audience_pronoun ||
-      personaProfile?.linguistic_matrix?.audience_pronoun ||
-      "Temen-temen"
+    const sapaanDiri = gunakanPersona
+      ? akunPersonaTerpilih?.selfPronounInput ||
+        personaProfile?.voice_dna?.self_pronoun ||
+        "Gue"
+      : "Aku / Saya"
+    const sapaanAudiens = gunakanPersona
+      ? akunPersonaTerpilih?.audiencePronounInput ||
+        personaProfile?.voice_dna?.audience_pronoun ||
+        "Temen-temen"
+      : "Teman-teman / Kalian"
+    const gayaPersona = gunakanPersona
+      ? akunPersonaTerpilih?.kepribadianSosial ||
+        personaProfile?.voice_dna?.delivery_style ||
+        "Santai & To-the-point"
+      : "Bahasa sosial media santai yang sopan dan terstruktur"
     const bidangUser =
       akunPersonaTerpilih?.minatUtama ||
       personaProfile?.niche_context?.primary_niche ||
-      "Konten Kreator & Affiliate"
+      "Konten Kreator"
 
     const konteksMemoriUser =
       Array.isArray(memoryVaultSamples) && memoryVaultSamples.length > 0
@@ -594,78 +591,128 @@ export async function POST(request) {
         : ""
 
     // =========================================================================
-    // 1. ENDPOINT UTAMA RUANG CHAT PER TOPIK ("ai_script_session_chat")
-    // Menangani: Pertanyaan Iseng, Brainstorming 10 Masalah & 7 Angle,
-    // Upload Gambar/Video/Screenshot Review Bintang 1-3, & Peracik 3-5 Hook
+    // 1. ANALISA SCREENSHOT PRODUK MARKETPLACE UNTUK KARTU JUALAN
     // =========================================================================
-    if (
-      action === "ai_script_session_chat" ||
-      action === "brainstorm_chat_script"
-    ) {
-      const teksMasukan = (pesanUser || pesanBrainstorm || "").trim()
-      const adaGambar =
-        Array.isArray(uploadedImages) && uploadedImages.length > 0
+    if (action === "analyze_product_card_screenshot") {
+      const promptProdukSS = `
+Perhatikan gambar produk atau tangkapan layar marketplace yang diunggah ini.
+Ekstrak informasi produk ke dalam 5 kolom berikut secara ringkas dan akurat:
+1. "namaProduk": Nama produk atau merek yang terlihat.
+2. "jenisProduk": Kategori/jenis produk atau jasa.
+3. "spesifikasi": Bahan, ukuran, fitur teknis, atau isi paket.
+4. "fungsiUtama": Kegunaan utama dan manfaat nyata bagi pembeli.
+5. "harga": Harga normal atau harga promo yang tertera (jika tidak terlihat, tulis "-").
 
-      const promptSesiChat = `
-Kamu adalah "Hookya AI Script Session Bot" yang sedang berdiskusi di ruang chat dengan kreator "${
+Keluarkan HANYA valid JSON:
+{
+  "namaProduk": "...",
+  "jenisProduk": "...",
+  "spesifikasi": "...",
+  "fungsiUtama": "...",
+  "harga": "..."
+}`
+      const listImg = (uploadedImages || []).map((img) => ({
+        mimeType: img.mimeType || "image/jpeg",
+        data: img.base64 || img.data,
+      }))
+      const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
+        openRouterKey,
+        geminiKey,
+        preferredModel,
+        promptText: promptProdukSS,
+        imagesList: listImg,
+      })
+      await catatTelemetriDanGlobalBrain({
+        userId,
+        namaUser,
+        action: "Analisa Screenshot Kartu Produk",
+        modelDigunakan: modelUsed,
+        detailKeterangan: parsed?.namaProduk || "Ekstraksi kartu produk",
+        promptTokens: usage?.prompt_tokens,
+        completionTokens: usage?.completion_tokens,
+      })
+      return NextResponse.json(parsed)
+    }
+
+    // =========================================================================
+    // 2. ENDPOINT UTAMA ALUR PERCAKAPAN CERDAS ("ai_script_session_chat")
+    // =========================================================================
+    if (action === "ai_script_session_chat") {
+      const promptAlurTerpadu = `
+Kamu adalah "Hookya AI Script Bot" yang memandu pengguna "${
         namaUser || "Creator"
-      }".
-Profil Persona Aktif (${
-        gunakanPersona ? "Aktif" : "Default Sosmed Santai Formal"
-      }):
-- Sapaan Diri: "${sapaanDiri}" | Sapaan Penonton: "${sapaanAudiens}"
-- Bidang: "${bidangUser}" | Format Target: "${formatKonten}" | Tone: "${toneBicara}"
+      }" menyusun naskah konten dengan alur tanya-jawab yang terarah.
+Gaya Bahasa Aktif: Sapaan Diri "${sapaanDiri}", Sapaan Penonton "${sapaanAudiens}", Gaya "${gayaPersona}", Bidang "${bidangUser}".
 ${konteksMemoriUser}
 
-Riwayat Diskusi di Topik Ini:
+STATUS ALUR SAAT INI (flowState):
+${JSON.stringify(flowState || {})}
+
+RIWAYAT PERCAKAPAN SEBELUMNYA:
 ${JSON.stringify((riwayatChat || []).slice(-6))}
 
-Pesan / Input Pengguna Sekarang:
-"${teksMasukan || (adaGambar ? "[Mengunggah Gambar/Screenshot]" : "Halo")}"
-${tujuanKonten ? `Tujuan Konten yang Dipilih: "${tujuanKonten}"` : ""}
-${angleTerpilih ? `Angle yang Dipilih: "${angleTerpilih}"` : ""}
-${masalahTerpilih ? `Masalah Audiens yang Disetujui: "${masalahTerpilih}"` : ""}
+INPUT PENGGUNA BARU SAJA:
+"${pesanUser || "[Mengunggah Media]"}"
 
-ATURAN RESPONS CERDAS SESUAI KONDISI INPUT:
-1. JIKA PENGGUNA MENGUNGGAH GAMBAR / SCREENSHOT:
-   - Apabila gambar tersebut adalah foto produk atau suasana aktivitas, jelaskan apa yang kamu lihat, lalu tanyakan pengguna ingin mengarahkannya menjadi bentuk konten apa: (a) Konten Cari Viral, (b) Konten Meningkatkan Trust (POV / Behind the Scene), atau (c) Konten Jualan (Formula 6 Langkah).
-   - Apabila gambar tersebut adalah SCREENSHOT REVIEW BINTANG RENDAH (1-3) dari marketplace, bedah keluhan nyata pembeli ("tidak sesuai ekspektasi", "cepat rusak", "hasil tidak kelihatan", "susah dipakai"), tarik pemicu emosinya, lalu susun rekomendasi Angle & 3-5 opsi Hook yang menjawab keluhan tersebut.
-2. JIKA PENGGUNA BARU MENYAPA / BERTANYA UMUM (Misal: "Saya mau bikin konten" / pertanyaan santai):
-   - Tanggapi dengan ramah sesuai gaya bicaranya, tanyakan produk/topik apa yang ingin dibahas hari ini untuk format ${formatKonten}, dan berikan 4 chip ide pembuka.
-3. JIKA PENGGUNA SEDANG BRAINSTORMING TOPIK / PRODUK:
-   - Fokus pada audiens: gali dan siapkan **10 Masalah Spesifik Audiens (painPoints10)** yang paling sering dialami target penonton agar pengguna bisa memilih/menyetujui masalah mana yang mau diangkat.
-   - Siapkan juga **7 Angle Berbeda (sevenAngles)** untuk produk/topik tersebut (Pemula, Sering Gagal, Hemat Waktu, Sensitif Anggaran, Kecewa Produk Lama/Review 1-3, Sebelum vs Sesudah, Pemakaian Jangka Panjang).
-   - Jika pengguna mengarah ke Konten Jualan, ingatkan pengguna bahwa mereka juga bisa mengunggah screenshot keluhan review bintang terendah (bintang 1-3) agar skripnya makin tajam.
-4. RACIK 3 SAMPAI 5 OPSI HOOK TAJAM (hookOptions) SESUAI 5 ATURAN HOOK:
-   - Kalimat singkat (1 ide utama dalam 1 kalimat).
-   - Sebutkan akibat / rasa sakitnya jika masalah dibiarkan.
-   - Sesuai gaya bahasa persona (${sapaanDiri}/${sapaanAudiens}).
-   - Variasikan pola pembuka (Opsi 1: Pertanyaan & Sentil Ego, Opsi 2: Kontras Sebelum vs Sesudah, Opsi 3: Temuan Pengalaman/Riset Jujur).
-   - Hindari clickbait berlebihan tanpa bukti.
+TUGAS ANALISA CERDAS & URUTAN PERTANYAAN:
+1. DETEKSI KELENGKAPAN INPUT OTOMATIS:
+   - Jika pengguna di awal langsung mengetik deskripsi yang SANGAT LENGKAP (sudah jelas apakah itu Konten Cari Viral / Konten Cari Trust / Konten Jualan, sudah jelas formatnya TikTok/Reels, Carousel, atau Threads, dan sudah jelas topik atau detail produknya), maka JANGAN mengulang pertanyaan yang sudah terjawab! Langsung analisis komponen apa yang belum ada. Jika seluruh komponen sudah terpenuhi, langsung loncat ke tahap "pilih_hook_dan_cta" (berikan 10 pilihan Hook dari berbagai jenis + rekomendasi pilihan CTA agar pengguna tinggal klik Generate Teks).
+
+2. PANDUAN URUTAN TAHAP JIKA INPUT BELUM LENGKAP:
+   - Tahap "pilih_tujuan": Tanyakan pengguna mau buat konten apa: (1) Konten Cari Viral, (2) Konten Cari Trust, atau (3) Konten Jualan.
+   - Tahap "pilih_format": Tanyakan bentuk format konten:
+     * TikTok / Reels
+     * Carousel (tanyakan/tentukan berapa slide: misal 5 Slide, 7 Slide, atau 10 Slide)
+     * Threads (tentukan bentuk format Threads: misal Utas 6 Langkah, Utas Storytelling, atau Single Post Padat)
+
+   - CABANG 1: JIKA MEMILIH "Konten Cari Viral":
+     * Langkah A ("viral_topik"): Tanyakan topik apa yang ingin dibahas (bisa diketik, voice note, atau upload foto/video beserta keterangan).
+     * Langkah B ("viral_goals_dan_faktor"): Tanyakan goals/tujuan dari topik ini & harapan apa yang diinginkan dari penonton setelah menonton. Berikan 10 rekomendasi arah/goals berdasarkan topik yang disebutkan pada properti "rekomendasi10", serta pandu memilih salah satu dari 6 Faktor Viral (1. Membahas hal besar/terkenal seperti figur/tokoh/brand, 2. Realitas kehidupan yang relate, 3. Memberikan fakta, 4. Unsur komedi, 5. Memancing emosional, 6. Membahas sesuatu yang lagi viral).
+     * Langkah C ("viral_referensi"): Tanyakan apakah ada referensi materi tambahan untuk memperkuat topik ini (Ada atau Tidak). Jika ada, instruksikan untuk mengetik teks, voice note, atau upload foto/video.
+     * Langkah D ("pilih_durasi"): Tanyakan durasi konten yang diinginkan (15 Detik, 30 Detik, 60 Detik, 90 Detik, atau 3 Menit).
+     * Langkah E ("pilih_hook_dan_cta"): Berikan 10 rekomendasi Hook dari berbagai macam jenis hook pada properti "hookOptions10" dan berikan rekomendasi pilihan CTA pada properti "ctaOptions".
+
+   - CABANG 2: JIKA MEMILIH "Konten Cari Trust":
+     * Langkah A ("trust_brainstorm"): Berikan 6 variasi ide bentuk konten untuk membangun kepercayaan (Trust) audiens ke user (1. Membalas komentar/pertanyaan netizen, 2. Memberikan tips & trik praktis, 3. Bedah studi kasus/proses di balik layar, 4. Membongkar kesalahan umum pemula, 5. Uji coba/eksperimen jujur, 6. Membagikan checklist/kerangka kerja) dan tanyakan topik/pengalaman apa yang ingin diangkat.
+     * Langkah B ("trust_referensi"): Tanyakan apakah ada referensi materi tambahan (Ada / Tidak) beserta durasi konten yang diinginkan.
+     * Langkah C ("pilih_hook_dan_cta"): Berikan 10 rekomendasi Hook dari berbagai jenis hook pembangun trust pada properti "hookOptions10" dan rekomendasi pilihan CTA pada properti "ctaOptions".
+
+   - CABANG 3: JIKA MEMILIH "Konten Jualan":
+     * Langkah A ("jualan_jenis"): Tanyakan mau membuat konten jualan Jasa atau Produk?
+     * Langkah B ("jualan_kartu_produk"): Minta pengguna mengisi kartu detail Produk/Jasa (Nama, Jenis, Spesifikasi, Fungsi, Harga, atau Upload Screenshot Produk di Marketplace) dengan mengeset "tampilkanKartuProduk": true.
+     * Langkah C ("jualan_10_masalah"): Berdasarkan produk/jasa tersebut, berikan 10 pilihan masalah nyata yang dialami oleh calon pembeli pada properti "rekomendasi10" agar dipilih pengguna.
+     * Langkah D ("jualan_7_angle"): Berikan 7 pilihan angle produk pada properti "sevenAngles" supaya konversi fokus (Pemula, Sering Gagal, Hemat Waktu, Sensitif Anggaran, Kecewa Produk Lama/Review 1-3, Sebelum vs Sesudah, Pemakaian Jangka Panjang) sekaligus tanyakan durasi konten.
+     * Langkah E ("pilih_hook_dan_cta"): Berikan 10 rekomendasi Hook dari berbagai macam jenis hook jualan pada properti "hookOptions10" dan rekomendasi pilihan CTA pada properti "ctaOptions".
 
 Keluarkan HANYA valid JSON dengan struktur berikut:
 {
-  "judulSesiTopik": "Judul topik ringkas (4-7 kata) dari bahasan ini",
-  "kategoriDeteksi": "chat_umum | eksplorasi_10_masalah | analisis_media_upload | siap_pilih_hook",
-  "badgeStrategi": "Strategi Retensi ${formatKonten}",
-  "balasanBot": "Jawaban obrolan yang natural, solutif, dan langsung mengarahkan langkah selanjutnya...",
-  "pertanyaanTindakLanjut": "Pertanyaan singkat ke user (misal memilih 1 dari 10 masalah, memilih tujuan konten dari gambar, atau meminta screenshot review bintang 1-3 jika jualan)",
-  "opsiTujuanMedia": [
-    "Konten Cari Viral (Jangkauan Luas)",
-    "Konten Meningkatkan Trust (POV / Behind the Scene)",
-    "Konten Jualan & Konversi (Formula 6 Langkah)"
+  "judulSesiTopik": "Judul topik ringkas (4-7 kata)",
+  "tahapBerikutnya": "pilih_format | viral_topik | viral_goals_dan_faktor | viral_referensi | trust_brainstorm | trust_referensi | jualan_jenis | jualan_kartu_produk | jualan_10_masalah | jualan_7_angle | pilih_durasi | pilih_hook_dan_cta",
+  "terdeteksiTujuan": "Konten Cari Viral | Konten Cari Trust | Konten Jualan | belum_dipilih",
+  "terdeteksiFormat": "TikTok / Reels | Carousel | Threads | belum_dipilih",
+  "balasanBot": "Tanggapan bot yang natural, ramah, dan langsung menanyakan langkah saat ini secara jelas...",
+  "saranAutoLanjut": "Kalimat jawaban otomatis terbaik jika pengguna menekan tombol Lanjut karena bingung...",
+  "tampilkanKartuProduk": false,
+  "opsiPilihanCepat": ["Pilihan 1", "Pilihan 2"],
+  "rekomendasi10": [
+    "1. ...",
+    "2. ...",
+    "3. ...",
+    "4. ...",
+    "5. ...",
+    "6. ...",
+    "7. ...",
+    "8. ...",
+    "9. ...",
+    "10. ..."
   ],
-  "painPoints10": [
-    "1. Masalah nyata audiens pertama...",
-    "2. Masalah nyata audiens kedua...",
-    "3. Masalah nyata audiens ketiga...",
-    "4. Masalah nyata audiens keempat...",
-    "5. Masalah nyata audiens kelima...",
-    "6. Masalah nyata audiens keenam...",
-    "7. Masalah nyata audiens ketujuh...",
-    "8. Masalah nyata audiens kedelapan...",
-    "9. Masalah nyata audiens kesembilan...",
-    "10. Masalah nyata audiens kesepuluh..."
+  "faktorViralPilihan": [
+    "1. Membahas Hal Besar / Terkenal (Figur, Tokoh, Brand)",
+    "2. Realitas Kehidupan yang Relate ke Penonton",
+    "3. Memberikan Sebuah Fakta",
+    "4. Mengandung Unsur Komedi",
+    "5. Memancing Emosional",
+    "6. Membahas Sesuatu yang Lagi Viral"
   ],
   "sevenAngles": [
     { "id": "pemula", "label": "Angle 1: Kebutuhan Pemula", "ide": "..." },
@@ -676,31 +723,25 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
     { "id": "sebelum_sesudah", "label": "Angle 6: Sebelum vs Sesudah", "ide": "..." },
     { "id": "jangka_panjang", "label": "Angle 7: Pemakaian Jangka Panjang", "ide": "..." }
   ],
-  "hookOptions": [
-    {
-      "nomor": 1,
-      "kategori": "HOOK FOMO & SENTIL EGO",
-      "badgeMetrik": "Potensi Viral 94%",
-      "teksHook": "...",
-      "tipeVisual": "Zoom-in cepat + teks bold di 3 detik awal"
-    },
-    {
-      "nomor": 2,
-      "kategori": "HOOK KONTRAS & AKIBAT MASALAH",
-      "badgeMetrik": "Retensi 89%",
-      "teksHook": "...",
-      "tipeVisual": "Tunjukkan perbandingan sebelum vs sesudah"
-    },
-    {
-      "nomor": 3,
-      "kategori": "HOOK PENGALAMAN & RISET REVIEW",
-      "badgeMetrik": "Konversi Tinggi",
-      "teksHook": "...",
-      "tipeVisual": "POV tangan memegang produk / tangkapan layar ulasan"
-    }
+  "hookOptions10": [
+    { "nomor": 1, "jenis": "Hook Pertanyaan Menohok", "teksHook": "..." },
+    { "nomor": 2, "jenis": "Hook Fakta & Realita", "teksHook": "..." },
+    { "nomor": 3, "jenis": "Hook Kontras Sebelum vs Sesudah", "teksHook": "..." },
+    { "nomor": 4, "jenis": "Hook Sentil Kesalahan Umum", "teksHook": "..." },
+    { "nomor": 5, "jenis": "Hook Cerita Pengalaman Jujur", "teksHook": "..." },
+    { "nomor": 6, "jenis": "Hook Pemicu Rasa Penasaran", "teksHook": "..." },
+    { "nomor": 7, "jenis": "Hook Sudut Pandang Anti-Mainstream", "teksHook": "..." },
+    { "nomor": 8, "jenis": "Hook Masalah Spesifik Audiens", "teksHook": "..." },
+    { "nomor": 9, "jenis": "Hook Bukti & Hasil Nyata", "teksHook": "..." },
+    { "nomor": 10, "jenis": "Hook Urgensi & Solusi Cepat", "teksHook": "..." }
+  ],
+  "ctaOptions": [
+    { "kategori": "CTA Keputusan Cepat / Langsung Aksi", "teksCta": "..." },
+    { "kategori": "CTA untuk yang Masih Ragu / Cek Bukti", "teksCta": "..." },
+    { "kategori": "CTA Diskusi Komentar / Simpan Konten", "teksCta": "..." }
   ],
   "analisaGudangIngatan": {
-    "reviewSingkat": "1 kalimat ringkasan gaya bicara dan minat konten user dari pesan ini.",
+    "reviewSingkat": "1 kalimat ringkasan gaya bicara dan fokus konten user dari input ini.",
     "rincianAnalisa": {
       "gayaBahasaTerdeteksi": "...",
       "kosakataKhasBaru": ["kata1", "kata2", "kata3"],
@@ -720,20 +761,20 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
         openRouterKey,
         geminiKey,
         preferredModel,
-        promptText: promptSesiChat,
+        promptText: promptAlurTerpadu,
         imagesList: listImg,
       })
 
       await catatTelemetriDanGlobalBrain({
         userId,
         namaUser,
-        action: "Chat Sesi Topik & Peracik Hook",
+        action: "Diskusi Chat Topik AI",
         modelDigunakan: modelUsed,
-        detailKeterangan: `Topik: ${parsed?.judulSesiTopik || teksMasukan.slice(0, 35)}`,
+        detailKeterangan: `Tahap: ${parsed?.tahapBerikutnya || "diskusi"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
         koinDipakai: 0,
-        cuplikanPertanyaanUser: teksMasukan,
+        cuplikanPertanyaanUser: pesanUser,
         cuplikanJawabanBot: parsed?.balasanBot || "",
       })
 
@@ -741,101 +782,61 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
     }
 
     // =========================================================================
-    // 2. ENDPOINT GENERATE NASKAH PENUH 6 LANGKAH ("generate_6step_script")
-    // (Hook -> Masalah -> Curiosity -> Solusi -> Proof Kata Kunci Review -> 3 Variasi CTA)
+    // 3. ENDPOINT GENERATE 1 TEKS NASKAH FINAL ("generate_6step_script")
     // =========================================================================
     if (action === "generate_6step_script") {
-      const promptEnamLangkah = `
-Susun Naskah Konten Lengkap menggunakan **FORMULA 6 LANGKAH** untuk format "${formatKonten}" dengan nada bicara "${toneBicara}".
-Persona Kreator: Sapaan Diri "${sapaanDiri}", Sapaan Penonton "${sapaanAudiens}", Bidang "${bidangUser}".
+      const infoFlow = flowState || {}
+      const promptNaskahUtuh = `
+Susun 1 Naskah Konten Utuh & Siap Pakai berdasarkan seluruh hasil diskusi berikut:
+- Tujuan Konten: "${infoFlow.tujuanKonten || "Konten Kreator"}"
+- Bentuk Format: "${
+        infoFlow.formatKonten || body.formatKonten || "TikTok / Reels"
+      }" ${
+        infoFlow.jumlahSlideCarousel ? `(${infoFlow.jumlahSlideCarousel})` : ""
+      } ${infoFlow.modelThreads ? `(${infoFlow.modelThreads})` : ""}
+- Durasi Target: "${infoFlow.durasiKonten || "60 Detik"}"
+- Gaya Bahasa: Sapaan Diri "${sapaanDiri}", Sapaan Penonton "${sapaanAudiens}", Tone "${gayaPersona}"
+- Topik / Produk: "${infoFlow.topikAtauProduk || pesanUser || "Konten"}"
+${
+  infoFlow.dataProduk
+    ? `- Spesifikasi Produk/Jasa: ${JSON.stringify(infoFlow.dataProduk)}`
+    : ""
+}
+- Goals / Masalah Audiens: "${infoFlow.masalahAtauGoals || "-"}"
+- Faktor Viral / Angle: "${infoFlow.faktorAtauAngle || "-"}"
+- Referensi Tambahan: "${infoFlow.referensiTambahan || "Tidak ada"}"
+- Kalimat Hook Pembuka Pilihan User: "${
+        body.hookTerpilih || infoFlow.hookTerpilih || "Hook pilihan"
+      }"
+- Kalimat CTA Penutup Pilihan User: "${
+        body.ctaTerpilih || infoFlow.ctaTerpilih || "CTA pilihan"
+      }"
 ${konteksMemoriUser}
 
- Konteks Diskusi Topik:
-- Topik / Produk: "${pesanUser || "Konten Kreator"}"
-- Masalah Audiens yang Diangkat: "${masalahTerpilih || "Masalah nyata audiens"}"
-- Angle yang Dipilih: "${angleTerpilih || "Angle relevan"}"
-- Kalimat Hook Pembuka yang Dikunci: "${hookTerpilih || "Hook pilihan"}"
-
-WAJIB IKUTI 6 LANGKAH STRUKTUR BERIKUT SECARA BERURUTAN PADA "sections":
-1. Langkah 1 • Hook (Pemicu Emosi): Gunakan kalimat singkat yang memancing reaksi ("kesal", "lega", "takut rugi", atau "penasaran") dan sebutkan akibatnya jika masalah dibiarkan.
-2. Langkah 2 • Masalah (Keluhan Nyata): Petakan rasa "kok aku gini ya" dari keluhan nyata audiens atau review bintang 1-3 marketplace ("tidak sesuai ekspektasi", "hasil tidak kelihatan", "susah dipakai").
-3. Langkah 3 • Curiosity (Jembatan Penasaran): Tahan pembaca dengan janji kecil yang spesifik ("ternyata kuncinya ada di..." atau "yang bikin orang gagal itu karena...") tanpa overclaim.
-4. Langkah 4 • Solusi (Singkat & Fokus Hasil): Tautkan produk/solusi ke masalah dalam 2-4 poin padat. Tarik kembali dari fitur ke hasil nyata yang berubah setelah pemakaian.
-5. Langkah 5 • Proof (Bukti Jujur & Kata Kunci Review): Jawab celah keraguan secara bertanggung jawab. WAJIB sisipkan kata kunci pencari informasi seperti "review", "pengalaman", "hasil", "sebelum-sesudah", atau "jangka waktu pemakaian" yang dikombinasikan dengan nama produk/solusi.
-6. Langkah 6 • CTA Satu Arah: Tutup dengan ajakan spesifik satu arah menuju link bio atau pinned post.
-
-SIAPKAN JUGA 3 VARIASI CTA BERBEDA MOTIVASI PADA "ctaVariations" (Semuanya mengarah ke tindakan yang sama, namun kalimatnya disesuaikan psikologi audiens):
-- "cepat": Untuk audiens yang butuh keputusan cepat (kalimat ringkas langsung menuju link/pinned post).
-- "ragu": Untuk audiens yang masih ragu (mengajak cek detail manfaat dan bukti pengalaman terkait).
-- "hasil": Untuk audiens pemburu hasil (menonjolkan timeline waktu pemakaian dan ekspektasi realistis).
+ATURAN STRUKTUR NASKAH:
+- Jika Konten Jualan atau Threads, gunakan alur 6 langkah yang mengalir mulus (1. Hook Pemicu Emosi, 2. Masalah Keluhan Nyata, 3. Curiosity Jembatan Penasaran, 4. Solusi Fokus Hasil, 5. Proof Jujur dengan Kata Kunci Review seperti "review", "pengalaman", "hasil", "sebelum-sesudah", 6. CTA Satu Arah).
+- Jika Carousel, susun bagian ("sections") sesuai jumlah slide yang diminta (Slide 1 Hook, Slide Pertengahan Isi, Slide Terakhir CTA).
+- Jika Konten Cari Viral atau Konten Cari Trust di TikTok/Reels, susun bagian ("sections") sesuai durasi yang diminta dengan transisi yang menahan retensi penonton sampai akhir.
+- Cukup hasilkan 1 naskah terbaik yang langsung siap direkam/diposting.
 
 Keluarkan HANYA valid JSON:
 {
-  "judul": "Judul Naskah 6 Langkah...",
-  "formatKonten": "${formatKonten}",
-  "targetDuration": "${formatKonten}",
-  "kataKunciReviewTerpakai": ["review", "pengalaman", "hasil", "sebelum-sesudah"],
+  "judul": "Judul Naskah...",
+  "formatKonten": "${
+    infoFlow.formatKonten || body.formatKonten || "TikTok / Reels"
+  }",
+  "targetDuration": "${infoFlow.durasiKonten || "60 Detik"}",
   "sections": [
     {
       "partNumber": 1,
-      "partTitle": "Hook (Pemicu Emosi)",
+      "partTitle": "Pembuka (Hook)",
       "estimatedSeconds": "0:00 - 0:06",
-      "cameraCue": "...",
-      "intonationCue": "...",
-      "spokenText": "...",
-      "onScreenText": "..."
-    },
-    {
-      "partNumber": 2,
-      "partTitle": "Masalah (Keluhan Nyata)",
-      "estimatedSeconds": "0:06 - 0:16",
-      "cameraCue": "...",
-      "intonationCue": "...",
-      "spokenText": "...",
-      "onScreenText": "..."
-    },
-    {
-      "partNumber": 3,
-      "partTitle": "Curiosity (Jembatan Penasaran)",
-      "estimatedSeconds": "0:16 - 0:26",
-      "cameraCue": "...",
-      "intonationCue": "...",
-      "spokenText": "...",
-      "onScreenText": "..."
-    },
-    {
-      "partNumber": 4,
-      "partTitle": "Solusi (2-4 Poin Hasil Nyata)",
-      "estimatedSeconds": "0:26 - 0:40",
-      "cameraCue": "...",
-      "intonationCue": "...",
-      "spokenText": "...",
-      "onScreenText": "..."
-    },
-    {
-      "partNumber": 5,
-      "partTitle": "Proof (Bukti & Kata Kunci Review)",
-      "estimatedSeconds": "0:40 - 0:52",
-      "cameraCue": "...",
-      "intonationCue": "...",
-      "spokenText": "...",
-      "onScreenText": "..."
-    },
-    {
-      "partNumber": 6,
-      "partTitle": "CTA Satu Arah",
-      "estimatedSeconds": "0:52 - 1:00",
       "cameraCue": "...",
       "intonationCue": "...",
       "spokenText": "...",
       "onScreenText": "..."
     }
   ],
-  "ctaVariations": {
-    "keputusanCepat": "Kalimat CTA untuk yang butuh keputusan cepat...",
-    "masihRagu": "Kalimat CTA untuk yang masih ragu...",
-    "pemburuHasil": "Kalimat CTA dengan timeline & ekspektasi realistis..."
-  },
   "kritikDetail": {
     "kelebihan": "...",
     "catatanPembawaan": "...",
@@ -852,7 +853,7 @@ Keluarkan HANYA valid JSON:
         openRouterKey,
         geminiKey,
         preferredModel,
-        promptText: promptEnamLangkah,
+        promptText: promptNaskahUtuh,
       })
 
       const hasilNormal = normalisasiHasilSkripDinamis(parsed)
@@ -860,13 +861,15 @@ Keluarkan HANYA valid JSON:
       await catatTelemetriDanGlobalBrain({
         userId,
         namaUser,
-        action: `Generate Skrip 6 Langkah (${formatKonten})`,
+        action: `Generate Naskah (${infoFlow.tujuanKonten || "Konten"})`,
         modelDigunakan: modelUsed,
-        detailKeterangan: `Topik: ${hasilNormal?.judul || pesanUser}`,
+        detailKeterangan: `Judul: ${hasilNormal?.judul || "Naskah Baru"}`,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
         koinDipakai: 1,
-        cuplikanPertanyaanUser: `Generate 6 Langkah: ${pesanUser} | Hook: ${hookTerpilih}`,
+        cuplikanPertanyaanUser: `Generate Naskah: ${
+          infoFlow.topikAtauProduk || pesanUser
+        }`,
         cuplikanJawabanBot: hasilNormal?.sections?.[0]?.spokenText || "",
       })
 
@@ -874,7 +877,7 @@ Keluarkan HANYA valid JSON:
     }
 
     // =========================================================================
-    // 3. ENDPOINT ANALISA GUDANG INGATAN & EKSTRAK PERSONA DNA
+    // 4. ENDPOINT PENDUKUNG (GUDANG INGATAN, PROFIL DNA, & VOICE MIC)
     // =========================================================================
     if (action === "analyze_memory_vault") {
       const promptMemory = `
@@ -997,7 +1000,7 @@ Keluarkan HANYA valid JSON:
 
     if (action === "transkrip_file_video" || action === "rewrite_video") {
       const promptVid = `
-Salin isi ucapan dari media ini ke "transkripAsliVideo" dan buat 2 variasi draf naskah 6 langkah pada "draftVariasi".
+Salin isi ucapan dari media ini ke "transkripAsliVideo" dan buat 1 draf naskah utuh pada "draftVariasi".
 Keluarkan HANYA valid JSON:
 {
   "transkripAsliVideo": "...",
@@ -1005,18 +1008,15 @@ Keluarkan HANYA valid JSON:
   "draftVariasi": [
     {
       "idDraft": "Draft #01",
-      "badgeFormat": "Formula 6 Langkah • Hook Kontras",
+      "badgeFormat": "Naskah Siap Rekam",
       "judul": "...",
       "cuplikanHook": "...",
       "estimasiDurasi": "60s",
       "struktur": "Hook - Masalah - Curiosity - Solusi - Proof - CTA",
       "segmen": [
-        { "idSegmen": "STEP_1", "partNumber": 1, "partTitle": "Hook", "labelMini": "Langkah 1 • Hook", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "STEP_2", "partNumber": 2, "partTitle": "Masalah", "labelMini": "Langkah 2 • Masalah", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "STEP_3", "partNumber": 3, "partTitle": "Curiosity", "labelMini": "Langkah 3 • Curiosity", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "STEP_4", "partNumber": 4, "partTitle": "Solusi", "labelMini": "Langkah 4 • Solusi", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "STEP_5", "partNumber": 5, "partTitle": "Proof Review", "labelMini": "Langkah 5 • Proof", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
-        { "idSegmen": "STEP_6", "partNumber": 6, "partTitle": "CTA", "labelMini": "Langkah 6 • CTA", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." }
+        { "idSegmen": "STEP_1", "partNumber": 1, "partTitle": "Hook", "labelMini": "Bagian 1 • Hook", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "STEP_2", "partNumber": 2, "partTitle": "Isi & Solusi", "labelMini": "Bagian 2 • Isi", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." },
+        { "idSegmen": "STEP_3", "partNumber": 3, "partTitle": "Penutup & CTA", "labelMini": "Bagian 3 • CTA", "voiceover": "...", "spokenText": "...", "teksLayar": "...", "visual": "..." }
       ]
     }
   ]
@@ -1049,19 +1049,18 @@ Keluarkan HANYA valid JSON:
       return NextResponse.json(parsed)
     }
 
-    // Fallback untuk endpoint legacy (multiply_script_variations, ubah_durasi_skrip, dll.)
-    const promptGeneric = `
-Buat variasi atau pembaruan naskah dengan struktur 6 langkah (Hook, Masalah, Curiosity, Solusi, Proof dengan kata kunci review, CTA) untuk topik "${
+    const promptFallback = `
+Susun naskah konten untuk topik "${
       body.subyek || body.contentBrief?.core_idea || "Konten"
     }".
-Data sebelumnya: ${JSON.stringify(body.skripSebelumnya || body.contentBrief || {})}
-Keluarkan HANYA valid JSON yang memiliki "sections" dan "daftarVariasi".`
+Data: ${JSON.stringify(body.skripSebelumnya || body.contentBrief || {})}
+Keluarkan HANYA valid JSON dengan properti "sections".`
 
     const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
       openRouterKey,
       geminiKey,
       preferredModel,
-      promptText: promptGeneric,
+      promptText: promptFallback,
     })
     const norm = normalisasiHasilSkripDinamis(parsed)
     await catatTelemetriDanGlobalBrain({
@@ -1080,9 +1079,7 @@ Keluarkan HANYA valid JSON yang memiliki "sections" dan "daftarVariasi".`
       body?.action === "rewrite_video" ||
       body?.action === "assemble_humanized_script"
         ? 1
-        : body?.action === "multiply_script_variations"
-          ? parseInt(body?.koinDipakai) || 1
-          : 0
+        : 0
 
     const koinGanti = await catatErrorKeAdminDanRefund({
       userId: body?.userId,

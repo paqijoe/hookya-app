@@ -1,33 +1,62 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { supabase } from "../lib/supabase"
 import {
   FlatIcon,
   AILoadingBox,
+  ENAM_FAKTOR_VIRAL,
+  ENAM_BENTUK_KONTEN_TRUST,
   TUJUH_ANGLE_PRODUK,
+  ubahBlobSuaraKeWavBase64,
+  hitungUkuranBytesObjek,
+  formatUkuranStorage,
   rekamKetikanKeGudangIngatan,
   ambilDataGudangIngatan,
   simpanAnalisaGudangIngatan,
 } from "./SharedUI"
 
-const DAFTAR_FORMAT_SESI = [
-  "60s Reel / TikTok",
-  "Threads 6 Langkah",
-  "Carousel 7 Slide",
-  "30s Short Skit / POV",
+const PILIHAN_TUJUAN_AWAL = [
+  {
+    id: "Konten Cari Viral",
+    judul: "1. Konten Cari Viral",
+    ket: "Fokus jangkauan luas, menahan scroll, dan menarik audiens baru.",
+  },
+  {
+    id: "Konten Cari Trust",
+    judul: "2. Konten Cari Trust",
+    ket: "Membangun kepercayaan & otoritas (balas komentar, tips & trik, studi kasus).",
+  },
+  {
+    id: "Konten Jualan",
+    judul: "3. Konten Jualan",
+    ket: "Fokus konversi produk atau jasa lewat masalah pembeli, 7 angle & 10 hook.",
+  },
 ]
 
-const DAFTAR_TONE_SESI = [
-  "Santai & To-the-point",
-  "Gaya Persona Akun",
-  "Sosmed Santai Formal",
-  "Satir & Blak-blakan",
+const PILIHAN_FORMAT_KONTEN = [
+  { id: "TikTok / Reels", label: "TikTok / Reels" },
+  { id: "Carousel", label: "Carousel (Pilih Jumlah Slide)" },
+  { id: "Threads", label: "Threads (Pilih Bentuk Format)" },
 ]
 
-const CHIP_PEMBUKA_CEPAT = [
-  "Hook Kontroversial Produk Affiliate",
-  "Skrip Threads 6 Langkah dari Review Bintang 1-3",
-  "Konten POV Behind The Scene (Bangun Trust)",
-  "Bedah 10 Masalah Audiens untuk Produk Baru",
+const PILIHAN_SLIDE_CAROUSEL = [
+  "5 Slide Padat",
+  "7 Slide Storytelling",
+  "10 Slide Edukasi Mendalam",
+]
+
+const PILIHAN_MODEL_THREADS = [
+  "Threads Utas 6 Langkah Konversi",
+  "Threads Utas Storytelling Pengalaman",
+  "Threads Single Post Padat & Menohok",
+]
+
+const PILIHAN_DURASI_KONTEN = [
+  "15 Detik",
+  "30 Detik",
+  "60 Detik",
+  "90 Detik",
+  "3 Menit",
 ]
 
 function kompresGambarChat(file) {
@@ -38,7 +67,7 @@ function kompresGambarChat(file) {
         const img = new Image()
         img.onload = () => {
           const canvas = document.createElement("canvas")
-          const maxDim = 850
+          const maxDim = 800
           let w = img.width
           let h = img.height
           if (w > maxDim || h > maxDim) {
@@ -54,7 +83,7 @@ function kompresGambarChat(file) {
           canvas.height = h
           const ctx = canvas.getContext("2d")
           ctx.drawImage(img, 0, 0, w, h)
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.75)
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.72)
           resolve({
             previewUrl: dataUrl,
             base64: dataUrl.split(",")[1] || "",
@@ -73,7 +102,7 @@ function kompresGambarChat(file) {
   })
 }
 
-function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@akun.utama") {
+function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@cuanistsociety") {
   const waktuSkr = new Date().toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
@@ -83,28 +112,54 @@ function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@akun.utama") {
     nomorSesi: nomorUrut,
     judul: "Diskusi Topik Konten Baru",
     akunLabel: akunDefault,
-    format: "60s Reel / TikTok",
-    tone: "Santai & To-the-point",
+    gunakanPersona: false,
+    format: "TikTok / Reels",
     statusLabel: "Draf Baru",
     statusTahap: "Sedang diskusi",
     waktuTerakhir: waktuSkr,
-    masalahTerpilih: "",
-    angleTerpilih: "",
-    hookTerpilih: "",
+    flowState: {
+      tahap: "pilih_tujuan",
+      tujuanKonten: "",
+      formatKonten: "",
+      jumlahSlideCarousel: "",
+      modelThreads: "",
+      topikAtauProduk: "",
+      jenisJualan: "",
+      dataProduk: {
+        namaProduk: "",
+        jenisProduk: "",
+        spesifikasi: "",
+        fungsiUtama: "",
+        harga: "",
+      },
+      masalahAtauGoals: "",
+      faktorAtauAngle: "",
+      referensiTambahan: "",
+      durasiKonten: "60 Detik",
+      hookTerpilih: "",
+      ctaTerpilih: "",
+    },
     messages: [
       {
         id: `msg_init_${Date.now()}`,
         role: "assistant",
         waktu: waktuSkr,
-        kategoriDeteksi: "pembuka",
-        badgeStrategi: "Mode Kilat AI Aktif",
+        tahapBerikutnya: "pilih_tujuan",
         balasanBot:
-          "Halo Creator! Mau bikin konsep naskah untuk apa hari ini? Tuliskan ide mentah, produk yang mau dijual, target audiensmu, atau unggah foto produk maupun screenshot review bintang 1-3. Saya siap memetakan 10 masalah audiens, 7 angle, formula hook 3 detik, dan naskah 6 langkah lengkap.",
-        painPoints10: [],
+          "Halo! Sebelum kita meracik naskah, pilih dulu tujuan konten yang ingin kamu buat hari ini (atau langsung ketik lengkap ide/produkmu di bawah):",
+        saranAutoLanjut: "Saya ingin membuat Konten Cari Viral",
+        opsiPilihanCepat: [
+          "Konten Cari Viral",
+          "Konten Cari Trust",
+          "Konten Jualan",
+        ],
+        rekomendasi10: [],
+        faktorViralPilihan: [],
         sevenAngles: [],
-        hookOptions: [],
-        opsiTujuanMedia: [],
-        naskah6Langkah: null,
+        hookOptions10: [],
+        ctaOptions: [],
+        tampilkanKartuProduk: false,
+        naskahFinal: null,
       },
     ],
   }
@@ -113,6 +168,7 @@ function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@akun.utama") {
 export default function BrainstormView({
   userId,
   namaUser,
+  isPremiumUser = true,
   kuotaAkunMaksimal = 2,
   coins,
   updateKoinDatabase,
@@ -125,37 +181,62 @@ export default function BrainstormView({
   setActiveMenu,
   showToast,
   onRefreshDataUser,
+  isInsideChatRoom,
+  setIsInsideChatRoom,
 }) {
-  const chatEndRef = useRef(null)
+  const latestBotMsgRef = useRef(null)
   const speechRecRef = useRef(null)
-  const storageSessionsKey = `hookya_topic_sessions_v2_${userId || "guest"}`
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const baseTextBeforeRecRef = useRef("")
 
-  // Mode layar: "list" (Daftar Sesi Topik sesuai screen.jpg) atau "chat" (Ruang Chat sesuai 2_2.png)
-  const [subView, setSubView] = useState("chat")
+  const storageSessionsKey = `hookya_topic_sessions_v3_${userId || "guest"}`
+
+  const [internalSubView, setInternalSubView] = useState("list")
+  const subView =
+    isInsideChatRoom !== undefined
+      ? isInsideChatRoom
+        ? "chat"
+        : "list"
+      : internalSubView
+
+  const ubahSubView = (modeBaru) => {
+    setInternalSubView(modeBaru)
+    if (setIsInsideChatRoom) {
+      setIsInsideChatRoom(modeBaru === "chat")
+    }
+  }
+
   const [searchQuery, setSearchQuery] = useState("")
   const [filterAkunPill, setFilterAkunPill] = useState("ALL")
   const [openSwipeId, setOpenSwipeId] = useState(null)
+  const [showStorageCleaner, setShowStorageCleaner] = useState(false)
+  const [selectedDeleteIds, setSelectedDeleteIds] = useState([])
 
   const [daftarAkunSosmed, setDaftarAkunSosmed] = useState([])
   const [daftarSesiTopik, setDaftarSesiTopik] = useState([])
   const [activeSessionId, setActiveSessionId] = useState("")
 
   const [pesanInput, setPesanInput] = useState("")
-  const [lampiranGambar, setLampiranGambar] = useState([])
+  const pesanInputRef = useRef("")
+  useEffect(() => {
+    pesanInputRef.current = pesanInput
+  }, [pesanInput])
+
+  const [lampiranMedia, setLampiranMedia] = useState([])
   const [isSendingChat, setIsSendingChat] = useState(false)
   const [isGeneratingScript, setIsGeneratingScript] = useState(false)
-  const [isListeningMic, setIsListeningMic] = useState(false)
+  const [isRecordingMic, setIsRecordingMic] = useState(false)
+  const [isTranscribingMic, setIsTranscribingMic] = useState(false)
+  const [isScanningProductSS, setIsScanningProductSS] = useState(false)
 
-  // State Gudang Ingatan
-  const [memoryVault, setMemoryVault] = useState({
-    samples: [],
-    reviewSingkat: "",
-    rincianAnalisa: null,
+  const [formKartuProduk, setFormKartuProduk] = useState({
+    namaProduk: "",
+    jenisProduk: "",
+    spesifikasi: "",
+    fungsiUtama: "",
+    harga: "",
   })
-  const [showMemoryDetail, setShowMemoryDetail] = useState(false)
-
-  // State pilihan CTA di dalam kartu naskah 6 langkah
-  const [activeCtaTabMap, setActiveCtaTabMap] = useState({})
 
   const akunDefaultLabel =
     personaProfile?.account_label ||
@@ -163,7 +244,6 @@ export default function BrainstormView({
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    setMemoryVault(ambilDataGudangIngatan(userId))
 
     try {
       const rawTernak = localStorage.getItem(
@@ -176,7 +256,7 @@ export default function BrainstormView({
         }
       }
     } catch {
-      // Ignore storage read error
+      // Ignore storage error
     }
 
     try {
@@ -190,7 +270,7 @@ export default function BrainstormView({
         }
       }
     } catch {
-      // Ignore session parse error
+      // Ignore parse error
     }
 
     const sesiAwal = buatSesiTopikBaru(1, akunDefaultLabel)
@@ -198,16 +278,52 @@ export default function BrainstormView({
     setActiveSessionId(sesiAwal.id)
   }, [userId, storageSessionsKey, akunDefaultLabel])
 
-  const simpanDaftarSesiKeLokal = (listBaru) => {
+  // Sinkronisasi daftar chat ke localStorage & Supabase database
+  const simpanDaftarSesiKeStorageDanDB = async (listBaru) => {
     setDaftarSesiTopik(listBaru)
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(
-          storageSessionsKey,
-          JSON.stringify(listBaru.slice(0, 35)),
-        )
+        localStorage.setItem(storageSessionsKey, JSON.stringify(listBaru))
       } catch {
-        // Ignore quota error
+        // Ignore local quota error
+      }
+    }
+    if (userId) {
+      try {
+        const { data: uRow } = await supabase
+          .from("users")
+          .select("profil_dna")
+          .eq("id", userId)
+          .single()
+        if (uRow) {
+          const ringkasanDB = listBaru.slice(0, 25).map((s) => ({
+            id: s.id,
+            nomorSesi: s.nomorSesi,
+            judul: s.judul,
+            akunLabel: s.akunLabel,
+            gunakanPersona: s.gunakanPersona,
+            format: s.format,
+            statusLabel: s.statusLabel,
+            statusTahap: s.statusTahap,
+            waktuTerakhir: s.waktuTerakhir,
+            flowState: s.flowState,
+            messages: (s.messages || []).slice(-12).map((m) => ({
+              ...m,
+              images: [],
+            })),
+          }))
+          await supabase
+            .from("users")
+            .update({
+              profil_dna: {
+                ...(uRow.profil_dna || {}),
+                chat_sessions_backup: ringkasanDB,
+              },
+            })
+            .eq("id", userId)
+        }
+      } catch {
+        // Ignore background sync error
       }
     }
   }
@@ -217,11 +333,34 @@ export default function BrainstormView({
     daftarSesiTopik[0] ||
     buatSesiTopikBaru(1, akunDefaultLabel)
 
+  const flowAktif = sesiAktif.flowState || {}
+
+  useEffect(() => {
+    if (flowAktif.dataProduk) {
+      setFormKartuProduk((prev) => ({
+        ...prev,
+        ...flowAktif.dataProduk,
+      }))
+    }
+  }, [sesiAktif.id])
+
+  // Gulir layar tepat ke BAGIAN ATAS balasan terbaru dari Bot AI
+  const gulirKeAtasPesanTerbaruBot = () => {
+    setTimeout(() => {
+      if (latestBotMsgRef.current) {
+        latestBotMsgRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        })
+      }
+    }, 140)
+  }
+
   const updateSesiAktif = (perubahanObj) => {
     const listUpdate = daftarSesiTopik.map((s) =>
       s.id === sesiAktif.id ? { ...s, ...perubahanObj } : s,
     )
-    simpanDaftarSesiKeLokal(listUpdate)
+    simpanDaftarSesiKeStorageDanDB(listUpdate)
   }
 
   const handleBuatTopikBaru = () => {
@@ -230,90 +369,290 @@ export default function BrainstormView({
       filterAkunPill !== "ALL" ? filterAkunPill : akunDefaultLabel
     const baru = buatSesiTopikBaru(nomorBaru, akunAktif)
     const listBaru = [baru, ...daftarSesiTopik]
-    simpanDaftarSesiKeLokal(listBaru)
+    simpanDaftarSesiKeStorageDanDB(listBaru)
     setActiveSessionId(baru.id)
-    setSubView("chat")
+    ubahSubView("chat")
     setPesanInput("")
-    setLampiranGambar([])
+    setLampiranMedia([])
   }
 
   const handleHapusSesiTopik = (idTarget) => {
     const sisa = daftarSesiTopik.filter((s) => s.id !== idTarget)
     if (sisa.length === 0) {
       const baru = buatSesiTopikBaru(1, akunDefaultLabel)
-      simpanDaftarSesiKeLokal([baru])
+      simpanDaftarSesiKeStorageDanDB([baru])
       setActiveSessionId(baru.id)
     } else {
-      simpanDaftarSesiKeLokal(sisa)
+      simpanDaftarSesiKeStorageDanDB(sisa)
       if (activeSessionId === idTarget) {
         setActiveSessionId(sisa[0].id)
       }
     }
     setOpenSwipeId(null)
-    showToast("Sesi topik berhasil dihapus.")
+    showToast("Riwayat topik dihapus & penyimpanan dibersihkan.")
   }
 
-  const handlePilihGambarUpload = async (e) => {
+  const handleBersihkanRiwayatTerpilih = () => {
+    if (selectedDeleteIds.length === 0) {
+      showToast("Pilih minimal 1 riwayat topik yang ingin dihapus.")
+      return
+    }
+    const sisa = daftarSesiTopik.filter(
+      (s) => !selectedDeleteIds.includes(s.id),
+    )
+    if (sisa.length === 0) {
+      const baru = buatSesiTopikBaru(1, akunDefaultLabel)
+      simpanDaftarSesiKeStorageDanDB([baru])
+      setActiveSessionId(baru.id)
+    } else {
+      simpanDaftarSesiKeStorageDanDB(sisa)
+      if (!sisa.some((s) => s.id === activeSessionId)) {
+        setActiveSessionId(sisa[0].id)
+      }
+    }
+    setSelectedDeleteIds([])
+    showToast(
+      `${selectedDeleteIds.length} riwayat konten lama berhasil dibersihkan.`,
+    )
+  }
+
+  // Fitur Voice Note: Pencet sekali mulai rekam, pencet sekali lagi off record,
+  // dan rekaman berikutnya melanjutkan dari teks sebelumnya (tidak menghapus teks lama)
+  const kirimBlobVoiceNoteKeAI = async (audioBlob, mimeAsli) => {
+    if (!audioBlob || audioBlob.size < 200) return
+    setIsTranscribingMic(true)
+    try {
+      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob)
+      let base64Final = hasilWav?.base64 || ""
+      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav"
+
+      if (!base64Final) {
+        base64Final = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () =>
+            resolve((reader.result || "").toString().split(",")[1] || "")
+          reader.onerror = () => resolve("")
+          reader.readAsDataURL(audioBlob)
+        })
+      }
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "transkrip_suara_mic",
+          userId,
+          audioBase64: base64Final,
+          audioMimeType: mimeFinal,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.teks) {
+        const teksSebelumnya = (pesanInputRef.current || "").trim()
+        const gabungan = teksSebelumnya
+          ? `${teksSebelumnya} ${data.teks}`
+          : data.teks
+        setPesanInput(gabungan)
+        rekamKetikanKeGudangIngatan(userId, "Voice Note Chat", gabungan)
+        showToast("Rekaman suara ditambahkan ke teks.")
+      }
+    } catch {
+      showToast("Gagal menerjemahkan suara.")
+    } finally {
+      setIsTranscribingMic(false)
+    }
+  }
+
+  const mulaiMediaRecorderFallback = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast("Browser tidak mendukung mikrofon.")
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data)
+        }
+      }
+
+      recorder.onstop = () => {
+        setIsRecordingMic(false)
+        stream.getTracks().forEach((track) => track.stop())
+        const mime = recorder.mimeType || "audio/webm"
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime })
+        kirimBlobVoiceNoteKeAI(audioBlob, mime)
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecordingMic(true)
+      showToast("Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record.")
+    } catch {
+      showToast("Izinkan akses mikrofon di browser kamu.")
+    }
+  }
+
+  const handleToggleVoiceNoteInput = () => {
+    if (isTranscribingMic) return
+
+    // Jika sedang merekam -> matikan rekaman (Off Record)
+    if (isRecordingMic) {
+      if (speechRecRef.current) {
+        try {
+          speechRecRef.current.stop()
+        } catch {
+          // Ignore stop error
+        }
+        speechRecRef.current = null
+      }
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.stop()
+      } else {
+        setIsRecordingMic(false)
+      }
+      showToast("Mic OFF: Rekaman dihentikan, teks tersimpan.")
+      return
+    }
+
+    // Mulai merekam baru -> simpan teks yang sudah ada sebelumnya agar disambung
+    baseTextBeforeRecRef.current = (pesanInputRef.current || "").trim()
+
+    if (typeof window === "undefined") return
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+
+    if (SpeechRec && !navigator.userAgent.includes("iPhone")) {
+      try {
+        const rec = new SpeechRec()
+        rec.lang = "id-ID"
+        rec.continuous = true
+        rec.interimResults = true
+
+        rec.onstart = () => {
+          setIsRecordingMic(true)
+          showToast(
+            "Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record.",
+          )
+        }
+
+        rec.onresult = (ev) => {
+          let transkripSesiIni = ""
+          for (let i = 0; i < ev.results.length; i++) {
+            transkripSesiIni += ev.results[i][0].transcript + " "
+          }
+          const bersih = transkripSesiIni.trim()
+          if (bersih) {
+            const gabungan = baseTextBeforeRecRef.current
+              ? `${baseTextBeforeRecRef.current} ${bersih}`
+              : bersih
+            setPesanInput(gabungan)
+          }
+        }
+
+        rec.onerror = () => {
+          setIsRecordingMic(false)
+          speechRecRef.current = null
+        }
+
+        rec.onend = () => {
+          setIsRecordingMic(false)
+          speechRecRef.current = null
+          if (pesanInputRef.current) {
+            rekamKetikanKeGudangIngatan(
+              userId,
+              "Voice Note Chat",
+              pesanInputRef.current,
+            )
+          }
+        }
+
+        speechRecRef.current = rec
+        rec.start()
+        return
+      } catch {
+        // Fallback to MediaRecorder
+      }
+    }
+
+    mulaiMediaRecorderFallback()
+  }
+
+  const handlePilihMediaUpload = async (e) => {
     const files = Array.from(e.target.files || []).slice(0, 2)
     if (files.length === 0) return
-    const hasilKompres = []
+    const hasil = []
     for (const f of files) {
-      const k = await kompresGambarChat(f)
-      if (k) hasilKompres.push(k)
+      if (f.type.startsWith("image/")) {
+        const k = await kompresGambarChat(f)
+        if (k) hasil.push({ ...k, tipeMedia: "foto" })
+      } else {
+        hasil.push({
+          previewUrl: "",
+          base64: "",
+          mimeType: f.type || "video/mp4",
+          namaFile: f.name,
+          tipeMedia: "video",
+        })
+      }
     }
-    setLampiranGambar((prev) => [...prev, ...hasilKompres].slice(0, 2))
+    setLampiranMedia((prev) => [...prev, ...hasil].slice(0, 2))
     e.target.value = ""
   }
 
-  const handleToggleMicInput = () => {
-    if (typeof window === "undefined") return
-    if (isListeningMic && speechRecRef.current) {
-      try {
-        speechRecRef.current.stop()
-      } catch {
-        // Ignore stop error
-      }
-      setIsListeningMic(false)
-      return
-    }
-
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRec) {
-      showToast("Gunakan Chrome atau Safari terbaru untuk fitur dikte suara.")
-      return
-    }
-
+  // Scan Screenshot Produk Marketplace di Kartu Produk Jualan
+  const handleScanScreenshotProduk = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsScanningProductSS(true)
+    showToast("Menganalisa screenshot produk dari marketplace...")
     try {
-      const rec = new SpeechRec()
-      rec.lang = "id-ID"
-      rec.onstart = () => {
-        setIsListeningMic(true)
-        showToast("Silakan bicara, suara sedang diubah ke teks...")
-      }
-      rec.onresult = (ev) => {
-        const hasil = ev.results?.[0]?.[0]?.transcript || ""
-        if (hasil) {
-          setPesanInput((prev) => (prev ? `${prev} ${hasil}` : hasil))
-          rekamKetikanKeGudangIngatan(userId, "Voice Note Chat", hasil)
+      const k = await kompresGambarChat(file)
+      if (!k) throw new Error("Gagal membaca gambar")
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "analyze_product_card_screenshot",
+          userId,
+          namaUser,
+          preferredModel,
+          uploadedImages: [k],
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const nextProduk = {
+          namaProduk: data.namaProduk || formKartuProduk.namaProduk,
+          jenisProduk: data.jenisProduk || formKartuProduk.jenisProduk,
+          spesifikasi: data.spesifikasi || formKartuProduk.spesifikasi,
+          fungsiUtama: data.fungsiUtama || formKartuProduk.fungsiUtama,
+          harga: data.harga || formKartuProduk.harga,
         }
+        setFormKartuProduk(nextProduk)
+        showToast("Data produk berhasil diekstrak dari screenshot!")
       }
-      rec.onend = () => setIsListeningMic(false)
-      rec.onerror = () => setIsListeningMic(false)
-      speechRecRef.current = rec
-      rec.start()
     } catch {
-      setIsListeningMic(false)
+      showToast("Gagal menganalisa screenshot produk.")
+    } finally {
+      setIsScanningProductSS(false)
+      e.target.value = ""
     }
   }
 
+  // Fungsi Utama Mengirim Jawaban / Pilihan ke Bot AI
   const handleKirimPesanKeBot = async ({
     teksOverride = null,
-    tujuanOverride = "",
-    angleOverride = "",
-    masalahOverride = "",
+    flowPatch = {},
   } = {}) => {
     const teksFinal = (teksOverride !== null ? teksOverride : pesanInput).trim()
-    if (!teksFinal && lampiranGambar.length === 0) return
+    if (!teksFinal && lampiranMedia.length === 0) return
     if (isSendingChat) return
 
     const waktuSkr = new Date().toLocaleTimeString("id-ID", {
@@ -322,12 +661,12 @@ export default function BrainstormView({
     })
 
     if (teksFinal) {
-      const vBaru = rekamKetikanKeGudangIngatan(
-        userId,
-        "Chat Sesi Topik",
-        teksFinal,
-      )
-      if (vBaru) setMemoryVault(vBaru)
+      rekamKetikanKeGudangIngatan(userId, "Chat Sesi Topik", teksFinal)
+    }
+
+    const flowTerbaru = {
+      ...flowAktif,
+      ...flowPatch,
     }
 
     const msgUser = {
@@ -336,28 +675,32 @@ export default function BrainstormView({
       waktu: waktuSkr,
       teks:
         teksFinal ||
-        "Tolong analisis gambar yang saya unggah ini untuk dijadikan konsep konten.",
-      images: lampiranGambar.map((g) => g.previewUrl),
+        `[Mengunggah ${lampiranMedia.map((m) => m.namaFile).join(", ")}]`,
+      images: lampiranMedia
+        .filter((m) => m.previewUrl)
+        .map((m) => m.previewUrl),
     }
 
     const messagesSementara = [...(sesiAktif.messages || []), msgUser]
     const judulSementara =
-      sesiAktif.judul === "Diskusi Topik Konten Baru" && teksFinal
+      sesiAktif.judul === "Diskusi Topik Konten Baru" &&
+      teksFinal &&
+      !teksFinal.startsWith("Konten ")
         ? teksFinal.slice(0, 48)
         : sesiAktif.judul
 
     updateSesiAktif({
       judul: judulSementara,
       waktuTerakhir: waktuSkr,
-      masalahTerpilih: masalahOverride || sesiAktif.masalahTerpilih,
-      angleTerpilih: angleOverride || sesiAktif.angleTerpilih,
+      flowState: flowTerbaru,
       messages: messagesSementara,
     })
 
-    const gambarDikirim = [...lampiranGambar]
+    const gambarDikirim = lampiranMedia.filter((m) => m.base64)
     if (teksOverride === null) setPesanInput("")
-    setLampiranGambar([])
+    setLampiranMedia([])
     setIsSendingChat(true)
+    gulirKeAtasPesanTerbaruBot()
 
     try {
       const akunObj = daftarAkunSosmed.find(
@@ -377,13 +720,9 @@ export default function BrainstormView({
             role: m.role,
             content: m.teks || m.balasanBot || "",
           })),
-          formatKonten: sesiAktif.format,
-          toneBicara: sesiAktif.tone,
-          tujuanKonten: tujuanOverride,
-          angleTerpilih: angleOverride || sesiAktif.angleTerpilih,
-          masalahTerpilih: masalahOverride || sesiAktif.masalahTerpilih,
-          gunakanPersona: sesiAktif.tone !== "Sosmed Santai Formal",
-          akunPersonaTerpilih: akunObj || null,
+          flowState: flowTerbaru,
+          gunakanPersona: Boolean(sesiAktif.gunakanPersona),
+          akunPersonaTerpilih: sesiAktif.gunakanPersona ? akunObj : null,
           personaProfile,
           memoryVaultSamples: ambilDataGudangIngatan(userId).samples || [],
           uploadedImages: gambarDikirim,
@@ -394,11 +733,20 @@ export default function BrainstormView({
       if (!res.ok) throw new Error(data.error || "Gagal memproses chat")
 
       if (data.analisaGudangIngatan) {
-        const vDisimpan = simpanAnalisaGudangIngatan(
-          userId,
-          data.analisaGudangIngatan,
-        )
-        if (vDisimpan) setMemoryVault(vDisimpan)
+        simpanAnalisaGudangIngatan(userId, data.analisaGudangIngatan)
+      }
+
+      const nextFlow = {
+        ...flowTerbaru,
+        tahap: data.tahapBerikutnya || flowTerbaru.tahap,
+        tujuanKonten:
+          data.terdeteksiTujuan && data.terdeteksiTujuan !== "belum_dipilih"
+            ? data.terdeteksiTujuan
+            : flowTerbaru.tujuanKonten,
+        formatKonten:
+          data.terdeteksiFormat && data.terdeteksiFormat !== "belum_dipilih"
+            ? data.terdeteksiFormat
+            : flowTerbaru.formatKonten,
       }
 
       const msgBot = {
@@ -406,18 +754,28 @@ export default function BrainstormView({
         role: "assistant",
         waktu: waktuSkr,
         modelUsed: data.modelUsed || preferredModel,
-        kategoriDeteksi: data.kategoriDeteksi || "siap_pilih_hook",
-        badgeStrategi: data.badgeStrategi || `Strategi ${sesiAktif.format}`,
+        tahapBerikutnya: data.tahapBerikutnya || "diskusi",
         balasanBot:
-          data.balasanBot || "Berikut hasil pemetaan strategi kontenmu:",
-        pertanyaanTindakLanjut: data.pertanyaanTindakLanjut || "",
-        opsiTujuanMedia: Array.isArray(data.opsiTujuanMedia)
-          ? data.opsiTujuanMedia
+          data.balasanBot ||
+          "Silakan pilih atau lengkapi langkah berikut untuk melanjutkan:",
+        saranAutoLanjut:
+          data.saranAutoLanjut || "Lanjutkan dengan rekomendasi terbaik",
+        tampilkanKartuProduk: Boolean(data.tampilkanKartuProduk),
+        opsiPilihanCepat: Array.isArray(data.opsiPilihanCepat)
+          ? data.opsiPilihanCepat
           : [],
-        painPoints10: Array.isArray(data.painPoints10) ? data.painPoints10 : [],
+        rekomendasi10: Array.isArray(data.rekomendasi10)
+          ? data.rekomendasi10
+          : [],
+        faktorViralPilihan: Array.isArray(data.faktorViralPilihan)
+          ? data.faktorViralPilihan
+          : [],
         sevenAngles: Array.isArray(data.sevenAngles) ? data.sevenAngles : [],
-        hookOptions: Array.isArray(data.hookOptions) ? data.hookOptions : [],
-        naskah6Langkah: null,
+        hookOptions10: Array.isArray(data.hookOptions10)
+          ? data.hookOptions10
+          : [],
+        ctaOptions: Array.isArray(data.ctaOptions) ? data.ctaOptions : [],
+        naskahFinal: null,
       }
 
       const judulFinal =
@@ -427,15 +785,15 @@ export default function BrainstormView({
 
       updateSesiAktif({
         judul: judulFinal,
+        format: nextFlow.formatKonten || sesiAktif.format,
         waktuTerakhir: waktuSkr,
         statusTahap: "Sedang diskusi",
+        flowState: nextFlow,
         messages: [...messagesSementara, msgBot],
       })
 
       if (onRefreshDataUser) onRefreshDataUser()
-      setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-      }, 120)
+      gulirKeAtasPesanTerbaruBot()
     } catch {
       showToast("Error sistem, silakan refresh atau hubungi admin.")
     } finally {
@@ -443,7 +801,8 @@ export default function BrainstormView({
     }
   }
 
-  const handleGenerateNaskah6Langkah = async (opsiHookObj) => {
+  // Generate 1 Naskah Utuh (Tanpa Menawarkan Penggandaan Teks)
+  const handleGenerateSatuNaskahUtuh = async () => {
     if (isGeneratingScript) return
     if (coins < 1) {
       alert("Saldo koin belum mencukupi (Perlu 1 Koin). Silakan Top-Up koin.")
@@ -451,13 +810,9 @@ export default function BrainstormView({
       return
     }
 
-    const teksHook =
-      typeof opsiHookObj === "string"
-        ? opsiHookObj
-        : opsiHookObj?.teksHook || ""
-
     setIsGeneratingScript(true)
     await updateKoinDatabase(coins - 1)
+    gulirKeAtasPesanTerbaruBot()
 
     const waktuSkr = new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -477,13 +832,13 @@ export default function BrainstormView({
           userId,
           namaUser,
           preferredModel,
-          pesanUser: sesiAktif.judul,
-          formatKonten: sesiAktif.format,
-          toneBicara: sesiAktif.tone,
-          masalahTerpilih: sesiAktif.masalahTerpilih,
-          angleTerpilih: sesiAktif.angleTerpilih,
-          hookTerpilih: teksHook,
-          akunPersonaTerpilih: akunObj || null,
+          pesanUser: flowAktif.topikAtauProduk || sesiAktif.judul,
+          formatKonten: flowAktif.formatKonten || sesiAktif.format,
+          flowState: flowAktif,
+          hookTerpilih: flowAktif.hookTerpilih,
+          ctaTerpilih: flowAktif.ctaTerpilih,
+          gunakanPersona: Boolean(sesiAktif.gunakanPersona),
+          akunPersonaTerpilih: sesiAktif.gunakanPersona ? akunObj : null,
           personaProfile,
           memoryVaultSamples: ambilDataGudangIngatan(userId).samples || [],
         }),
@@ -495,7 +850,7 @@ export default function BrainstormView({
           updateKoinDatabase(data.silentCoinUpdated)
         }
         if (onRefreshDataUser) onRefreshDataUser()
-        throw new Error("Gagal menyusun naskah 6 langkah")
+        throw new Error("Gagal menyusun naskah")
       }
 
       const tglHariIni = new Date().toLocaleDateString("id-ID", {
@@ -508,17 +863,12 @@ export default function BrainstormView({
         id: Date.now(),
         dbId: null,
         judul: data.judul || sesiAktif.judul,
-        kategori: "Formula 6 Langkah",
-        bentuk: sesiAktif.format,
+        kategori: flowAktif.tujuanKonten || "Naskah AI",
+        bentuk: flowAktif.formatKonten || sesiAktif.format || "TikTok / Reels",
         akunLabel: sesiAktif.akunLabel,
         waktuDibuat: tglHariIni,
-        targetDuration: data.targetDuration || sesiAktif.format,
-        kataKunciReviewTerpakai: data.kataKunciReviewTerpakai || [
-          "review",
-          "pengalaman",
-          "hasil",
-        ],
-        ctaVariations: data.ctaVariations || null,
+        targetDuration:
+          data.targetDuration || flowAktif.durasiKonten || "60 Detik",
         kritikDetail: data.kritikDetail || null,
         uploadPackage: data.uploadPackage || null,
         uploadPack: data.uploadPackage || null,
@@ -537,25 +887,22 @@ export default function BrainstormView({
         role: "assistant",
         waktu: waktuSkr,
         modelUsed: data.modelUsed || preferredModel,
-        badgeStrategi: "Formula 6 Langkah Selesai",
+        tahapBerikutnya: "selesai_naskah",
         balasanBot:
-          "Naskah 6 Langkah (Hook -> Masalah -> Curiosity -> Solusi -> Proof Kata Kunci Review -> 3 Variasi CTA) selesai disusun dan otomatis tersimpan ke Arsip.",
-        naskah6Langkah: tersimpanDB,
+          "Berikut adalah naskah lengkap yang sudah disusun sesuai pilihanmu dan otomatis tersimpan ke Arsip:",
+        naskahFinal: tersimpanDB,
       }
 
       updateSesiAktif({
-        hookTerpilih: teksHook,
         statusLabel: "Siap Rekam",
-        statusTahap: "Draf disetujui",
+        statusTahap: "AI Final",
         waktuTerakhir: waktuSkr,
         messages: [...(sesiAktif.messages || []), msgNaskah],
       })
 
       if (onRefreshDataUser) onRefreshDataUser()
-      showToast("Naskah 6 Langkah berhasil dibuat & disimpan ke Arsip.")
-      setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-      }, 150)
+      showToast("Naskah selesai disusun & tersimpan ke Arsip.")
+      gulirKeAtasPesanTerbaruBot()
     } catch {
       showToast(
         "Request gagal diproses. Koin Anda telah dikembalikan otomatis (Auto-Refund).",
@@ -583,8 +930,16 @@ export default function BrainstormView({
     )
   })
 
+  // Perhitungan Penggunaan Penyimpanan Database
+  const totalBytesDipakai = hitungUkuranBytesObjek(daftarSesiTopik)
+  const batasMaksBytes = isPremiumUser ? 5 * 1024 * 1024 : 2 * 1024 * 1024
+  const persenStorage = Math.min(
+    100,
+    Math.max(1, Math.round((totalBytesDipakai / batasMaksBytes) * 100)),
+  )
+
   // ============================================================================
-  // TAMPILAN 1: DAFTAR SESI TOPIK (SESUAI SCREEN.JPG)
+  // TAMPILAN 1: HALAMAN LIST CHAT TOPIK + MANAJEMEN PENYIMPANAN RIWAYAT KONTEN
   // ============================================================================
   if (subView === "list") {
     return (
@@ -647,25 +1002,17 @@ export default function BrainstormView({
             </span>
           </button>
 
-          {semuaAkunUnik.map((akLabel, idx) => {
+          {semuaAkunUnik.slice(0, kuotaAkunMaksimal).map((akLabel) => {
             const jmlSesiAkun = daftarSesiTopik.filter(
               (s) => s.akunLabel === akLabel,
             ).length
             const aktif = filterAkunPill === akLabel
-            const terkunci = idx >= kuotaAkunMaksimal
 
             return (
               <button
                 key={akLabel}
                 type="button"
-                onClick={() => {
-                  if (terkunci) {
-                    showToast("Upgrade paket untuk membuka filter akun ini.")
-                    setActiveMenu("topup")
-                    return
-                  }
-                  setFilterAkunPill(akLabel)
-                }}
+                onClick={() => setFilterAkunPill(akLabel)}
                 className={`cursor-pointer shrink-0 h-10 px-4 rounded-full text-xs font-bold flex items-center gap-2 border transition ${
                   aktif
                     ? "bg-[#14141F] text-[#D4F34A] border-[#14141F]"
@@ -681,62 +1028,123 @@ export default function BrainstormView({
           })}
         </div>
 
-        {/* Kartu Ringkas Gudang Ingatan Otak AI */}
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3.5 space-y-2">
-          <button
-            type="button"
-            onClick={() => setShowMemoryDetail(!showMemoryDetail)}
-            className="cursor-pointer w-full flex items-center justify-between gap-2 text-left"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0">
-                <FlatIcon name="brain" className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-[#14141F] block">
-                  Gudang Ingatan Otak AI ({(memoryVault.samples || []).length}{" "}
-                  Rekaman Dipelajari)
-                </span>
-                <p className="text-[11px] text-[#64748B] truncate">
-                  {memoryVault.reviewSingkat}
-                </p>
-              </div>
+        {/* Panel Penggunaan Database & Bersihkan Penyimpanan Berdasarkan Riwayat Konten */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-bold text-[#14141F] block">
+                Penggunaan Penyimpanan Chat & Riwayat Konten
+              </span>
+              <span className="text-[11px] text-[#64748B]">
+                Terpakai:{" "}
+                <strong className="text-[#14141F]">
+                  {formatUkuranStorage(totalBytesDipakai)}
+                </strong>{" "}
+                dari Kuota{" "}
+                {isPremiumUser ? "5.00 MB (VIP)" : "2.00 MB (Reguler)"}
+              </span>
             </div>
-            <FlatIcon
-              name="chevronDown"
-              className={`w-4 h-4 text-[#64748B] transition-transform ${
-                showMemoryDetail ? "rotate-180" : ""
-              }`}
-            />
-          </button>
 
-          {showMemoryDetail && (
-            <div className="pt-2 border-t border-[#E2E8F0] text-xs text-[#14141F] space-y-1.5">
-              <p className="text-[#64748B]">{memoryVault.reviewSingkat}</p>
-              {memoryVault.rincianAnalisa && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                  <div className="p-2 rounded-lg bg-[#F4F5F7]">
-                    <strong className="block">Gaya Bahasa Terdeteksi:</strong>
-                    <span>
-                      {memoryVault.rincianAnalisa.gayaBahasaTerdeteksi || "-"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[#F4F5F7]">
-                    <strong className="block">Pola Kalimat:</strong>
-                    <span>{memoryVault.rincianAnalisa.polaKalimat || "-"}</span>
-                  </div>
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={() => setShowStorageCleaner(!showStorageCleaner)}
+              className="cursor-pointer px-3 py-1.5 rounded-lg bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-xs font-bold text-[#14141F] flex items-center gap-1.5"
+            >
+              <FlatIcon name="trash" className="w-3.5 h-3.5 text-[#EF4444]" />
+              <span>
+                {showStorageCleaner ? "Tutup Pembersih" : "Bersihkan Riwayat"}
+              </span>
+            </button>
+          </div>
+
+          <div className="w-full h-2 rounded-full bg-[#F4F5F7] overflow-hidden border border-[#E2E8F0]">
+            <div
+              style={{ width: `${persenStorage}%` }}
+              className="h-full bg-[#D4F34A]"
+            />
+          </div>
+
+          {showStorageCleaner && (
+            <div className="pt-2 border-t border-[#E2E8F0] space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-[#14141F]">
+                  Pilih Riwayat Konten Lama untuk Dihapus:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedDeleteIds.length === daftarSesiTopik.length) {
+                      setSelectedDeleteIds([])
+                    } else {
+                      setSelectedDeleteIds(daftarSesiTopik.map((s) => s.id))
+                    }
+                  }}
+                  className="cursor-pointer text-[11px] font-bold underline text-[#14141F]"
+                >
+                  {selectedDeleteIds.length === daftarSesiTopik.length
+                    ? "Batal Pilih Semua"
+                    : "Pilih Semua"}
+                </button>
+              </div>
+
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                {daftarSesiTopik.map((s) => {
+                  const ukuranSesi = formatUkuranStorage(
+                    hitungUkuranBytesObjek(s),
+                  )
+                  const dicentang = selectedDeleteIds.includes(s.id)
+                  return (
+                    <label
+                      key={s.id}
+                      className="cursor-pointer flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[#F4F5F7] border border-[#E2E8F0] text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={dicentang}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDeleteIds((p) => [...p, s.id])
+                            } else {
+                              setSelectedDeleteIds((p) =>
+                                p.filter((id) => id !== s.id),
+                              )
+                            }
+                          }}
+                          className="w-4 h-4 accent-[#14141F]"
+                        />
+                        <span className="font-semibold text-[#14141F] truncate">
+                          {s.judul}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] text-[#64748B] shrink-0">
+                        {ukuranSesi}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBersihkanRiwayatTerpilih}
+                className="cursor-pointer w-full h-10 rounded-lg bg-[#EF4444] text-white text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <FlatIcon name="trash" className="w-4 h-4" />
+                <span>
+                  Hapus {selectedDeleteIds.length} Riwayat Konten Terpilih
+                </span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Daftar Baris Sesi Topik (Sesuai screen.jpg) */}
+        {/* Daftar Baris Sesi Topik */}
         <div className="bg-white rounded-2xl border border-[#E2E8F0] divide-y divide-[#E2E8F0] overflow-hidden">
           {daftarSesiTerfilter.map((sesi, idx) => {
             const sedangBukaAksi = openSwipeId === sesi.id
             const isSiapRekam = sesi.statusLabel === "Siap Rekam"
-            const isSudahUpload = sesi.statusLabel === "Sudah Diupload"
+            const ukuranItem = formatUkuranStorage(hitungUkuranBytesObjek(sesi))
 
             return (
               <div
@@ -746,7 +1154,7 @@ export default function BrainstormView({
                 <div
                   onClick={() => {
                     setActiveSessionId(sesi.id)
-                    setSubView("chat")
+                    ubahSubView("chat")
                   }}
                   className="cursor-pointer flex-1 p-4 space-y-2 min-w-0"
                 >
@@ -761,81 +1169,51 @@ export default function BrainstormView({
 
                   <div className="flex items-center gap-2 flex-wrap text-[11px]">
                     <span className="px-2 py-0.5 rounded bg-[#F4F5F7] text-[#14141F] font-semibold border border-[#E2E8F0]">
-                      {sesi.format}
+                      {sesi.flowState?.tujuanKonten || sesi.format}
                     </span>
                     <span className="text-[#64748B]">
-                      Sesi Bot #{sesi.nomorSesi || daftarSesiTopik.length - idx}
+                      Sesi Bot #{sesi.nomorSesi || daftarSesiTopik.length - idx}{" "}
+                      • {ukuranItem}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2.5 py-0.5 rounded-md bg-[#F4F5F7] text-[#14141F] text-[11px] font-semibold">
-                        {sesi.akunLabel}
+                        {sesi.gunakanPersona ? sesi.akunLabel : "Mode Umum"}
                       </span>
 
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          isSudahUpload
-                            ? "bg-[#E6F9F0] text-[#059669]"
-                            : isSiapRekam
-                              ? "bg-[#D4F34A] text-[#14141F]"
-                              : "bg-[#FFF4E5] text-[#B45309]"
+                          isSiapRekam
+                            ? "bg-[#D4F34A] text-[#14141F]"
+                            : "bg-[#FFF4E5] text-[#B45309]"
                         }`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span>{sesi.statusLabel || "Draf Belum Diupload"}</span>
+                        <span>{sesi.statusLabel || "Draf Baru"}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#64748B] font-medium flex items-center gap-1">
-                        <FlatIcon name="bot" className="w-3.5 h-3.5" />
-                        <span>{sesi.statusTahap || "Sedang diskusi"}</span>
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenSwipeId(sedangBukaAksi ? null : sesi.id)
-                        }}
-                        className="cursor-pointer px-2 py-1 rounded bg-[#F4F5F7] hover:bg-[#E2E8F0] text-xs font-bold text-[#14141F]"
-                      >
-                        •••
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenSwipeId(sedangBukaAksi ? null : sesi.id)
+                      }}
+                      className="cursor-pointer px-2.5 py-1 rounded bg-[#F4F5F7] hover:bg-[#E2E8F0] text-xs font-bold text-[#14141F]"
+                    >
+                      •••
+                    </button>
                   </div>
                 </div>
 
-                {/* Panel Aksi Arsip & Hapus (Sesuai screen.jpg) */}
                 {sedangBukaAksi && (
                   <div className="flex items-stretch shrink-0 border-l border-[#E2E8F0]">
                     <button
                       type="button"
-                      onClick={() => {
-                        const updated = daftarSesiTopik.map((x) =>
-                          x.id === sesi.id
-                            ? {
-                                ...x,
-                                statusTahap: "Arsip",
-                                statusLabel: "Siap Rekam",
-                              }
-                            : x,
-                        )
-                        simpanDaftarSesiKeLokal(updated)
-                        setOpenSwipeId(null)
-                        showToast("Sesi topik ditandai ke Arsip.")
-                      }}
-                      className="cursor-pointer w-16 bg-[#F3F4F6] hover:bg-[#E2E8F0] text-[#14141F] flex flex-col items-center justify-center gap-1 text-[11px] font-bold"
-                    >
-                      <FlatIcon name="folder" className="w-4 h-4" />
-                      <span>Arsip</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => handleHapusSesiTopik(sesi.id)}
-                      className="cursor-pointer w-16 bg-[#FFECEC] hover:bg-[#FFD8D8] text-[#BA1A1A] flex flex-col items-center justify-center gap-1 text-[11px] font-bold"
+                      className="cursor-pointer w-20 bg-[#FFECEC] hover:bg-[#FFD8D8] text-[#BA1A1A] flex flex-col items-center justify-center gap-1 text-[11px] font-bold"
                     >
                       <FlatIcon name="trash" className="w-4 h-4" />
                       <span>Hapus</span>
@@ -847,7 +1225,7 @@ export default function BrainstormView({
           })}
         </div>
 
-        {/* Banner Bawah Mulai Diskusi Topik Baru (Sesuai screen.jpg) */}
+        {/* Banner Mulai Diskusi Topik Baru */}
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-[#D4F34A] text-[#14141F] flex items-center justify-center shrink-0">
@@ -858,7 +1236,7 @@ export default function BrainstormView({
                 Mulai Diskusi Topik Baru
               </div>
               <p className="text-xs text-[#64748B] truncate">
-                Rancang naskah otomatis dengan Formula 6 Langkah
+                Pilih Konten Viral, Konten Trust, atau Konten Jualan
               </p>
             </div>
           </div>
@@ -877,83 +1255,59 @@ export default function BrainstormView({
   }
 
   // ============================================================================
-  // TAMPILAN 2: RUANG CHAT "AI SCRIPT SESSION" (SESUAI 2_2.PNG)
+  // TAMPILAN 2: RUANG CHAT TOPIK (TANPA KARTU ATAS YANG DISILANG & INPUT STATIS)
   // ============================================================================
+  const listMessages = sesiAktif.messages || []
+  const lastBotIndex = listMessages.reduce(
+    (acc, m, idx) => (m.role === "assistant" ? idx : acc),
+    0,
+  )
+
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-4 pb-12">
-      {/* Sub-Header Bar Sesi Chat: Tombol Daftar Topik, Pemilih Akun, & Nomor Sesi */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSubView("list")}
-            title="Lihat Semua Daftar Sesi Topik"
-            className="cursor-pointer h-9 px-3 rounded-lg bg-[#F4F5F7] hover:bg-[#E2E8F0] text-[#14141F] text-xs font-bold flex items-center gap-1.5"
-          >
-            <FlatIcon name="arrowLeft" className="w-4 h-4" />
-            <span>Daftar Topik ({daftarSesiTopik.length})</span>
-          </button>
+    <div className="w-full max-w-3xl mx-auto pb-36">
+      {/* BAR ATAS RINGKAS: CEKLIS "GUNAKAN PERSONA AKUN" + DROPDOWN PILIH AKUN */}
+      <div className="sticky top-16 z-30 bg-[#F4F5F7] pt-1 pb-2.5">
+        <div className="bg-white rounded-xl border border-[#E2E8F0] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold text-[#14141F] select-none">
+            <input
+              type="checkbox"
+              checked={Boolean(sesiAktif.gunakanPersona)}
+              onChange={(e) =>
+                updateSesiAktif({ gunakanPersona: e.target.checked })
+              }
+              className="w-4 h-4 accent-[#14141F] rounded cursor-pointer"
+            />
+            <span>Gunakan Persona Akun</span>
+          </label>
 
-          {/* Dropdown Akun Aktif (@cuanistsociety) */}
-          <div className="relative">
-            <select
-              value={sesiAktif.akunLabel || akunDefaultLabel}
-              onChange={(e) => updateSesiAktif({ akunLabel: e.target.value })}
-              className="h-9 pl-3 pr-7 rounded-full bg-[#F4F5F7] border border-[#E2E8F0] text-xs font-bold text-[#14141F] appearance-none cursor-pointer focus:outline-none"
-            >
-              {semuaAkunUnik.slice(0, kuotaAkunMaksimal).map((ak) => (
-                <option key={ak} value={ak}>
-                  {ak}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#14141F]">
-              <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
+          {sesiAktif.gunakanPersona ? (
+            <div className="relative">
+              <select
+                value={sesiAktif.akunLabel || akunDefaultLabel}
+                onChange={(e) => updateSesiAktif({ akunLabel: e.target.value })}
+                className="h-9 pl-3 pr-8 rounded-lg bg-[#F4F5F7] border border-[#14141F] text-xs font-bold text-[#14141F] appearance-none cursor-pointer focus:outline-none"
+              >
+                {semuaAkunUnik.slice(0, kuotaAkunMaksimal).map((ak) => (
+                  <option key={ak} value={ak}>
+                    {ak}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#14141F]">
+                <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
+              </span>
+            </div>
+          ) : (
+            <span className="text-[11px] font-semibold text-[#64748B]">
+              Default: Bahasa Sosmed Santai Formal
             </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F4F5F7] text-xs font-bold text-[#14141F]">
-            <span className="w-2 h-2 rounded-full bg-[#D4F34A]" />
-            <span>
-              Sesi #{sesiAktif.nomorSesi || 1}: {sesiAktif.statusLabel}
-            </span>
-          </span>
-
-          <button
-            type="button"
-            onClick={handleBuatTopikBaru}
-            title="Topik Baru"
-            className="cursor-pointer h-9 px-2.5 rounded-lg bg-[#14141F] text-[#D4F34A] text-xs font-bold flex items-center gap-1"
-          >
-            <FlatIcon name="plus" className="w-4 h-4" />
-            <span className="hidden sm:inline">Topik Baru</span>
-          </button>
+          )}
         </div>
       </div>
 
-      {/* Kartu Banner Atas: MODE KILAT AI - Peracik Hook 3 Detik (Sesuai 2_2.png) */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 flex items-center justify-between gap-3">
-        <div className="space-y-1">
-          <span className="inline-block px-2 py-0.5 rounded bg-[#14141F] text-[#D4F34A] text-[10px] font-extrabold uppercase tracking-wider">
-            MODE KILAT AI
-          </span>
-          <h2 className="text-lg font-bold text-[#14141F] leading-tight">
-            Peracik Hook 3 Detik & Alur 6 Langkah
-          </h2>
-          <p className="text-xs text-[#64748B]">
-            Algoritma retensi aktif untuk TikTok, IG Reels, Carousel & Threads
-          </p>
-        </div>
-        <div className="w-12 h-12 rounded-2xl bg-[#F4F5F7] border border-[#E2E8F0] flex items-center justify-center shrink-0 text-[#14141F]">
-          <FlatIcon name="bolt" className="w-6 h-6" />
-        </div>
-      </div>
-
-      {/* Aliran Gelembung Percakapan Sesi Ini */}
-      <div className="space-y-4">
-        {(sesiAktif.messages || []).map((msg, mIdx) => {
+      {/* ALIRAN GELEMBUNG CHAT */}
+      <div className="space-y-4 pt-1">
+        {listMessages.map((msg, mIdx) => {
           if (msg.role === "user") {
             return (
               <div
@@ -980,27 +1334,19 @@ export default function BrainstormView({
                     {msg.waktu}
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-[#14141F] text-white flex items-center justify-center shrink-0 mt-1">
-                  <FlatIcon name="user" className="w-4 h-4" />
-                </div>
               </div>
             )
           }
 
-          const hasHookOptions =
-            Array.isArray(msg.hookOptions) && msg.hookOptions.length > 0
-          const hasPainPoints =
-            Array.isArray(msg.painPoints10) && msg.painPoints10.length > 0
-          const hasSevenAngles =
-            Array.isArray(msg.sevenAngles) && msg.sevenAngles.length > 0
-          const hasMediaChoices =
-            Array.isArray(msg.opsiTujuanMedia) && msg.opsiTujuanMedia.length > 0
-          const skrip6 = msg.naskah6Langkah
+          const isLatestBotMsg = mIdx === lastBotIndex
+          const tahap = msg.tahapBerikutnya || ""
+          const skripFinal = msg.naskahFinal
 
           return (
             <div
               key={msg.id || mIdx}
-              className="flex items-start justify-start gap-2.5"
+              ref={isLatestBotMsg ? latestBotMsgRef : null}
+              className="scroll-mt-32 flex items-start justify-start gap-2.5"
             >
               <div className="w-8 h-8 rounded-full bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0 mt-1">
                 <FlatIcon name="bolt" className="w-4 h-4" />
@@ -1008,139 +1354,532 @@ export default function BrainstormView({
 
               <div className="flex-1 min-w-0 space-y-3">
                 <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3.5">
-                  {/* Baris Label Strategi & Status Analisis */}
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded bg-[#14141F] text-[#D4F34A] text-[11px] font-bold">
-                      {msg.badgeStrategi || "Strategi Retensi 60s"}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#14141F]">
-                      <span className="w-4 h-4 rounded-full bg-[#14141F] text-[#D4F34A] flex items-center justify-center">
-                        <FlatIcon name="check" className="w-2.5 h-2.5" />
-                      </span>
-                      <span>Analisis tuntas</span>
-                    </span>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-[#14141F] leading-relaxed whitespace-pre-line">
+                  <p className="text-xs sm:text-sm text-[#14141F] leading-relaxed whitespace-pre-line font-medium">
                     {msg.balasanBot}
                   </p>
 
-                  {msg.pertanyaanTindakLanjut && (
-                    <div className="p-3 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] text-xs font-semibold text-[#14141F]">
-                      {msg.pertanyaanTindakLanjut}
+                  {/* 1. PILIH TUJUAN KONTEN AWAL (VIRAL / TRUST / JUALAN) */}
+                  {tahap === "pilih_tujuan" && (
+                    <div className="grid grid-cols-1 gap-2 pt-1">
+                      {PILIHAN_TUJUAN_AWAL.map((tj) => (
+                        <button
+                          key={tj.id}
+                          type="button"
+                          onClick={() =>
+                            handleKirimPesanKeBot({
+                              teksOverride: `Saya pilih: ${tj.id}`,
+                              flowPatch: {
+                                tahap: "pilih_format",
+                                tujuanKonten: tj.id,
+                              },
+                            })
+                          }
+                          className="cursor-pointer p-3 rounded-xl bg-[#F4F5F7] hover:bg-[#D4F34A] border border-[#E2E8F0] text-left transition"
+                        >
+                          <div className="text-xs font-bold text-[#14141F]">
+                            {tj.judul}
+                          </div>
+                          <div className="text-[11px] text-[#64748B] mt-0.5">
+                            {tj.ket}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
 
-                  {/* Pilihan Tujuan Konten saat User Upload Gambar/Video */}
-                  {hasMediaChoices && (
-                    <div className="space-y-1.5">
-                      <span className="text-[11px] font-bold text-[#64748B] uppercase block">
-                        Pilih Arah Konten dari Media Ini:
+                  {/* 2. PILIH BENTUK FORMAT (TIKTOK/REELS, CAROUSEL BERAPA SLIDE, THREADS) */}
+                  {tahap === "pilih_format" && (
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {PILIHAN_FORMAT_KONTEN.map((fmt) => {
+                          const dipilih = flowAktif.formatKonten === fmt.id
+                          return (
+                            <button
+                              key={fmt.id}
+                              type="button"
+                              onClick={() => {
+                                if (fmt.id === "TikTok / Reels") {
+                                  handleKirimPesanKeBot({
+                                    teksOverride:
+                                      "Bentuk konten: TikTok / Reels",
+                                    flowPatch: {
+                                      formatKonten: "TikTok / Reels",
+                                    },
+                                  })
+                                } else {
+                                  updateSesiAktif({
+                                    flowState: {
+                                      ...flowAktif,
+                                      formatKonten: fmt.id,
+                                    },
+                                  })
+                                }
+                              }}
+                              className={`cursor-pointer p-3 rounded-xl border text-xs font-bold text-left transition ${
+                                dipilih
+                                  ? "bg-[#14141F] text-[#D4F34A] border-[#14141F]"
+                                  : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:bg-[#D4F34A]"
+                              }`}
+                            >
+                              {fmt.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {flowAktif.formatKonten === "Carousel" && (
+                        <div className="p-3 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] space-y-2">
+                          <span className="text-xs font-bold text-[#14141F] block">
+                            Tentukan Berapa Slide Carousel:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {PILIHAN_SLIDE_CAROUSEL.map((sl) => (
+                              <button
+                                key={sl}
+                                type="button"
+                                onClick={() =>
+                                  handleKirimPesanKeBot({
+                                    teksOverride: `Bentuk konten: Carousel (${sl})`,
+                                    flowPatch: {
+                                      formatKonten: "Carousel",
+                                      jumlahSlideCarousel: sl,
+                                    },
+                                  })
+                                }
+                                className="cursor-pointer px-3 py-2 rounded-lg bg-white hover:bg-[#D4F34A] text-xs font-bold text-[#14141F] border border-[#E2E8F0]"
+                              >
+                                {sl}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {flowAktif.formatKonten === "Threads" && (
+                        <div className="p-3 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] space-y-2">
+                          <span className="text-xs font-bold text-[#14141F] block">
+                            Pilih Bentuk Format Threads:
+                          </span>
+                          <div className="flex flex-col gap-1.5">
+                            {PILIHAN_MODEL_THREADS.map((mt) => (
+                              <button
+                                key={mt}
+                                type="button"
+                                onClick={() =>
+                                  handleKirimPesanKeBot({
+                                    teksOverride: `Bentuk konten: ${mt}`,
+                                    flowPatch: {
+                                      formatKonten: "Threads",
+                                      modelThreads: mt,
+                                    },
+                                  })
+                                }
+                                className="cursor-pointer p-2.5 rounded-lg bg-white hover:bg-[#D4F34A] text-xs font-bold text-[#14141F] border border-[#E2E8F0] text-left"
+                              >
+                                {mt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. CABANG TRUST: 6 VARIASI BENTUK KONTEN PEMBANGUN TRUST */}
+                  {tahap === "trust_brainstorm" && (
+                    <div className="space-y-2 pt-1">
+                      <span className="text-xs font-bold text-[#14141F] block">
+                        Pilih Ide Bentuk Konten Pembangun Kepercayaan (Trust):
                       </span>
-                      <div className="flex flex-wrap gap-2">
-                        {msg.opsiTujuanMedia.map((opsi, i) => (
+                      <div className="grid grid-cols-1 gap-2">
+                        {ENAM_BENTUK_KONTEN_TRUST.map((tr) => (
                           <button
-                            key={i}
+                            key={tr.id}
                             type="button"
                             onClick={() =>
                               handleKirimPesanKeBot({
-                                teksOverride: `Saya pilih arah: ${opsi}`,
-                                tujuanOverride: opsi,
+                                teksOverride: `Saya ingin membuat konten trust dengan pendekatan: ${tr.label}`,
+                                flowPatch: { faktorAtauAngle: tr.label },
                               })
                             }
-                            className="cursor-pointer px-3 py-2 rounded-lg bg-[#F4F5F7] hover:bg-[#D4F34A] text-[#14141F] text-xs font-bold border border-[#E2E8F0] transition"
+                            className="cursor-pointer p-3 rounded-xl bg-[#F4F5F7] hover:bg-[#D4F34A] border border-[#E2E8F0] text-left transition"
                           >
-                            {opsi}
+                            <div className="text-xs font-bold text-[#14141F]">
+                              {tr.label}
+                            </div>
+                            <div className="text-[11px] text-[#64748B] mt-0.5">
+                              {tr.ket}
+                            </div>
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Daftar 10 Masalah Spesifik Audiens (Klik untuk Approve) */}
-                  {hasPainPoints && (
-                    <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-3 space-y-2">
-                      <div className="flex items-center justify-between">
+                  {/* 4. CABANG JUALAN: PILIH JASA ATAU PRODUK */}
+                  {tahap === "jualan_jenis" && (
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      {["Konten Jualan Produk", "Konten Jualan Jasa"].map(
+                        (jns) => (
+                          <button
+                            key={jns}
+                            type="button"
+                            onClick={() =>
+                              handleKirimPesanKeBot({
+                                teksOverride: `Saya mau membuat ${jns}`,
+                                flowPatch: {
+                                  jenisJualan: jns,
+                                  tahap: "jualan_kartu_produk",
+                                },
+                              })
+                            }
+                            className="cursor-pointer p-3.5 rounded-xl bg-[#F4F5F7] hover:bg-[#D4F34A] border border-[#E2E8F0] text-xs font-bold text-[#14141F] text-center"
+                          >
+                            {jns}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {/* 5. CABANG JUALAN: KARTU DETAIL PRODUK/JASA + UPLOAD SCREENSHOT MARKETPLACE */}
+                  {(msg.tampilkanKartuProduk ||
+                    tahap === "jualan_kartu_produk") && (
+                    <div className="bg-[#F8F9FA] rounded-xl border border-[#14141F] p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-[#14141F]">
-                          10 Masalah Nyata Audiens (Klik yang Ingin Diangkat):
+                          Kartu Detail Produk / Jasa
                         </span>
-                        <span className="text-[10px] font-bold text-[#64748B]">
-                          Approve 1 Masalah
+                        <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-[#14141F] text-[#D4F34A] text-[11px] font-bold inline-flex items-center gap-1.5">
+                          <FlatIcon name="upload" className="w-3.5 h-3.5" />
+                          <span>
+                            {isScanningProductSS
+                              ? "Menganalisa..."
+                              : "Upload Screenshot Marketplace"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleScanScreenshotProduk}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        <div>
+                          <label className="font-bold text-[#14141F] block mb-1">
+                            Nama Produk / Jasa:
+                          </label>
+                          <input
+                            type="text"
+                            value={formKartuProduk.namaProduk}
+                            onChange={(e) =>
+                              setFormKartuProduk({
+                                ...formKartuProduk,
+                                namaProduk: e.target.value,
+                              })
+                            }
+                            placeholder="Contoh: Wireless Mic Pro..."
+                            className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-[#14141F] block mb-1">
+                            Jenis Produk / Kategori:
+                          </label>
+                          <input
+                            type="text"
+                            value={formKartuProduk.jenisProduk}
+                            onChange={(e) =>
+                              setFormKartuProduk({
+                                ...formKartuProduk,
+                                jenisProduk: e.target.value,
+                              })
+                            }
+                            placeholder="Contoh: Alat Ngonten / Skincare / Jasa..."
+                            className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-[#14141F] block mb-1">
+                            Spesifikasi Utama:
+                          </label>
+                          <input
+                            type="text"
+                            value={formKartuProduk.spesifikasi}
+                            onChange={(e) =>
+                              setFormKartuProduk({
+                                ...formKartuProduk,
+                                spesifikasi: e.target.value,
+                              })
+                            }
+                            placeholder="Bahan, fitur, ukuran, garansi..."
+                            className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-[#14141F] block mb-1">
+                            Harga / Promo:
+                          </label>
+                          <input
+                            type="text"
+                            value={formKartuProduk.harga}
+                            onChange={(e) =>
+                              setFormKartuProduk({
+                                ...formKartuProduk,
+                                harga: e.target.value,
+                              })
+                            }
+                            placeholder="Contoh: Rp 129.000..."
+                            className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="font-bold text-[#14141F] block mb-1">
+                            Fungsi & Manfaat Utama:
+                          </label>
+                          <input
+                            type="text"
+                            value={formKartuProduk.fungsiUtama}
+                            onChange={(e) =>
+                              setFormKartuProduk({
+                                ...formKartuProduk,
+                                fungsiUtama: e.target.value,
+                              })
+                            }
+                            placeholder="Masalah apa yang dipecahkan oleh produk/jasa ini..."
+                            className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ringkasan = `Produk: ${formKartuProduk.namaProduk} (${formKartuProduk.jenisProduk}) | Spek: ${formKartuProduk.spesifikasi} | Fungsi: ${formKartuProduk.fungsiUtama} | Harga: ${formKartuProduk.harga}`
+                          handleKirimPesanKeBot({
+                            teksOverride: ringkasan,
+                            flowPatch: {
+                              topikAtauProduk: formKartuProduk.namaProduk,
+                              dataProduk: formKartuProduk,
+                              tahap: "jualan_10_masalah",
+                            },
+                          })
+                        }}
+                        className="cursor-pointer w-full h-11 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
+                      >
+                        <FlatIcon name="check" className="w-4 h-4" />
+                        <span>
+                          Simpan Data Produk & Lihat 10 Masalah Calon Pembeli
                         </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                        {msg.painPoints10.map((pp, pIdx) => {
-                          const terpilih = sesiAktif.masalahTerpilih === pp
-                          return (
-                            <button
-                              key={pIdx}
-                              type="button"
-                              onClick={() => {
-                                updateSesiAktif({ masalahTerpilih: pp })
-                                showToast("Masalah audiens dikunci.")
-                              }}
-                              className={`cursor-pointer p-2.5 rounded-lg text-left text-xs flex items-center justify-between gap-2 border transition ${
-                                terpilih
-                                  ? "bg-[#14141F] text-[#D4F34A] border-[#14141F] font-bold"
-                                  : "bg-white text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
-                              }`}
-                            >
-                              <span>{pp}</span>
-                              {terpilih && (
-                                <FlatIcon
-                                  name="check"
-                                  className="w-3.5 h-3.5 shrink-0"
-                                />
-                              )}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      </button>
                     </div>
                   )}
 
-                  {/* Daftar 7 Angle Berbeda untuk 1 Produk */}
-                  {hasSevenAngles && (
-                    <div className="space-y-2">
+                  {/* 6. 10 REKOMENDASI (GOALS VIRAL ATAU 10 MASALAH CALON PEMBELI) */}
+                  {Array.isArray(msg.rekomendasi10) &&
+                    msg.rekomendasi10.length > 0 && (
+                      <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-3 space-y-2">
+                        <span className="text-xs font-bold text-[#14141F] block">
+                          Pilih 1 dari 10 Rekomendasi Berikut:
+                        </span>
+                        <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                          {msg.rekomendasi10.map((rek, rIdx) => {
+                            const dipilih = flowAktif.masalahAtauGoals === rek
+                            return (
+                              <button
+                                key={rIdx}
+                                type="button"
+                                onClick={() =>
+                                  handleKirimPesanKeBot({
+                                    teksOverride: `Saya pilih: ${rek}`,
+                                    flowPatch: { masalahAtauGoals: rek },
+                                  })
+                                }
+                                className={`cursor-pointer p-2.5 rounded-lg text-left text-xs border transition ${
+                                  dipilih
+                                    ? "bg-[#14141F] text-[#D4F34A] border-[#14141F] font-bold"
+                                    : "bg-white text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                }`}
+                              >
+                                {rek}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* 7. PILIHAN 6 FAKTOR VIRAL */}
+                  {(tahap === "viral_goals_dan_faktor" ||
+                    (Array.isArray(msg.faktorViralPilihan) &&
+                      msg.faktorViralPilihan.length > 0)) &&
+                    flowAktif.tujuanKonten === "Konten Cari Viral" && (
+                      <div className="space-y-2 pt-1">
+                        <span className="text-xs font-bold text-[#14141F] block">
+                          Pilih 1 Faktor Pemicu Viral yang Ingin Dimasukkan:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {ENAM_FAKTOR_VIRAL.map((fv) => {
+                            const dipilih =
+                              flowAktif.faktorAtauAngle === fv.label
+                            return (
+                              <button
+                                key={fv.id}
+                                type="button"
+                                onClick={() =>
+                                  handleKirimPesanKeBot({
+                                    teksOverride: `Faktor viral pilihan: ${fv.label}`,
+                                    flowPatch: { faktorAtauAngle: fv.label },
+                                  })
+                                }
+                                className={`cursor-pointer p-2.5 rounded-xl border text-left text-xs transition ${
+                                  dipilih
+                                    ? "bg-[#14141F] text-[#D4F34A] border-[#14141F] font-bold"
+                                    : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                }`}
+                              >
+                                <div className="font-bold">{fv.label}</div>
+                                <div className="text-[10px] opacity-80 mt-0.5">
+                                  {fv.ket}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* 8. PERTANYAAN REFERENSI MATERI TAMBAHAN (ADA ATAU TIDAK) */}
+                  {(tahap === "viral_referensi" ||
+                    tahap === "trust_referensi") && (
+                    <div className="p-3 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] space-y-2">
                       <span className="text-xs font-bold text-[#14141F] block">
-                        Pilih 1 dari 7 Angle Produk Agar Konversi Fokus:
+                        Apakah ada referensi materi tambahan (teks / voice note
+                        / foto / video)?
                       </span>
-                      <div className="flex gap-2 overflow-x-auto pb-1">
-                        {(msg.sevenAngles.length > 0
-                          ? msg.sevenAngles
-                          : TUJUH_ANGLE_PRODUK
-                        ).map((ang, aIdx) => {
-                          const labelAng = ang.label || ang.judul
-                          const ketAng = ang.ide || ang.ket
-                          const aktif = sesiAktif.angleTerpilih === labelAng
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            showToast(
+                              "Silakan ketik, rekam voice note, atau klik tombol (+) di bawah untuk upload foto/video referensi.",
+                            )
+                          }
+                          className="cursor-pointer px-3.5 py-2 rounded-lg bg-white border border-[#14141F] text-xs font-bold text-[#14141F]"
+                        >
+                          Ada (Ketik / Voice Note / Upload di Bawah)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleKirimPesanKeBot({
+                              teksOverride:
+                                "Tidak ada referensi tambahan, lanjut ke pemilihan durasi.",
+                              flowPatch: {
+                                referensiTambahan: "Tidak ada",
+                                tahap: "pilih_durasi",
+                              },
+                            })
+                          }
+                          className="cursor-pointer px-3.5 py-2 rounded-lg bg-[#14141F] text-[#D4F34A] text-xs font-bold"
+                        >
+                          Tidak Ada, Lanjut Pilih Durasi
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 9. 7 PILIHAN ANGLE PRODUK SUPAYA KONVERSI FOKUS */}
+                  {(tahap === "jualan_7_angle" ||
+                    (Array.isArray(msg.sevenAngles) &&
+                      msg.sevenAngles.length > 0)) &&
+                    flowAktif.tujuanKonten === "Konten Jualan" && (
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-[#14141F] block">
+                          Pilih 1 dari 7 Angle Produk Agar Konversi Fokus:
+                        </span>
+                        <div className="flex gap-2 overflow-x-auto pb-1.5">
+                          {(msg.sevenAngles?.length > 0
+                            ? msg.sevenAngles
+                            : TUJUH_ANGLE_PRODUK
+                          ).map((ang, aIdx) => {
+                            const labelAng = ang.label || ang.judul
+                            const ketAng = ang.ide || ang.ket
+                            const aktif = flowAktif.faktorAtauAngle === labelAng
+                            return (
+                              <button
+                                key={aIdx}
+                                type="button"
+                                onClick={() =>
+                                  handleKirimPesanKeBot({
+                                    teksOverride: `Saya pilih ${labelAng}`,
+                                    flowPatch: { faktorAtauAngle: labelAng },
+                                  })
+                                }
+                                className={`cursor-pointer shrink-0 w-56 p-3 rounded-xl border text-left transition ${
+                                  aktif
+                                    ? "bg-[#14141F] text-white border-[#14141F]"
+                                    : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                }`}
+                              >
+                                <div
+                                  className={`text-xs font-bold ${
+                                    aktif ? "text-[#D4F34A]" : "text-[#14141F]"
+                                  }`}
+                                >
+                                  {labelAng}
+                                </div>
+                                <p
+                                  className={`text-[11px] mt-1 line-clamp-2 ${
+                                    aktif ? "text-white/80" : "text-[#64748B]"
+                                  }`}
+                                >
+                                  {ketAng}
+                                </p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* 10. PILIH DURASI KONTEN */}
+                  {(tahap === "pilih_durasi" ||
+                    tahap === "jualan_7_angle" ||
+                    tahap === "trust_referensi") && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-xs font-bold text-[#14141F] block">
+                        Pilih Durasi Konten yang Diinginkan:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {PILIHAN_DURASI_KONTEN.map((dur) => {
+                          const aktif = flowAktif.durasiKonten === dur
                           return (
                             <button
-                              key={aIdx}
+                              key={dur}
                               type="button"
-                              onClick={() => {
-                                updateSesiAktif({ angleTerpilih: labelAng })
-                                showToast(`Angle dipilih: ${labelAng}`)
-                              }}
-                              className={`cursor-pointer shrink-0 w-56 p-3 rounded-xl border text-left transition ${
+                              onClick={() =>
+                                handleKirimPesanKeBot({
+                                  teksOverride: `Durasi konten: ${dur}. Tampilkan pilihan Hook dan CTA.`,
+                                  flowPatch: {
+                                    durasiKonten: dur,
+                                    tahap: "pilih_hook_dan_cta",
+                                  },
+                                })
+                              }
+                              className={`cursor-pointer px-3.5 py-2 rounded-lg text-xs font-bold border transition ${
                                 aktif
-                                  ? "bg-[#14141F] text-white border-[#14141F]"
-                                  : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                  ? "bg-[#14141F] text-[#D4F34A] border-[#14141F]"
+                                  : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:bg-[#D4F34A]"
                               }`}
                             >
-                              <div
-                                className={`text-xs font-bold ${
-                                  aktif ? "text-[#D4F34A]" : "text-[#14141F]"
-                                }`}
-                              >
-                                {labelAng}
-                              </div>
-                              <p
-                                className={`text-[11px] mt-1 line-clamp-2 ${
-                                  aktif ? "text-white/80" : "text-[#64748B]"
-                                }`}
-                              >
-                                {ketAng}
-                              </p>
+                              {dur}
                             </button>
                           )
                         })}
@@ -1148,143 +1887,152 @@ export default function BrainstormView({
                     </div>
                   )}
 
-                  {/* Kartu Opsi Hook 1, 2, 3 & Tombol Generate Script Penuh (Sesuai 2_2.png) */}
-                  {hasHookOptions && (
-                    <div className="space-y-3 pt-1">
-                      {msg.hookOptions.map((hk, hIdx) => (
-                        <div
-                          key={hIdx}
-                          className="bg-[#F4F5F7] rounded-xl p-3.5 border border-[#E2E8F0] space-y-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-[#14141F] text-white text-[11px] font-bold flex items-center justify-center">
-                                {hk.nomor || hIdx + 1}
-                              </span>
-                              <span className="text-xs font-extrabold text-[#14141F] uppercase">
-                                {hk.kategori}
-                              </span>
-                            </div>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                hIdx === 0
-                                  ? "bg-[#D4F34A] text-[#14141F]"
-                                  : "bg-[#E2E8F0] text-[#14141F]"
-                              }`}
-                            >
-                              {hk.badgeMetrik || "Retensi Tinggi"}
-                            </span>
+                  {/* 11. 10 REKOMENDASI HOOK DARI BERBAGAI JENIS + PILIHAN CTA + TOMBOL GENERATE 1 TEKS */}
+                  {Array.isArray(msg.hookOptions10) &&
+                    msg.hookOptions10.length > 0 && (
+                      <div className="space-y-3 pt-1">
+                        <div className="space-y-2">
+                          <span className="text-xs font-bold text-[#14141F] block">
+                            Pilih 1 dari {msg.hookOptions10.length} Rekomendasi
+                            Jenis Hook:
+                          </span>
+                          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            {msg.hookOptions10.map((hk, hIdx) => {
+                              const dipilih =
+                                flowAktif.hookTerpilih === hk.teksHook
+                              return (
+                                <button
+                                  key={hIdx}
+                                  type="button"
+                                  onClick={() =>
+                                    updateSesiAktif({
+                                      flowState: {
+                                        ...flowAktif,
+                                        hookTerpilih: hk.teksHook,
+                                      },
+                                    })
+                                  }
+                                  className={`cursor-pointer w-full p-3 rounded-xl border text-left transition space-y-1 ${
+                                    dipilih
+                                      ? "bg-[#14141F] text-white border-[#14141F]"
+                                      : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between text-[10px] font-extrabold uppercase">
+                                    <span
+                                      className={
+                                        dipilih
+                                          ? "text-[#D4F34A]"
+                                          : "text-[#64748B]"
+                                      }
+                                    >
+                                      #{hk.nomor || hIdx + 1} • {hk.jenis}
+                                    </span>
+                                    {dipilih && (
+                                      <span className="bg-[#D4F34A] text-[#14141F] px-2 py-0.5 rounded">
+                                        Hook Terpilih
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs sm:text-sm font-bold leading-snug">
+                                    &ldquo;{hk.teksHook}&rdquo;
+                                  </p>
+                                </button>
+                              )
+                            })}
                           </div>
+                        </div>
 
-                          <p className="text-sm sm:text-base font-bold italic text-[#14141F] leading-snug">
-                            &ldquo;{hk.teksHook}&rdquo;
-                          </p>
-
-                          {hk.tipeVisual && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-[#64748B]">
-                              <FlatIcon name="eye" className="w-3.5 h-3.5" />
-                              <span>Tipe Visual: {hk.tipeVisual}</span>
+                        {Array.isArray(msg.ctaOptions) &&
+                          msg.ctaOptions.length > 0 && (
+                            <div className="space-y-2">
+                              <span className="text-xs font-bold text-[#14141F] block">
+                                Pilih Rekomendasi Call-To-Action (CTA):
+                              </span>
+                              <div className="grid grid-cols-1 gap-2">
+                                {msg.ctaOptions.map((ct, cIdx) => {
+                                  const dipilih =
+                                    flowAktif.ctaTerpilih === ct.teksCta
+                                  return (
+                                    <button
+                                      key={cIdx}
+                                      type="button"
+                                      onClick={() =>
+                                        updateSesiAktif({
+                                          flowState: {
+                                            ...flowAktif,
+                                            ctaTerpilih: ct.teksCta,
+                                          },
+                                        })
+                                      }
+                                      className={`cursor-pointer p-3 rounded-xl border text-left transition ${
+                                        dipilih
+                                          ? "bg-[#14141F] text-white border-[#14141F]"
+                                          : "bg-[#F4F5F7] text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                                      }`}
+                                    >
+                                      <div
+                                        className={`text-[10px] font-bold uppercase ${
+                                          dipilih
+                                            ? "text-[#D4F34A]"
+                                            : "text-[#64748B]"
+                                        }`}
+                                      >
+                                        {ct.kategori}
+                                      </div>
+                                      <div className="text-xs font-bold mt-0.5">
+                                        &ldquo;{ct.teksCta}&rdquo;
+                                      </div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
                             </div>
                           )}
-                        </div>
-                      ))}
 
-                      {/* Tombol Eksekusi Pilihan Hook Sesuai 2_2.png */}
-                      <div className="space-y-2 pt-1">
                         <button
                           type="button"
                           disabled={isGeneratingScript}
-                          onClick={() =>
-                            handleGenerateNaskah6Langkah(msg.hookOptions[0])
-                          }
-                          className="cursor-pointer w-full min-h-[48px] px-4 py-2.5 rounded-xl bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] font-bold text-xs sm:text-sm flex items-center justify-between gap-2 transition active:scale-[0.99]"
+                          onClick={handleGenerateSatuNaskahUtuh}
+                          className="cursor-pointer w-full min-h-[48px] px-4 py-3 rounded-xl bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] font-extrabold text-xs sm:text-sm flex items-center justify-between gap-2 transition active:scale-[0.99]"
                         >
                           <div className="flex items-center gap-2">
                             <FlatIcon name="bolt" className="w-4 h-4" />
-                            <span>Pilih Opsi 1 & Generate Script Penuh</span>
+                            <span>Generate Teks Naskah Sekarang</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded bg-[#14141F]/10 text-[#14141F] text-[11px] font-extrabold">
+                          <span className="px-2.5 py-0.5 rounded bg-[#14141F] text-[#D4F34A] text-[11px] font-bold">
                             1 Koin
                           </span>
                         </button>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          {msg.hookOptions[1] && (
-                            <button
-                              type="button"
-                              disabled={isGeneratingScript}
-                              onClick={() =>
-                                handleGenerateNaskah6Langkah(msg.hookOptions[1])
-                              }
-                              className="cursor-pointer min-h-[44px] px-3 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#E2E8F0] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
-                            >
-                              <FlatIcon name="check" className="w-3.5 h-3.5" />
-                              <span>Pilih Opsi 2 (1 Koin)</span>
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            disabled={isSendingChat}
-                            onClick={() =>
-                              handleKirimPesanKeBot({
-                                teksOverride:
-                                  "Buatkan 3 variasi Hook lain dengan pola pembuka berbeda (sebutkan akibat masalah & hindari clickbait).",
-                              })
-                            }
-                            className="cursor-pointer min-h-[44px] px-3 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#E2E8F0] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
-                          >
-                            <FlatIcon name="refresh" className="w-3.5 h-3.5" />
-                            <span>Minta 3 Variasi Lain</span>
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Tampilan Hasil Naskah 6 Langkah + Kata Kunci Review + 3 Variasi CTA */}
-                  {skrip6 && (
+                  {/* 12. TAMPILAN 1 NASKAH FINAL UTUH (TANPA TAWARAN MENGGANDAKAN TEKS) */}
+                  {skripFinal && (
                     <div className="bg-[#F8F9FA] rounded-xl border border-[#E2E8F0] p-3.5 space-y-3">
                       <div className="flex items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2">
                         <div>
                           <span className="text-[10px] font-bold uppercase text-[#64748B] block">
-                            Naskah Formula 6 Langkah Siap Pakai
+                            Naskah Final Siap Pakai
                           </span>
                           <h4 className="text-sm font-bold text-[#14141F]">
-                            {skrip6.judul}
+                            {skripFinal.judul}
                           </h4>
                         </div>
                         <span className="px-2.5 py-1 rounded-md bg-[#D4F34A] text-[#14141F] text-[11px] font-bold">
-                          6 Langkah Utuh
+                          {skripFinal.targetDuration}
                         </span>
                       </div>
 
-                      {/* Tag Kata Kunci Review yang Disisipkan */}
-                      {Array.isArray(skrip6.kataKunciReviewTerpakai) && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-bold text-[#64748B]">
-                            Kata Kunci Review:
-                          </span>
-                          {skrip6.kataKunciReviewTerpakai.map((kw, kIdx) => (
-                            <span
-                              key={kIdx}
-                              className="px-2 py-0.5 rounded bg-white border border-[#E2E8F0] text-[10px] font-bold text-[#14141F]"
-                            >
-                              #{kw}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
                       <div className="space-y-2">
-                        {(skrip6.sections || []).map((sec, sIdx) => (
+                        {(skripFinal.sections || []).map((sec, sIdx) => (
                           <div
                             key={sIdx}
                             className="bg-white p-3 rounded-lg border border-[#E2E8F0] space-y-1"
                           >
                             <div className="flex items-center justify-between text-[11px] font-bold">
                               <span className="text-[#14141F]">
-                                Langkah {sec.partNumber || sIdx + 1} •{" "}
+                                Bagian {sec.partNumber || sIdx + 1} •{" "}
                                 {sec.partTitle}
                               </span>
                               <span className="text-[#556500]">
@@ -1298,268 +2046,197 @@ export default function BrainstormView({
                         ))}
                       </div>
 
-                      {/* Pemilih 3 Variasi CTA Berbeda Motivasi */}
-                      {skrip6.ctaVariations && (
-                        <div className="bg-white rounded-lg p-3 border border-[#E2E8F0] space-y-2">
-                          <span className="text-[11px] font-bold text-[#14141F] block">
-                            3 Variasi CTA Satu Arah (Pilih Sesuai Motivasi
-                            Audiens):
-                          </span>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {[
-                              {
-                                key: "keputusanCepat",
-                                label: "Keputusan Cepat",
-                              },
-                              { key: "masihRagu", label: "Masih Ragu" },
-                              { key: "pemburuHasil", label: "Pemburu Hasil" },
-                            ].map((tab) => {
-                              const aktifTab =
-                                (activeCtaTabMap[msg.id] ||
-                                  "keputusanCepat") === tab.key
-                              return (
-                                <button
-                                  key={tab.key}
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveCtaTabMap((p) => ({
-                                      ...p,
-                                      [msg.id]: tab.key,
-                                    }))
-                                  }
-                                  className={`cursor-pointer py-1.5 px-2 rounded text-[11px] font-bold transition ${
-                                    aktifTab
-                                      ? "bg-[#14141F] text-[#D4F34A]"
-                                      : "bg-[#F4F5F7] text-[#64748B]"
-                                  }`}
-                                >
-                                  {tab.label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                          <p className="text-xs text-[#14141F] font-semibold bg-[#F4F5F7] p-2.5 rounded">
-                            &ldquo;
-                            {skrip6.ctaVariations[
-                              activeCtaTabMap[msg.id] || "keputusanCepat"
-                            ] || skrip6.ctaVariations.keputusanCepat}
-                            &rdquo;
-                          </p>
-                        </div>
-                      )}
-
                       <div className="flex flex-wrap gap-2 pt-1">
                         <button
                           type="button"
                           onClick={() => {
-                            setHasilSkrip(skrip6)
-                            setStage(5)
-                            setActiveMenu("produksi")
+                            const teksSalin = (skripFinal.sections || [])
+                              .map(
+                                (s) =>
+                                  `[${s.partTitle}]\n${
+                                    s.spokenText || s.voiceover
+                                  }`,
+                              )
+                              .join("\n\n")
+                            navigator.clipboard.writeText(teksSalin)
+                            showToast("Naskah berhasil disalin.")
                           }}
                           className="cursor-pointer flex-1 min-h-[42px] px-3 py-2 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
                         >
-                          <FlatIcon name="tv" className="w-4 h-4" />
-                          <span>Buka Editor & Teleprompter</span>
+                          <FlatIcon name="copy" className="w-4 h-4" />
+                          <span>Salin Naskah</span>
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => setActiveMenu("kalender")}
-                          className="cursor-pointer min-h-[42px] px-3 py-2 rounded-lg bg-[#14141F] text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                          onClick={() => {
+                            setHasilSkrip(skripFinal)
+                            setStage(5)
+                            setActiveMenu("produksi")
+                          }}
+                          className="cursor-pointer min-h-[42px] px-3.5 py-2 rounded-lg bg-[#14141F] text-white text-xs font-bold flex items-center justify-center gap-1.5"
                         >
-                          <FlatIcon name="calendar" className="w-4 h-4" />
-                          <span>Jadwalkan (4 Jendela Waktu)</span>
+                          <FlatIcon name="tv" className="w-4 h-4" />
+                          <span>Buka Teleprompter</span>
                         </button>
                       </div>
                     </div>
                   )}
 
-                  <div className="text-[10px] text-[#64748B] flex items-center justify-between pt-1">
+                  {/* TOMBOL "LANJUT" AUTO-CHAT DI SETIAP PERTANYAAN JIKA USER BINGUNG */}
+                  {!skripFinal &&
+                    tahap !== "pilih_hook_dan_cta" &&
+                    msg.saranAutoLanjut && (
+                      <div className="pt-2 border-t border-[#E2E8F0] flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-[#64748B]">
+                          Bingung menjawab? Klik Lanjut untuk rekomendasi
+                          otomatis:
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isSendingChat}
+                          onClick={() =>
+                            handleKirimPesanKeBot({
+                              teksOverride: msg.saranAutoLanjut,
+                            })
+                          }
+                          className="cursor-pointer shrink-0 px-3.5 py-1.5 rounded-lg bg-[#14141F] text-[#D4F34A] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition"
+                        >
+                          <span>Lanjut</span>
+                          <FlatIcon name="arrowRight" className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                  <div className="text-[10px] text-[#64748B] flex items-center justify-between pt-0.5">
                     <span>
-                      Baru saja • Hookya Engine (
+                      Hookya Engine (
                       {(msg.modelUsed || preferredModel).split("/").pop()})
                     </span>
                     <span>{msg.waktu}</span>
                   </div>
                 </div>
-
-                {/* Quick Starter Chips pada Pesan Pembuka (Sesuai 2_2.png) */}
-                {mIdx === 0 && (sesiAktif.messages || []).length === 1 && (
-                  <div className="flex flex-col items-start gap-2">
-                    {CHIP_PEMBUKA_CEPAT.map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() =>
-                          handleKirimPesanKeBot({ teksOverride: chip })
-                        }
-                        className="cursor-pointer px-3.5 py-2 rounded-full bg-white hover:bg-[#D4F34A] text-[#14141F] text-xs font-semibold border border-[#E2E8F0] transition"
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           )
         })}
 
+        {/* Gelembung Animasi Loading "typing..." (+ count-up >30s & refresh) */}
         {(isSendingChat || isGeneratingScript) && (
           <AILoadingBox
-            label={
-              isGeneratingScript
-                ? "Menyusun Naskah Formula 6 Langkah + Kata Kunci Review + 3 Variasi CTA..."
-                : "Menganalisis audiens, memetakan 10 masalah & meracik opsi Hook 3 detik..."
-            }
+            onRefresh={() => {
+              const lastUserMsg = [...listMessages]
+                .reverse()
+                .find((m) => m.role === "user")
+              if (lastUserMsg) {
+                handleKirimPesanKeBot({ teksOverride: lastUserMsg.teks })
+              }
+            }}
           />
         )}
-        <div ref={chatEndRef} />
       </div>
 
-      {/* Panel Kontrol Bawah: Target Durasi, Format, Tone & Kotak Input Chat (Sesuai 2_2.png) */}
-      <div className="space-y-2.5 pt-2">
-        {/* Bar Target Durasi & Pacing */}
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#F4F5F7] flex items-center justify-center text-[#14141F]">
-              <FlatIcon name="clock" className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-[#14141F]">
-                Target Durasi & Pacing Formula 6 Langkah
-              </div>
-              <div className="text-[11px] text-[#64748B]">
-                Estimasi 130-150 kata • Alur Hook ke Masalah, Curiosity, Solusi,
-                Proof & CTA
-              </div>
-            </div>
-          </div>
-          <span className="text-xs font-extrabold text-[#14141F] shrink-0">
-            {sesiAktif.format.split(" ")[0]}
-          </span>
-        </div>
-
-        {/* Pemilih Format & Tone (Sesuai 2_2.png) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <div className="relative shrink-0">
-            <select
-              value={sesiAktif.format}
-              onChange={(e) => updateSesiAktif({ format: e.target.value })}
-              className="h-10 pl-3.5 pr-8 rounded-full bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F] appearance-none cursor-pointer focus:outline-none"
-            >
-              {DAFTAR_FORMAT_SESI.map((fmt) => (
-                <option key={fmt} value={fmt}>
-                  Format: {fmt}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#14141F]">
-              <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
-            </span>
-          </div>
-
-          <div className="relative shrink-0">
-            <select
-              value={sesiAktif.tone}
-              onChange={(e) => updateSesiAktif({ tone: e.target.value })}
-              className="h-10 pl-3.5 pr-8 rounded-full bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F] appearance-none cursor-pointer focus:outline-none"
-            >
-              {DAFTAR_TONE_SESI.map((tn) => (
-                <option key={tn} value={tn}>
-                  Tone: {tn}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#14141F]">
-              <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* Pratinjau Gambar / Screenshot Review Bintang 1-3 yang Akan Dikirim */}
-        {lampiranGambar.length > 0 && (
-          <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-[#E2E8F0]">
-            {lampiranGambar.map((img, i) => (
-              <div key={i} className="relative">
-                <img
-                  src={img.previewUrl}
-                  alt="Lampiran"
-                  className="w-14 h-14 rounded-lg object-cover border border-[#E2E8F0]"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setLampiranGambar((prev) =>
-                      prev.filter((_, idx) => idx !== i),
-                    )
-                  }
-                  className="cursor-pointer absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#14141F] text-white text-[10px] font-bold flex items-center justify-center"
+      {/* BAR INPUT TEKS, UPLOAD FOTO/VIDEO, & VOICE NOTE STATIS DI BAWAH LAYAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#F4F5F7] border-t border-[#E2E8F0] px-4 py-3">
+        <div className="max-w-3xl mx-auto space-y-2">
+          {lampiranMedia.length > 0 && (
+            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-[#E2E8F0]">
+              {lampiranMedia.map((m, i) => (
+                <div
+                  key={i}
+                  className="relative flex items-center gap-1.5 bg-[#F4F5F7] px-2.5 py-1 rounded-lg text-xs font-bold"
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <span className="text-xs font-semibold text-[#64748B]">
-              Siap dianalisis (Foto Produk / Screenshot Review Bintang 1-3)
-            </span>
-          </div>
-        )}
+                  {m.previewUrl ? (
+                    <img
+                      src={m.previewUrl}
+                      alt="Media"
+                      className="w-8 h-8 rounded object-cover"
+                    />
+                  ) : (
+                    <FlatIcon name="tv" className="w-4 h-4" />
+                  )}
+                  <span className="truncate max-w-[120px]">{m.namaFile}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLampiranMedia((prev) =>
+                        prev.filter((_, idx) => idx !== i),
+                      )
+                    }
+                    className="cursor-pointer ml-1 text-[#EF4444]"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Bar Input Chat Utama: Tombol + Upload Media, Input Teks, Mic, & Tombol Kirim Lime (Sesuai 2_2.png) */}
-        <div className="flex items-center gap-2">
-          <label
-            title="Upload Foto Produk atau Screenshot Review Bintang 1-3"
-            className="cursor-pointer w-12 h-12 rounded-xl bg-white hover:bg-[#F4F5F7] border border-[#E2E8F0] text-[#14141F] flex items-center justify-center shrink-0 transition"
-          >
-            <FlatIcon name="plusCircle" className="w-5 h-5" />
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePilihGambarUpload}
-              className="hidden"
-            />
-          </label>
+          <div className="flex items-center gap-2">
+            <label
+              title="Upload Foto atau Video Referensi"
+              className="cursor-pointer w-12 h-12 rounded-xl bg-white hover:bg-[#F4F5F7] border border-[#E2E8F0] text-[#14141F] flex items-center justify-center shrink-0 transition"
+            >
+              <FlatIcon name="plusCircle" className="w-5 h-5" />
+              <input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                onChange={handlePilihMediaUpload}
+                className="hidden"
+              />
+            </label>
 
-          <div className="flex-1 flex items-center bg-white rounded-xl border border-[#E2E8F0] focus-within:border-[#14141F] px-3.5 h-12">
-            <input
-              type="text"
-              value={pesanInput}
-              onChange={(e) => setPesanInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleKirimPesanKeBot()
+            <div className="flex-1 flex items-center bg-white rounded-xl border border-[#E2E8F0] focus-within:border-[#14141F] px-3.5 h-12">
+              <input
+                type="text"
+                value={pesanInput}
+                onChange={(e) => setPesanInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleKirimPesanKeBot()
+                  }
+                }}
+                placeholder={
+                  isRecordingMic
+                    ? "Merekam suara... Klik mic lagi untuk berhenti"
+                    : "Tulis jawaban, ide topik, atau klik mic untuk voice note..."
                 }
-              }}
-              placeholder="Tulis ide skrip, produk, atau upload review bintang 1-3..."
-              className="w-full bg-transparent text-base sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none"
-            />
+                className="w-full bg-transparent text-base sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={handleToggleVoiceNoteInput}
+                title={
+                  isRecordingMic
+                    ? "Klik untuk Off Record"
+                    : "Klik untuk Mulai Rekam Suara (Menyambung Teks)"
+                }
+                className={`cursor-pointer px-2.5 h-8 rounded-lg flex items-center justify-center gap-1 shrink-0 text-xs font-bold transition ${
+                  isRecordingMic
+                    ? "bg-[#EF4444] text-white animate-pulse"
+                    : isTranscribingMic
+                      ? "bg-[#D4F34A] text-[#14141F]"
+                      : "text-[#14141F] hover:bg-[#F4F5F7]"
+                }`}
+              >
+                <FlatIcon name="mic" className="w-4 h-4" />
+                {isRecordingMic && <span className="text-[10px]">OFF</span>}
+              </button>
+            </div>
 
             <button
               type="button"
-              onClick={handleToggleMicInput}
-              title="Ketik dengan Suara"
-              className={`cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition ${
-                isListeningMic
-                  ? "bg-[#EF4444] text-white animate-pulse"
-                  : "text-[#14141F] hover:bg-[#F4F5F7]"
-              }`}
+              disabled={isSendingChat}
+              onClick={() => handleKirimPesanKeBot()}
+              aria-label="Kirim Pesan"
+              className="cursor-pointer w-12 h-12 rounded-xl bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] flex items-center justify-center shrink-0 active:scale-95 transition disabled:opacity-50"
             >
-              <FlatIcon name="mic" className="w-4 h-4" />
+              <FlatIcon name="arrowUp" className="w-5 h-5" />
             </button>
           </div>
-
-          <button
-            type="button"
-            disabled={isSendingChat}
-            onClick={() => handleKirimPesanKeBot()}
-            aria-label="Kirim Pesan"
-            className="cursor-pointer w-12 h-12 rounded-xl bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] flex items-center justify-center shrink-0 active:scale-95 transition disabled:opacity-50"
-          >
-            <FlatIcon name="arrowUp" className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </div>
