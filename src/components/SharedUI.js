@@ -3,44 +3,44 @@ import { useState, useEffect, useRef } from "react"
 
 export const DAFTAR_MODEL_OPENROUTER = [
   {
-    id: "google/gemini-2.5-flash",
-    nama: "Google Gemini 2.5 Flash",
-    provider: "Google",
-    kategori: "Cepat & Multimodal (Rekomendasi)",
-    inputPer1kRp: 2.5,
-    outputPer1kRp: 10.0,
-    supportVision: true,
-    ket: "Sangat cepat untuk alur tanya-jawab bertahap, analisa screenshot produk marketplace, dan penyusunan skrip.",
-  },
-  {
     id: "anthropic/claude-3.5-sonnet",
     nama: "Anthropic Claude 3.5 Sonnet",
     provider: "Anthropic",
-    kategori: "Copywriting & Storytelling Terbaik",
+    kategori: "Copywriting & Naskah Terbaik (Saran AI 2)",
     inputPer1kRp: 48.0,
     outputPer1kRp: 240.0,
     supportVision: true,
-    ket: "Gaya bahasa paling natural dan tajam untuk meracik Hook, alur emosi, serta konten Trust maupun Jualan.",
+    ket: "Sangat tajam dan natural untuk menyusun naskah akhir (AI 2) maupun brainstorming mendalam.",
   },
   {
     id: "anthropic/claude-3.5-haiku",
     nama: "Anthropic Claude 3.5 Haiku",
     provider: "Anthropic",
-    kategori: "Copywriting Cepat & Ekonomis",
+    kategori: "Brainstorming Cepat & Hemat (Saran AI 1)",
     inputPer1kRp: 13.0,
     outputPer1kRp: 65.0,
     supportVision: true,
-    ket: "Versi ringan Claude dengan ritme bahasa natural dan biaya token jauh lebih hemat.",
+    ket: "Respons cepat dengan gaya bahasa khas Claude yang luwes namun jauh lebih hemat token.",
+  },
+  {
+    id: "google/gemini-2.5-flash",
+    nama: "Google Gemini 2.5 Flash",
+    provider: "Google",
+    kategori: "Multimodal & Asesmen Cepat (Saran AI 1)",
+    inputPer1kRp: 2.5,
+    outputPer1kRp: 10.0,
+    supportVision: true,
+    ket: "Sangat cepat untuk tanya-jawab asesmen, analisa screenshot produk marketplace, dan ekstraksi.",
   },
   {
     id: "deepseek/deepseek-chat",
     nama: "DeepSeek V3 / Chat",
     provider: "DeepSeek",
-    kategori: "Sangat Hemat & Logis",
+    kategori: "Sangat Ekonomis & Logis",
     inputPer1kRp: 2.3,
     outputPer1kRp: 4.5,
     supportVision: false,
-    ket: "Biaya token paling rendah untuk eksplorasi masalah audiens, 7 angle produk, dan pembuatan skrip teks.",
+    ket: "Biaya token paling rendah untuk eksplorasi 10 masalah audiens, 7 angle, dan generasi teks.",
   },
   {
     id: "openai/gpt-4o-mini",
@@ -50,7 +50,7 @@ export const DAFTAR_MODEL_OPENROUTER = [
     inputPer1kRp: 2.5,
     outputPer1kRp: 10.0,
     supportVision: true,
-    ket: "Stabil untuk ekstraksi gambar produk marketplace dan struktur JSON konsisten.",
+    ket: "Stabil untuk pemetaan struktur skrip dan analisa gambar produk.",
   },
   {
     id: "google/gemini-2.0-flash-001",
@@ -60,7 +60,7 @@ export const DAFTAR_MODEL_OPENROUTER = [
     inputPer1kRp: 1.8,
     outputPer1kRp: 7.2,
     supportVision: true,
-    ket: "Handal untuk transkrip suara mikrofon (voice note) dan ekstraksi referensi foto/video.",
+    ket: "Handal untuk transkrip voice note dan ekstraksi referensi foto/video.",
   },
 ]
 
@@ -225,7 +225,7 @@ export function hitungBiayaModelRp(
 ) {
   const m =
     DAFTAR_MODEL_OPENROUTER.find((x) => x.id === modelId) ||
-    DAFTAR_MODEL_OPENROUTER[0]
+    DAFTAR_MODEL_OPENROUTER[2]
   const biayaIn = (Number(promptTokens) / 1000) * m.inputPer1kRp
   const biayaOut = (Number(completionTokens) / 1000) * m.outputPer1kRp
   return Math.max(5, Math.round(biayaIn + biayaOut))
@@ -496,6 +496,12 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
         <path d="M12 8v8M8 12h8" />
       </>
     ),
+    checkCircle: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 12l2 2 4-4" />
+      </>
+    ),
     paperclip: (
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     ),
@@ -738,7 +744,7 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
   )
 }
 
-// Gelembung Loading Titik-Titik Tanpa Kata "typing..." (+ Count-Up mulai 31s & Refresh)
+// Gelembung Loading Titik-Titik Tanpa Ekor & Tanpa Kata "typing..." (+ Count-Up mulai 31s & Refresh)
 export function AILoadingBox({ onRefresh }) {
   const [detik, setDetik] = useState(0)
 
@@ -750,12 +756,8 @@ export function AILoadingBox({ onRefresh }) {
   }, [])
 
   return (
-    <div className="flex items-end justify-start pl-2 py-0.5">
-      <div className="relative inline-flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-2xl rounded-bl-none px-3.5 py-2.5">
-        <span
-          aria-hidden="true"
-          className="absolute -left-1.5 bottom-[-1px] w-3 h-3 bg-white border-l border-b border-[#E2E8F0] [clip-path:polygon(100%_0,0_100%,100%_100%)]"
-        />
+    <div className="flex items-center justify-start py-0.5">
+      <div className="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-2xl px-3.5 py-2.5">
         <div className="flex items-center gap-1.5 py-0.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#14141F] animate-bounce [animation-delay:-0.3s]" />
           <span className="w-1.5 h-1.5 rounded-full bg-[#14141F] animate-bounce [animation-delay:-0.15s]" />
@@ -975,7 +977,7 @@ export function StoryVoiceInput({
           }
         }}
         placeholder={placeholder}
-        className="w-full text-base sm:text-sm p-2.5 bg-transparent text-[#14141F] placeholder:text-[#64748B] focus:outline-none resize-none leading-snug"
+        className="w-full text-[16px] sm:text-sm p-2.5 bg-transparent text-[#14141F] placeholder:text-[#64748B] focus:outline-none resize-none leading-snug"
       />
       <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-[#E2E8F0] bg-white">
         <span className="text-[11px] text-[#64748B]">
@@ -1167,7 +1169,7 @@ export function SelectWithCustom({
               onChange(e.target.value)
             }
           }}
-          className="w-full h-10 bg-white border border-[#E2E8F0] rounded-lg px-3 pr-8 text-xs font-medium text-[#14141F] appearance-none focus:outline-none focus:border-[#14141F]"
+          className="w-full h-10 bg-white border border-[#E2E8F0] rounded-lg px-3 pr-8 text-[16px] sm:text-xs font-medium text-[#14141F] appearance-none focus:outline-none focus:border-[#14141F]"
         >
           {options.map((opt) => (
             <option key={opt} value={opt}>
@@ -1188,7 +1190,7 @@ export function SelectWithCustom({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholderCustom}
           autoFocus
-          className="w-full h-10 bg-white border border-[#14141F] rounded-lg px-3 text-xs text-[#14141F] outline-none"
+          className="w-full h-10 bg-white border border-[#14141F] rounded-lg px-3 text-[16px] sm:text-xs text-[#14141F] outline-none"
         />
       )}
     </div>

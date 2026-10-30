@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import {
   FlatIcon,
-  HookyaLogo,
   AvatarCropModal,
   EMPAT_JENDELA_WAKTU,
   hitungKuotaAkunDariPaket,
@@ -109,71 +108,101 @@ const DEFAULT_PERSONA_PROFILE = {
 
 const DAFTAR_PAKET_KOIN = [
   {
-    tier: "Starter",
+    tier: "STARTER",
     nama: "Paket 5K",
+    subjudul: "Cocok untuk coba fitur dasar naskah AI",
     harga: "Rp 5.000",
     nominalAngka: 5000,
     koin: 10,
     kuotaAkun: 1,
     isVIP: false,
+    fiturList: ["Generator naskah & hook", "Rollover aktif 30 hari"],
   },
   {
-    tier: "Reguler",
+    tier: "REGULER",
     nama: "Paket 10K",
+    subjudul: "Pilihan hemat kreator pemula",
     harga: "Rp 10.000",
     nominalAngka: 10000,
     koin: 20,
     kuotaAkun: 2,
     isVIP: false,
+    fiturList: ["Multi-angle hook generator", "Rollover aktif 30 hari"],
   },
   {
-    tier: "Plus",
+    tier: "PLUS",
     nama: "Paket 15K",
+    subjudul: "Variasi naskah lebih leluasa",
     harga: "Rp 15.000",
     nominalAngka: 15000,
     koin: 30,
     kuotaAkun: 2,
     isVIP: false,
+    fiturList: ["Multi-angle hook generator", "Rollover aktif 30 hari"],
   },
   {
     tier: "VIP",
     nama: "Paket 20K VIP",
+    subjudul: "Pilihan favorit kreator aktif harian",
     harga: "Rp 20.000",
     nominalAngka: 20000,
     koin: 40,
     kuotaAkun: 2,
     isVIP: true,
     populer: true,
+    fiturList: [
+      "Prioritas antrian AI engine",
+      "Semua fitur ekstrak & skrip",
+      "Rollover aktif 30 hari",
+    ],
   },
   {
-    tier: "VIP Tier 1",
+    tier: "VIP TIER 1",
     nama: "Paket 25K VIP",
+    subjudul: "Optimal untuk 3 akun sosial media",
     harga: "Rp 25.000",
     nominalAngka: 25000,
     koin: 55,
     kuotaAkun: 3,
     isVIP: true,
+    fiturList: [
+      "Prioritas antrian AI engine",
+      "Semua fitur ekstrak & skrip",
+      "Rollover aktif 30 hari",
+    ],
   },
   {
-    tier: "Pro",
+    tier: "PRO",
     nama: "Paket 50K VIP",
+    subjudul: "Produksi konten rutin skala penuh",
     harga: "Rp 50.000",
     nominalAngka: 50000,
     koin: 120,
     kuotaAkun: 5,
     isVIP: true,
     bestValue: true,
+    fiturList: [
+      "Prioritas antrian AI engine",
+      "Semua fitur ekstrak & skrip",
+      "Rollover aktif 30 hari",
+    ],
   },
   {
-    tier: "Agensi / Studio",
+    tier: "AGENSI / STUDIO",
     nama: "Paket 90K VIP",
+    subjudul:
+      "Ideal untuk content agency, social media manager, dan batch content creation multi-client.",
     harga: "Rp 90.000",
     nominalAngka: 90000,
     koin: 230,
     kuotaAkun: 10,
     isVIP: true,
     agency: true,
-    ket: "Ideal untuk content agency, social media manager, dan batch content creation multi-client.",
+    fiturList: [
+      "Prioritas antrian AI engine (Dual AI)",
+      "Maksimal 10 akun persona sosmed",
+      "Rollover aktif 30 hari",
+    ],
   },
 ]
 
@@ -211,7 +240,6 @@ function hitungSisaHariAktif(expiredAtStr) {
 }
 
 export default function HookyaMainApp() {
-  // SELURUH DEKLARASI STATE DI ATAS SEBELUM USEEFFECT
   const [viewMode, setViewMode] = useState("auth")
   const [activeMenu, setActiveMenuState] = useState("chat")
   const [isInsideChatRoom, setIsInsideChatRoomState] = useState(false)
@@ -219,6 +247,9 @@ export default function HookyaMainApp() {
   const [subTabKalender, setSubTabKalender] = useState("jadwal")
   const [subTabAsesmen, setSubTabAsesmen] = useState("produksi")
   const [modeTeleprompter, setModeTeleprompter] = useState(false)
+
+  // Pilihan Persona di Tengah Header ("" = Watermark "Pilih Persona")
+  const [selectedPersonaHeader, setSelectedPersonaHeader] = useState("")
 
   const [showUpgradeVIPModal, setShowUpgradeVIPModal] = useState(false)
   const [showPinModal, setShowPinModal] = useState(false)
@@ -239,9 +270,6 @@ export default function HookyaMainApp() {
   const [coins, setCoins] = useState(20)
   const [toastMsg, setToastMsg] = useState("")
   const [rawCropImageSrc, setRawCropImageSrc] = useState(null)
-
-  const [autoHookFormula, setAutoHookFormula] = useState(true)
-  const [autoArchiveNaskah, setAutoArchiveNaskah] = useState(true)
 
   const [profil, setProfil] = useState({
     nama: "Reza Pratama",
@@ -285,9 +313,6 @@ export default function HookyaMainApp() {
   const [keywordCariArsip, setKeywordCariArsip] = useState("")
   const [filterArsipPill, setFilterArsipPill] = useState("all")
   const [urutkanArsipTerbaru, setUrutkanArsipTerbaru] = useState(true)
-  const [folderTerbukaMap, setFolderTerbukaMap] = useState({})
-  const [pilihanGandakanArsip, setPilihanGandakanArsip] = useState({})
-  const [multiplyingArchiveId, setMultiplyingArchiveId] = useState(null)
   const [editingArsipId, setEditingArsipId] = useState(null)
   const [inputJudulArsipBaru, setInputJudulArsipBaru] = useState("")
 
@@ -316,7 +341,9 @@ export default function HookyaMainApp() {
 
   const [pengaturanPayment, setPengaturanPayment] = useState({
     modePembayaranAktif: "qris_manual",
-    preferredModel: "google/gemini-2.5-flash",
+    preferredModel: "anthropic/claude-3.5-sonnet",
+    aiModel1: "anthropic/claude-3.5-haiku",
+    aiModel2: "anthropic/claude-3.5-sonnet",
     namaMerchant: "HOOKYA OFFICIAL STORE",
     infoRekening: "NMID: ID1020039201992",
     noWaAdmin: "6281234567890",
@@ -324,7 +351,7 @@ export default function HookyaMainApp() {
     brandConfig: {
       logoPngUrl: "",
       logoGapPx: 6,
-      brandText: "OOKYA",
+      brandText: "HOOKYA",
       showBrandText: true,
     },
   })
@@ -345,6 +372,21 @@ export default function HookyaMainApp() {
     { menu: "chat", inRoom: false, stage: 0, subTab: "jadwal" },
   ])
   const isPoppingRef = useRef(false)
+
+  // Kunci Viewport Meta agar TIDAK Auto-Zoom saat mengetik di iOS/Android & Header tidak bergeser
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    let meta = document.querySelector('meta[name="viewport"]')
+    if (!meta) {
+      meta = document.createElement("meta")
+      meta.name = "viewport"
+      document.head.appendChild(meta)
+    }
+    meta.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content",
+    )
+  }, [])
 
   const showToast = (msg) => {
     setToastMsg(msg)
@@ -433,8 +475,6 @@ export default function HookyaMainApp() {
     dorongRiwayatNavigasi("kalender", false, stage, tabTarget)
   }
 
-  // Tombol Kembali (<-) di Sudut Kiri Atas Header:
-  // Jika sedang di dalam ruang chat topik -> kembali ke halaman List Chat Topik
   const handleTombolBackHeader = () => {
     if (activeMenu === "chat" && isInsideChatRoom) {
       setIsInsideChatRoomState(false)
@@ -527,9 +567,10 @@ export default function HookyaMainApp() {
         const configRow =
           userRows.find(
             (u) =>
-              u.profil_dna?.pengaturanPayment?.brandConfig?.logoPngUrl ||
-              u.profil_dna?.pengaturanPayment?.qrisImageUrl ||
-              u.profil_dna?.pengaturanPayment?.preferredModel,
+              u.profil_dna?.pengaturanPayment?.aiModel1 ||
+              u.profil_dna?.pengaturanPayment?.aiModel2 ||
+              u.profil_dna?.pengaturanPayment?.preferredModel ||
+              u.profil_dna?.pengaturanPayment?.qrisImageUrl,
           ) ||
           userRows.find(
             (u) => u.role === "admin" && u.profil_dna?.pengaturanPayment,
@@ -760,7 +801,7 @@ export default function HookyaMainApp() {
           .eq("id", idTarget)
       }
       await muatUlangDataSupabase(userId)
-      showToast("Konfigurasi sistem, Model AI & Logo berhasil disimpan.")
+      showToast("Konfigurasi Dual AI & Sistem berhasil disimpan.")
     } catch (err) {
       showToast("Gagal menyimpan: " + err.message)
     }
@@ -1106,7 +1147,6 @@ export default function HookyaMainApp() {
   const jmlTerjadwal = koleksiSkripTersimpan.filter(
     (s) => s.sudahUpload && s.tanggalUpload,
   ).length
-  const jmlBelumTerjadwal = koleksiSkripTersimpan.length - jmlTerjadwal
 
   const arsipTerfilter = koleksiSkripTersimpan
     .filter((item) => {
@@ -1166,25 +1206,16 @@ export default function HookyaMainApp() {
   const namaHariTerpilih =
     NAMA_HARI_ID[new Date(tanggalKalenderTerpilih).getDay()] || "Hari Ini"
 
-  const daftarAkunTerkoneksiSetting =
-    Array.isArray(profil.daftarAkunTernak) && profil.daftarAkunTernak.length > 0
-      ? profil.daftarAkunTernak
-      : [
-          {
-            id: "tt_1",
-            kode: "TT",
-            labelAkun: profil.labelAkunSosmed || "@cuanistsociety",
-            info: "TikTok • Aktif",
-          },
-          {
-            id: "ig_2",
-            kode: "IG",
-            labelAkun: "@hookya.official",
-            info: "Instagram • Aktif",
-          },
-        ]
+  // Daftar opsi persona akun untuk Dropdown di tengah Header
+  const semuaOpsiPersonaHeader = [
+    profil.labelAkunSosmed || `@${profil.username || "utama"}`,
+    ...(Array.isArray(profil.daftarAkunTernak)
+      ? profil.daftarAkunTernak.map((a) => a.labelAkun)
+      : []),
+  ]
+    .filter((v, i, arr) => v && arr.indexOf(v) === i)
+    .slice(0, kuotaAkunMaksimal)
 
-  // Kalkulasi Penggunaan Database (Bytes) untuk Naskah & Riwayat Konten
   const totalBytesArsipDB = hitungUkuranBytesObjek(koleksiSkripTersimpan)
   const kuotaMaksUserBytes = statusVIPFinal ? 5 * 1024 * 1024 : 2 * 1024 * 1024
   const persenVaultNaskah = Math.min(
@@ -1192,12 +1223,7 @@ export default function HookyaMainApp() {
     Math.max(2, Math.round((totalBytesArsipDB / kuotaMaksUserBytes) * 100)),
   )
 
-  // Kondisi menyembunyikan menu pop-up navigasi bawah ketika sedang membuka ruang chat topik
   const sembunyikanBottomNav = activeMenu === "chat" && isInsideChatRoom
-  const tampilkanTombolBackHeader =
-    (activeMenu === "chat" && isInsideChatRoom) ||
-    activeMenu !== "chat" ||
-    stage > 0
 
   if (viewMode === "auth") {
     return (
@@ -1323,8 +1349,9 @@ export default function HookyaMainApp() {
     )
   }
 
+  // CONTAINER UTAMA DENGAN VIEWPORT TERKUNCI (100dvh) AGAR HEADER TIDAK BERGESER SAAT KEYBOARD MUNCUL
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-[#14141F] flex flex-col font-sans antialiased pt-16 pb-24">
+    <div className="fixed inset-0 h-[100dvh] w-full bg-[#F4F5F7] text-[#14141F] flex flex-col font-sans antialiased overflow-hidden">
       {toastMsg && (
         <div className="fixed bottom-20 left-4 right-4 max-w-md mx-auto z-50 bg-[#14141F] text-[#D4F34A] px-4 py-3 rounded-xl border border-[#14141F] text-xs font-bold flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -1433,9 +1460,9 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* TOP HEADER: TANDA '<' FLAT DI KIRI, LOGO 'HOOKYA' DI TENGAH, & TOTAL KOIN DI KANAN */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-14 bg-white border-b border-[#E2E8F0] px-3 flex items-center justify-between">
-        <div className="flex items-center">
+      {/* TOP HEADER TERKUNCI STATIS: TOMBOL '<' DI KIRI, DROPDOWN WATERMARK "PILIH PERSONA" DI TENGAH, & TOTAL KOIN DI KANAN */}
+      <header className="shrink-0 h-14 bg-white border-b border-[#E2E8F0] px-3 flex items-center justify-between gap-2 z-40">
+        <div className="flex items-center shrink-0">
           <button
             type="button"
             onClick={handleTombolBackHeader}
@@ -1447,21 +1474,28 @@ export default function HookyaMainApp() {
           </button>
         </div>
 
-        <div
-          onClick={() => {
-            setStage(0)
-            setIsInsideChatRoom(false)
-            setActiveMenu("chat")
-          }}
-          className="cursor-pointer absolute left-1/2 -translate-x-1/2"
-        >
-          <HookyaLogo
-            brandConfig={pengaturanPayment.brandConfig}
-            hideMarkOnHeader={true}
-          />
+        {/* TENGAH HEADER: DROPDOWN PILIHAN PERSONA AKUN DENGAN WATERMARK "Pilih Persona" */}
+        <div className="relative flex-1 min-w-0 max-w-[175px] sm:max-w-[230px] mx-auto">
+          <select
+            value={selectedPersonaHeader}
+            onChange={(e) => setSelectedPersonaHeader(e.target.value)}
+            className={`w-full h-9 pl-3 pr-7 rounded-lg bg-[#F4F5F7] border border-[#E2E8F0] text-[16px] sm:text-xs font-bold truncate appearance-none cursor-pointer focus:outline-none focus:border-[#14141F] ${
+              selectedPersonaHeader ? "text-[#14141F]" : "text-[#64748B]"
+            }`}
+          >
+            <option value="">Pilih Persona</option>
+            {semuaOpsiPersonaHeader.map((ak) => (
+              <option key={ak} value={ak} className="text-[#14141F]">
+                {ak}
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#64748B]">
+            <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
+          </span>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <button
             type="button"
             onClick={() => setActiveMenu("topup")}
@@ -1473,8 +1507,8 @@ export default function HookyaMainApp() {
         </div>
       </header>
 
-      {/* MAIN WORKSPACE */}
-      <main className="flex-1 w-full px-4 pt-3">
+      {/* MAIN WORKSPACE — HANYA AREA INI YANG BERGESER SAAT SCROLL / KEYBOARD MUNCUL */}
+      <main className="flex-1 w-full overflow-y-auto overscroll-contain px-3 pt-2.5 pb-24">
         <div className={activeMenu === "dna" ? "block" : "hidden"}>
           <PersonaDNAView
             userId={userId}
@@ -1500,11 +1534,11 @@ export default function HookyaMainApp() {
         </div>
 
         <div className={activeMenu === "asesmen" ? "block" : "hidden"}>
-          <div className="max-w-4xl mx-auto mb-4 bg-white rounded-2xl p-2 border border-[#E2E8F0] grid grid-cols-2 gap-2">
+          <div className="max-w-4xl mx-auto mb-3 bg-white rounded-2xl p-1.5 border border-[#E2E8F0] grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={() => setSubTabAsesmen("produksi")}
-              className={`cursor-pointer min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+              className={`cursor-pointer h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                 subTabAsesmen === "produksi"
                   ? "bg-[#14141F] text-[#D4F34A]"
                   : "bg-[#F4F5F7] text-[#14141F]"
@@ -1516,14 +1550,14 @@ export default function HookyaMainApp() {
             <button
               type="button"
               onClick={() => setSubTabAsesmen("ekstrak")}
-              className={`cursor-pointer min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+              className={`cursor-pointer h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                 subTabAsesmen === "ekstrak"
                   ? "bg-[#14141F] text-[#D4F34A]"
                   : "bg-[#F4F5F7] text-[#14141F]"
               }`}
             >
               <FlatIcon name="mic" className="w-4 h-4" />
-              <span>Ekstrak Suara Video ke Naskah</span>
+              <span>Ekstrak Suara Video</span>
             </button>
           </div>
 
@@ -1580,7 +1614,7 @@ export default function HookyaMainApp() {
           </div>
         </div>
 
-        {/* MENU UTAMA CHAT PER TOPIK */}
+        {/* MENU UTAMA CHAT PER TOPIK DENGAN DUAL AI */}
         <div className={activeMenu === "chat" ? "block" : "hidden"}>
           <BrainstormView
             userId={userId}
@@ -1591,9 +1625,18 @@ export default function HookyaMainApp() {
             coins={coins}
             updateKoinDatabase={updateKoinDatabase}
             personaProfile={personaProfile}
-            preferredModel={
-              pengaturanPayment.preferredModel || "google/gemini-2.5-flash"
+            aiModel1={
+              pengaturanPayment.aiModel1 ||
+              pengaturanPayment.preferredModel ||
+              "anthropic/claude-3.5-haiku"
             }
+            aiModel2={
+              pengaturanPayment.aiModel2 ||
+              pengaturanPayment.preferredModel ||
+              "anthropic/claude-3.5-sonnet"
+            }
+            selectedPersonaHeader={selectedPersonaHeader}
+            setSelectedPersonaHeader={setSelectedPersonaHeader}
             bentukKontenFinal={bentukKonten}
             simpanAtauUpdateSkripDatabase={simpanAtauUpdateSkripDatabase}
             setKoleksiSkripTersimpan={setKoleksiSkripTersimpan}
@@ -1609,12 +1652,12 @@ export default function HookyaMainApp() {
 
         {/* MENU KALENDER & ARSIP NASKAH */}
         {activeMenu === "kalender" && (
-          <div className="max-w-3xl mx-auto space-y-4 pb-8">
-            <div className="bg-white rounded-2xl p-2 border border-[#E2E8F0] grid grid-cols-2 gap-2">
+          <div className="max-w-3xl mx-auto space-y-3.5 pb-8">
+            <div className="bg-white rounded-2xl p-1.5 border border-[#E2E8F0] grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 onClick={() => ubahSubTabKalender("arsip")}
-                className={`cursor-pointer min-h-[46px] px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+                className={`cursor-pointer h-10 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   subTabKalender === "arsip"
                     ? "bg-[#14141F] text-[#D4F34A]"
                     : "bg-[#F4F5F7] text-[#14141F]"
@@ -1627,7 +1670,7 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => ubahSubTabKalender("jadwal")}
-                className={`cursor-pointer min-h-[46px] px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+                className={`cursor-pointer h-10 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   subTabKalender === "jadwal"
                     ? "bg-[#14141F] text-[#D4F34A]"
                     : "bg-[#F4F5F7] text-[#14141F]"
@@ -1639,19 +1682,15 @@ export default function HookyaMainApp() {
             </div>
 
             {subTabKalender === "arsip" && (
-              <div className="space-y-4">
-                <section className="space-y-3">
+              <div className="space-y-3.5">
+                <section className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h1 className="text-xl font-bold text-[#14141F]">
+                      <h1 className="text-lg font-bold text-[#14141F]">
                         Arsip Naskah Tersimpan
                       </h1>
                       <p className="text-xs text-[#64748B]">
-                        Pemakaian Arsip:{" "}
-                        <strong>
-                          {formatUkuranStorage(totalBytesArsipDB)}
-                        </strong>{" "}
-                        • Kelola, edit judul, atau bersihkan naskah lama.
+                        Kelola, edit judul, atau hapus naskah lama.
                       </p>
                     </div>
                     <button
@@ -1659,7 +1698,7 @@ export default function HookyaMainApp() {
                       onClick={() =>
                         setUrutkanArsipTerbaru(!urutkanArsipTerbaru)
                       }
-                      className="cursor-pointer px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold shrink-0"
+                      className="cursor-pointer px-3 py-1.5 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold shrink-0"
                     >
                       {urutkanArsipTerbaru ? "Terbaru" : "Terlama"}
                     </button>
@@ -1674,7 +1713,7 @@ export default function HookyaMainApp() {
                       value={keywordCariArsip}
                       onChange={(e) => setKeywordCariArsip(e.target.value)}
                       placeholder="Ketik kata kunci judul atau isi materi..."
-                      className="w-full h-12 pl-10 pr-16 bg-white rounded-xl border border-[#E2E8F0] text-base sm:text-sm focus:border-[#14141F] focus:outline-none"
+                      className="w-full h-11 pl-10 pr-16 bg-white rounded-xl border border-[#E2E8F0] text-[16px] sm:text-sm focus:border-[#14141F] focus:outline-none"
                     />
                     {keywordCariArsip && (
                       <button
@@ -1693,30 +1732,18 @@ export default function HookyaMainApp() {
                     Belum ada naskah skrip tersimpan.
                   </div>
                 ) : (
-                  <section className="space-y-3.5">
+                  <section className="space-y-3">
                     {arsipTerfilter.map((item) => {
                       const sedangEditJudulIni = editingArsipId === item.id
-                      const ukuranSkrip = formatUkuranStorage(
-                        hitungUkuranBytesObjek(item),
-                      )
-
                       return (
                         <article
                           key={item.id}
-                          className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3"
+                          className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 space-y-2.5"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-wrap text-xs">
-                              <span className="text-[#64748B]">
-                                {item.waktuDibuat} • {ukuranSkrip}
-                              </span>
-                              {item.sudahUpload && item.tanggalUpload && (
-                                <span className="inline-flex items-center gap-1 bg-[#D4F34A] text-[#14141F] px-2 py-0.5 rounded-md font-bold">
-                                  Terjadwal: {item.tanggalUpload}
-                                </span>
-                              )}
-                            </div>
-
+                            <span className="text-xs text-[#64748B]">
+                              {item.waktuDibuat}
+                            </span>
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
@@ -1739,7 +1766,7 @@ export default function HookyaMainApp() {
                             </div>
                           </div>
 
-                          <div className="space-y-1.5">
+                          <div className="space-y-1">
                             {sedangEditJudulIni ? (
                               <div className="flex flex-col sm:flex-row gap-2">
                                 <input
@@ -1753,7 +1780,7 @@ export default function HookyaMainApp() {
                                       handleSimpanEditJudulArsip(item)
                                   }}
                                   autoFocus
-                                  className="flex-1 h-10 px-3 rounded-lg border border-[#14141F] text-base sm:text-xs font-bold text-[#14141F] focus:outline-none"
+                                  className="flex-1 h-10 px-3 rounded-lg border border-[#14141F] text-[16px] sm:text-xs font-bold text-[#14141F] focus:outline-none"
                                 />
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <button
@@ -1776,7 +1803,7 @@ export default function HookyaMainApp() {
                               </div>
                             ) : (
                               <div className="flex items-start justify-between gap-2">
-                                <h2 className="text-sm sm:text-base font-bold text-[#14141F] leading-snug">
+                                <h2 className="text-sm font-bold text-[#14141F] leading-snug">
                                   {item.judul}
                                 </h2>
                                 <button
@@ -1785,16 +1812,16 @@ export default function HookyaMainApp() {
                                     setEditingArsipId(item.id)
                                     setInputJudulArsipBaru(item.judul || "")
                                   }}
-                                  className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#F4F5F7] text-[#14141F] text-[11px] font-bold border border-[#E2E8F0]"
+                                  className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#F4F5F7] text-[#14141F] text-[11px] font-bold border border-[#E2E8F0]"
                                 >
                                   <FlatIcon name="edit" className="w-3 h-3" />
-                                  <span>Edit Judul</span>
+                                  <span>Edit</span>
                                 </button>
                               </div>
                             )}
 
                             <div>
-                              <span className="inline-flex items-center gap-1 bg-[#F4F5F7] text-[#14141F] px-2.5 py-0.5 rounded-md text-xs font-semibold border border-[#E2E8F0]">
+                              <span className="inline-flex items-center gap-1 bg-[#F4F5F7] text-[#14141F] px-2 py-0.5 rounded text-[11px] font-semibold border border-[#E2E8F0]">
                                 {item.bentuk}
                               </span>
                             </div>
@@ -1808,7 +1835,7 @@ export default function HookyaMainApp() {
                                 setStage(5)
                                 setActiveMenu("produksi")
                               }}
-                              className="cursor-pointer inline-flex items-center gap-1.5 bg-[#D4F34A] text-[#14141F] rounded-lg px-4 py-2 text-xs font-bold min-h-[42px]"
+                              className="cursor-pointer inline-flex items-center gap-1.5 bg-[#D4F34A] text-[#14141F] rounded-lg px-3.5 py-2 text-xs font-bold"
                             >
                               <span>Buka Naskah</span>
                               <FlatIcon
@@ -1820,7 +1847,7 @@ export default function HookyaMainApp() {
                             <button
                               type="button"
                               onClick={() => setTargetHapusSkrip(item)}
-                              className="cursor-pointer inline-flex items-center gap-1 bg-[#FEF2F2] text-[#EF4444] rounded-lg px-3 py-2 text-xs font-bold min-h-[42px]"
+                              className="cursor-pointer inline-flex items-center gap-1 bg-[#FEF2F2] text-[#EF4444] rounded-lg px-3 py-2 text-xs font-bold"
                             >
                               <FlatIcon name="trash" className="w-3.5 h-3.5" />
                               <span>Hapus</span>
@@ -1835,7 +1862,7 @@ export default function HookyaMainApp() {
             )}
 
             {subTabKalender === "jadwal" && (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#14141F]">
@@ -1919,17 +1946,15 @@ export default function HookyaMainApp() {
                 </div>
 
                 <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-[#14141F]">
-                      Jadwalkan Naskah ke {tanggalKalenderTerpilih} (
-                      {namaHariTerpilih})
-                    </span>
-                  </div>
+                  <span className="text-sm font-bold text-[#14141F] block">
+                    Jadwalkan Naskah ke {tanggalKalenderTerpilih} (
+                    {namaHariTerpilih})
+                  </span>
 
                   <select
                     value={idSkripPlotTerpilih}
                     onChange={(e) => setIdSkripPlotTerpilih(e.target.value)}
-                    className="w-full h-11 bg-[#F4F5F7] border border-[#E2E8F0] rounded-lg px-3 text-xs font-bold text-[#14141F] focus:outline-none"
+                    className="w-full h-11 bg-[#F4F5F7] border border-[#E2E8F0] rounded-lg px-3 text-[16px] sm:text-xs font-bold text-[#14141F] focus:outline-none"
                   >
                     <option value="">-- Pilih Skrip Tersimpan --</option>
                     {koleksiSkripTersimpan.map((s) => (
@@ -1965,7 +1990,7 @@ export default function HookyaMainApp() {
                   <button
                     type="button"
                     onClick={handlePlotSkripKeKalender}
-                    className="cursor-pointer w-full h-12 bg-[#D4F34A] text-[#14141F] font-bold text-xs sm:text-sm rounded-lg flex items-center justify-center gap-2"
+                    className="cursor-pointer w-full h-11 bg-[#D4F34A] text-[#14141F] font-bold text-xs rounded-lg flex items-center justify-center gap-2"
                   >
                     <FlatIcon name="calendar" className="w-4 h-4" />
                     <span>
@@ -1975,13 +2000,13 @@ export default function HookyaMainApp() {
                   </button>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {daftarSkripTanggalTerpilih.map((sk) => (
                     <div
                       key={sk.id}
-                      className="bg-white rounded-2xl p-4 border border-[#E2E8F0] flex items-center justify-between gap-3"
+                      className="bg-white rounded-2xl p-3.5 border border-[#E2E8F0] flex items-center justify-between gap-3"
                     >
-                      <div className="min-w-0 space-y-1">
+                      <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2 text-xs">
                           <span className="px-2 py-0.5 rounded bg-[#D4F34A] text-[#14141F] font-bold">
                             {sk.jamPublikasi || "20:15 WIB"}
@@ -2022,15 +2047,15 @@ export default function HookyaMainApp() {
           </div>
         )}
 
-        {/* TAB SETTING (DENGAN PEMBERSIH PENYIMPANAN BERDASARKAN RIWAYAT KONTEN) */}
+        {/* TAB SETTING */}
         {activeMenu === "setting" && (
-          <div className="max-w-2xl mx-auto space-y-6 pb-10">
+          <div className="max-w-2xl mx-auto space-y-5 pb-10">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block">
                   WORKSPACE KREATOR
                 </span>
-                <h1 className="text-2xl font-bold text-[#14141F]">
+                <h1 className="text-xl font-bold text-[#14141F]">
                   Pengaturan & Akun
                 </h1>
               </div>
@@ -2039,9 +2064,9 @@ export default function HookyaMainApp() {
               </span>
             </div>
 
-            <section className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-4">
+            <section className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3.5">
               <div className="flex items-center gap-3.5">
-                <label className="cursor-pointer relative w-16 h-16 rounded-full bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-extrabold text-xl shrink-0 overflow-hidden border-2 border-[#14141F]">
+                <label className="cursor-pointer relative w-14 h-14 rounded-full bg-[#14141F] text-[#D4F34A] flex items-center justify-center font-extrabold text-lg shrink-0 overflow-hidden border-2 border-[#14141F]">
                   {profil.avatar_url ? (
                     <img
                       src={profil.avatar_url}
@@ -2079,9 +2104,9 @@ export default function HookyaMainApp() {
                 </div>
               </div>
 
-              <div className="bg-[#F4F5F7] rounded-xl p-4 border border-[#E2E8F0] flex items-center justify-between gap-3">
+              <div className="bg-[#F4F5F7] rounded-xl p-3.5 border border-[#E2E8F0] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-[#D4F34A] text-[#14141F] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#D4F34A] text-[#14141F] flex items-center justify-center shrink-0">
                     <FlatIcon name="coin" className="w-5 h-5" />
                   </div>
                   <div>
@@ -2089,23 +2114,20 @@ export default function HookyaMainApp() {
                       HOOKYA COINS
                     </span>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl font-extrabold text-[#14141F] tabular-nums">
+                      <span className="text-lg font-extrabold text-[#14141F] tabular-nums">
                         {coins.toLocaleString("id-ID")}
                       </span>
                       <span className="text-xs font-semibold text-[#64748B]">
                         Koin Aktif
                       </span>
                     </div>
-                    <span className="text-[11px] text-[#64748B] block">
-                      Rollover {sisaHariPaket} hari lagi
-                    </span>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setActiveMenu("topup")}
-                  className="cursor-pointer h-11 px-4 rounded-xl bg-[#14141F] text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
+                  className="cursor-pointer h-10 px-3.5 rounded-xl bg-[#14141F] text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
                 >
                   <FlatIcon
                     name="plusCircle"
@@ -2118,20 +2140,19 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => setActiveMenu("dna")}
-                className="cursor-pointer w-full h-12 rounded-xl bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-[#14141F] text-xs font-bold flex items-center justify-center gap-2 transition"
+                className="cursor-pointer w-full h-11 rounded-xl bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-[#14141F] text-xs font-bold flex items-center justify-center gap-2 transition"
               >
                 <FlatIcon name="sliders" className="w-4 h-4" />
                 <span>Edit Profil & Persona Kreator</span>
               </button>
             </section>
 
-            {/* Seksi Vault & Pembersih Penyimpanan Berdasarkan Riwayat Konten */}
             <section className="space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] px-1 block">
                 VAULT & PENYIMPANAN DATABASE
               </span>
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-4">
-                <div className="space-y-2">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 space-y-3.5">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-[#14141F]">
                       Penggunaan Database Riwayat Konten
@@ -2142,7 +2163,7 @@ export default function HookyaMainApp() {
                       {persenVaultNaskah}%)
                     </span>
                   </div>
-                  <div className="w-full h-2.5 rounded-full bg-[#F4F5F7] overflow-hidden border border-[#E2E8F0]">
+                  <div className="w-full h-2 rounded-full bg-[#F4F5F7] overflow-hidden border border-[#E2E8F0]">
                     <div
                       style={{ width: `${persenVaultNaskah}%` }}
                       className="h-full bg-[#D4F34A]"
@@ -2150,14 +2171,13 @@ export default function HookyaMainApp() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-[#E2E8F0] flex items-center justify-between gap-3">
+                <div className="pt-2.5 border-t border-[#E2E8F0] flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-bold text-[#14141F]">
-                      Bersihkan Penyimpanan Berdasarkan Riwayat Konten
+                      Bersihkan Penyimpanan Berdasarkan Riwayat
                     </div>
                     <div className="text-xs text-[#64748B]">
-                      {koleksiSkripTersimpan.length} naskah tersimpan di
-                      database
+                      {koleksiSkripTersimpan.length} naskah tersimpan
                     </div>
                   </div>
                   <button
@@ -2165,14 +2185,14 @@ export default function HookyaMainApp() {
                     onClick={() =>
                       setShowCleanerInSetting(!showCleanerInSetting)
                     }
-                    className="cursor-pointer h-9 px-3.5 rounded-lg bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-xs font-bold text-[#14141F]"
+                    className="cursor-pointer h-9 px-3 rounded-lg bg-[#F4F5F7] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-xs font-bold text-[#14141F]"
                   >
                     {showCleanerInSetting ? "Tutup" : "Kelola Riwayat"}
                   </button>
                 </div>
 
                 {showCleanerInSetting && (
-                  <div className="pt-2 border-t border-[#E2E8F0] space-y-2 max-h-60 overflow-y-auto pr-1">
+                  <div className="pt-2 border-t border-[#E2E8F0] space-y-2 max-h-56 overflow-y-auto pr-1">
                     {koleksiSkripTersimpan.length === 0 ? (
                       <p className="text-xs text-[#64748B] py-2">
                         Tidak ada riwayat konten lama yang perlu dibersihkan.
@@ -2207,7 +2227,6 @@ export default function HookyaMainApp() {
               </div>
             </section>
 
-            {/* Seksi Dukungan & Developer Console */}
             <section className="space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] px-1 block">
                 SISTEM & DEVELOPER CONSOLE
@@ -2219,15 +2238,15 @@ export default function HookyaMainApp() {
                     setTabMenuKoin("rincian_koin")
                     setActiveMenu("topup")
                   }}
-                  className="cursor-pointer w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-[#F4F5F7]"
+                  className="cursor-pointer w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-[#F4F5F7]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#F4F5F7] flex items-center justify-center text-[#14141F]">
-                      <FlatIcon name="coin" className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-[#F4F5F7] flex items-center justify-center text-[#14141F]">
+                      <FlatIcon name="coin" className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="text-sm font-bold text-[#14141F]">
-                        Rincian Penggunaan Koin & Status Auto-Refund
+                        Rincian Penggunaan Koin & Refund
                       </div>
                       <div className="text-xs text-[#64748B]">
                         Cek waktu pemakaian koin dan pengembalian otomatis
@@ -2244,18 +2263,25 @@ export default function HookyaMainApp() {
                   <button
                     type="button"
                     onClick={() => setShowPinModal(true)}
-                    className="cursor-pointer w-full p-4 flex items-center justify-between gap-3 text-left bg-[#D4F34A]/25 hover:bg-[#D4F34A]/40"
+                    className="cursor-pointer w-full p-3.5 flex items-center justify-between gap-3 text-left bg-[#D4F34A]/25 hover:bg-[#D4F34A]/40"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#14141F] text-[#D4F34A] flex items-center justify-center">
-                        <FlatIcon name="code" className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-[#14141F] text-[#D4F34A] flex items-center justify-center">
+                        <FlatIcon name="code" className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="text-sm font-bold text-[#14141F]">
-                          Buka Developer Console (Uji Model OpenRouter)
+                          Buka Developer Console (Atur AI 1 & AI 2)
                         </div>
-                        <div className="text-xs text-[#64748B]">
-                          Model aktif: {pengaturanPayment.preferredModel}
+                        <div className="text-[11px] text-[#64748B]">
+                          AI 1:{" "}
+                          {(pengaturanPayment.aiModel1 || "claude-3.5-haiku")
+                            .split("/")
+                            .pop()}{" "}
+                          • AI 2:{" "}
+                          {(pengaturanPayment.aiModel2 || "claude-3.5-sonnet")
+                            .split("/")
+                            .pop()}
                         </div>
                       </div>
                     </div>
@@ -2277,17 +2303,17 @@ export default function HookyaMainApp() {
                 }
                 ubahViewModeStabil("auth")
               }}
-              className="cursor-pointer w-full h-12 rounded-xl bg-[#FFECEC] hover:bg-[#FFD8D8] text-[#BA1A1A] font-bold text-sm flex items-center justify-center gap-2 transition"
+              className="cursor-pointer w-full h-11 rounded-xl bg-[#FFECEC] hover:bg-[#FFD8D8] text-[#BA1A1A] font-bold text-xs flex items-center justify-center gap-2 transition"
             >
               <span>Keluar dari Akun Hookya</span>
             </button>
           </div>
         )}
 
-        {/* MENU TOPUP KOIN & RINCIAN PENGGUNAAN KOIN */}
+        {/* MENU TOPUP KOIN (DESAIN KARTU BARU SESUAI REFERENSI GAMBAR) */}
         {activeMenu === "topup" && (
-          <div className="max-w-3xl mx-auto space-y-5 pb-8">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#14141F]">
+          <div className="max-w-xl mx-auto space-y-4 pb-8">
+            <h1 className="text-xl font-bold text-[#14141F]">
               Paket Koin & Riwayat Pemakaian
             </h1>
 
@@ -2295,7 +2321,7 @@ export default function HookyaMainApp() {
               <button
                 type="button"
                 onClick={() => setTabMenuKoin("beli_paket")}
-                className={`cursor-pointer min-h-[44px] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                className={`cursor-pointer h-10 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   tabMenuKoin === "beli_paket"
                     ? "bg-[#14141F] text-[#D4F34A]"
                     : "bg-[#F4F5F7] text-[#14141F]"
@@ -2311,7 +2337,7 @@ export default function HookyaMainApp() {
                   setTabMenuKoin("rincian_koin")
                   muatUlangDataSupabase(userId)
                 }}
-                className={`cursor-pointer min-h-[44px] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                className={`cursor-pointer h-10 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   tabMenuKoin === "rincian_koin"
                     ? "bg-[#14141F] text-[#D4F34A]"
                     : "bg-[#F4F5F7] text-[#14141F]"
@@ -2329,7 +2355,7 @@ export default function HookyaMainApp() {
 
             {tabMenuKoin === "beli_paket" && (
               <>
-                <section className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-2.5">
+                <section className="bg-white rounded-2xl p-4 border border-[#E2E8F0] space-y-2">
                   <label className="text-xs font-bold text-[#14141F] block">
                     Punya Kode Voucher / Kupon Promo?
                   </label>
@@ -2340,65 +2366,176 @@ export default function HookyaMainApp() {
                       onChange={(e) =>
                         setInputKodeVoucherUser(e.target.value.toUpperCase())
                       }
-                      placeholder="MASUKKAN KODE VOUCHER PROMO..."
-                      className="flex-1 h-12 bg-[#F4F5F7] border border-[#E2E8F0] rounded-lg px-4 text-base sm:text-xs font-bold font-mono uppercase focus:outline-none"
+                      placeholder="MASUKKAN KODE VOUCHER..."
+                      className="flex-1 h-11 bg-[#F4F5F7] border border-[#E2E8F0] rounded-xl px-3.5 text-[16px] sm:text-xs font-bold font-mono uppercase focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={handleKlaimVoucherUser}
-                      className="cursor-pointer h-12 px-5 bg-[#D4F34A] text-[#14141F] text-xs font-bold rounded-lg shrink-0"
+                      className="cursor-pointer h-11 px-4 bg-[#D4F34A] text-[#14141F] text-xs font-bold rounded-xl shrink-0"
                     >
                       Klaim Voucher
                     </button>
                   </div>
                 </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {DAFTAR_PAKET_KOIN.map((pk) => (
-                    <article
-                      key={pk.nama}
-                      className={`bg-white rounded-2xl p-4 border border-[#E2E8F0] flex flex-col justify-between relative overflow-hidden ${
-                        pk.agency ? "sm:col-span-2 lg:col-span-3" : ""
-                      }`}
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-bold text-[#64748B]">
-                            {pk.tier}
-                          </span>
-                          <span className="text-[11px] text-[#14141F] bg-[#F4F5F7] px-2 py-0.5 rounded font-semibold">
-                            Maks {pk.kuotaAkun} Akun
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-[#14141F]">
-                          {pk.nama}
-                        </h3>
-                        <div className="flex items-baseline gap-1.5 pt-1">
-                          <span className="text-2xl font-bold text-[#14141F] tabular-nums">
-                            {pk.koin}
-                          </span>
-                          <span className="text-xs font-bold text-[#556500]">
-                            Koin
-                          </span>
-                        </div>
-                        <p className="text-lg font-bold text-[#14141F]">
-                          {pk.harga}
-                        </p>
-                      </div>
+                {/* DAFTAR KARTU PAKET KOIN DENGAN DESAIN BARU SESUAI GAMBAR */}
+                <div className="space-y-3.5">
+                  {DAFTAR_PAKET_KOIN.map((pk) => {
+                    const isHighlighted = Boolean(
+                      pk.populer || pk.bestValue || pk.agency,
+                    )
+                    const hargaPerKoin = Math.round(pk.nominalAngka / pk.koin)
 
-                      <button
-                        type="button"
-                        onClick={() => bukaLayarCheckoutPaket(pk)}
-                        className={`cursor-pointer w-full h-11 mt-4 rounded-lg text-xs font-bold flex items-center justify-center transition ${
-                          pk.bestValue
-                            ? "bg-[#D4F34A] text-[#14141F]"
-                            : "bg-[#14141F] text-white"
+                    return (
+                      <article
+                        key={pk.nama}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 relative overflow-hidden space-y-3.5 transition ${
+                          isHighlighted
+                            ? "border-2 border-[#14141F]"
+                            : "border border-[#E2E8F0]"
                         }`}
                       >
-                        Beli Paket
-                      </button>
-                    </article>
-                  ))}
+                        {(pk.populer || pk.bestValue || pk.agency) && (
+                          <div className="absolute top-0 right-0 bg-[#14141F] text-[#D4F34A] px-3 py-1 rounded-bl-xl text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                            <FlatIcon name="bolt" className="w-3 h-3" />
+                            <span>
+                              {pk.populer
+                                ? "POPULER"
+                                : pk.bestValue
+                                  ? "BEST VALUE"
+                                  : "ULTIMATE"}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Baris Atas: Label Tier & Kuota Akun Sosmed */}
+                        <div className="flex items-center justify-between gap-2">
+                          {!isHighlighted ? (
+                            <span className="px-2.5 py-0.5 rounded-md bg-[#EDEFF0] text-[#14141F] text-[10px] font-extrabold uppercase tracking-wider">
+                              {pk.tier}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#556500]">
+                              <FlatIcon name="user" className="w-3.5 h-3.5" />
+                              <span>{pk.kuotaAkun} Akun Sosmed</span>
+                            </span>
+                          )}
+
+                          {!isHighlighted && (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#556500]">
+                              <FlatIcon name="user" className="w-3.5 h-3.5" />
+                              <span>{pk.kuotaAkun} Akun Sosmed</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Nama Paket & Subjudul */}
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-base sm:text-lg font-extrabold text-[#14141F]">
+                              {pk.nama}
+                            </h3>
+                            {pk.isVIP && (
+                              <FlatIcon
+                                name="checkCircle"
+                                className="w-4 h-4 text-[#14141F]"
+                              />
+                            )}
+                          </div>
+                          <p className="text-xs text-[#64748B]">
+                            {pk.subjudul}
+                          </p>
+                        </div>
+
+                        {/* Kotak Abu-Abu Tengah: Jumlah Koin, Rp/Koin, & Harga */}
+                        <div className="bg-[#F4F5F7] rounded-xl p-3.5 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isHighlighted
+                                  ? "bg-[#14141F] text-[#D4F34A]"
+                                  : "bg-[#E6F48C] text-[#556500]"
+                              }`}
+                            >
+                              <FlatIcon name="coin" className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-extrabold text-[#14141F] tabular-nums leading-none">
+                                  {pk.koin}
+                                </span>
+                                <span className="text-xs font-bold text-[#556500]">
+                                  Koin
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-[#64748B] block mt-0.5">
+                                Rp {hargaPerKoin.toLocaleString("id-ID")} / koin
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-[11px] text-[#64748B] block">
+                              Harga
+                            </span>
+                            <span className="text-base sm:text-lg font-extrabold text-[#14141F] tabular-nums">
+                              {pk.harga}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Daftar Poin Keuntungan */}
+                        <div className="space-y-1.5 pt-0.5">
+                          {(pk.fiturList || []).map((ft, fIdx) => (
+                            <div
+                              key={fIdx}
+                              className="flex items-center gap-2 text-xs text-[#14141F]"
+                            >
+                              <FlatIcon
+                                name="checkCircle"
+                                className={`w-4 h-4 shrink-0 ${
+                                  isHighlighted
+                                    ? "text-[#14141F]"
+                                    : "text-[#556500]"
+                                }`}
+                              />
+                              <span
+                                className={
+                                  fIdx === 0 && isHighlighted
+                                    ? "font-bold"
+                                    : "font-medium text-[#47464C]"
+                                }
+                              >
+                                {ft}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Tombol Aksi */}
+                        <button
+                          type="button"
+                          onClick={() => bukaLayarCheckoutPaket(pk)}
+                          className={`cursor-pointer w-full h-11 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition active:scale-[0.99] ${
+                            isHighlighted
+                              ? "bg-[#14141F] text-[#D4F34A]"
+                              : "bg-[#EDEFF0] hover:bg-[#E2E8F0] text-[#14141F]"
+                          }`}
+                        >
+                          <span>
+                            {isHighlighted
+                              ? "Beli Paket Populer"
+                              : "Pilih Paket"}
+                          </span>
+                          <FlatIcon
+                            name={isHighlighted ? "bolt" : "chevronRight"}
+                            className="w-4 h-4"
+                          />
+                        </button>
+                      </article>
+                    )
+                  })}
                 </div>
               </>
             )}
@@ -2440,9 +2577,9 @@ export default function HookyaMainApp() {
                     return (
                       <div
                         key={logItem.id || idx}
-                        className="bg-white rounded-2xl p-4 border border-[#E2E8F0] flex items-start justify-between gap-2 text-xs"
+                        className="bg-white rounded-2xl p-3.5 border border-[#E2E8F0] flex items-start justify-between gap-2 text-xs"
                       >
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                           <div className="font-bold text-[#14141F]">
                             {logItem.action}
                           </div>
@@ -2477,17 +2614,17 @@ export default function HookyaMainApp() {
         )}
       </main>
 
-      {/* FLOATING BOTTOM NAVIGATION BAR — DISEMBUNYIKAN SAAT MEMBUKA RUANG CHAT TOPIK */}
+      {/* BOTTOM NAVIGATION BAR WARNA PUTIH SEMULA — DISEMBUNYIKAN SAAT DI DALAM RUANG CHAT TOPIK */}
       {!sembunyikanBottomNav && (
-        <div className="fixed bottom-4 left-4 right-4 z-40 pointer-events-none flex justify-center">
-          <nav className="pointer-events-auto bg-[#14141F] text-white rounded-full px-3 py-2 border border-white/10 w-full max-w-md flex items-center justify-around">
+        <div className="fixed bottom-3 left-4 right-4 z-40 pointer-events-none flex justify-center">
+          <nav className="pointer-events-auto bg-white text-[#14141F] rounded-full px-2.5 py-1.5 border border-[#E2E8F0] shadow-[0_4px_20px_rgba(0,0,0,0.06)] w-full max-w-md flex items-center justify-around">
             <button
               type="button"
               onClick={() => setActiveMenu("asesmen")}
               className={`cursor-pointer flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition ${
                 activeMenu === "asesmen"
-                  ? "bg-white/15 text-[#D4F34A] font-bold"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[#D4F34A] text-[#14141F] font-extrabold"
+                  : "text-[#64748B] hover:text-[#14141F] font-semibold"
               }`}
             >
               <FlatIcon name="edit" className="w-5 h-5" />
@@ -2499,8 +2636,8 @@ export default function HookyaMainApp() {
               onClick={() => setActiveMenu("kalender")}
               className={`cursor-pointer flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition ${
                 activeMenu === "kalender"
-                  ? "bg-white/15 text-[#D4F34A] font-bold"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[#D4F34A] text-[#14141F] font-extrabold"
+                  : "text-[#64748B] hover:text-[#14141F] font-semibold"
               }`}
             >
               <FlatIcon name="calendar" className="w-5 h-5" />
@@ -2513,10 +2650,10 @@ export default function HookyaMainApp() {
                 setIsInsideChatRoom(false)
                 setActiveMenu("chat")
               }}
-              className={`cursor-pointer flex flex-col items-center justify-center px-5 py-1.5 rounded-full transition relative ${
+              className={`cursor-pointer flex flex-col items-center justify-center px-5 py-1.5 rounded-full transition ${
                 activeMenu === "chat"
-                  ? "bg-white/15 text-[#D4F34A] font-bold"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[#D4F34A] text-[#14141F] font-extrabold"
+                  : "text-[#64748B] hover:text-[#14141F] font-semibold"
               }`}
             >
               <FlatIcon name="chat" className="w-5 h-5" />
@@ -2528,8 +2665,8 @@ export default function HookyaMainApp() {
               onClick={() => setActiveMenu("setting")}
               className={`cursor-pointer flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition ${
                 activeMenu === "setting" || activeMenu === "dna"
-                  ? "bg-white/15 text-[#D4F34A] font-bold"
-                  : "text-white/70 hover:text-white"
+                  ? "bg-[#D4F34A] text-[#14141F] font-extrabold"
+                  : "text-[#64748B] hover:text-[#14141F] font-semibold"
               }`}
             >
               <FlatIcon name="settings" className="w-5 h-5" />
@@ -2542,7 +2679,7 @@ export default function HookyaMainApp() {
       {/* MODAL CHECKOUT QRIS */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-[#14141F]/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-[#14141F] w-full max-w-md rounded-2xl p-6 space-y-4 border border-[#14141F]">
+          <div className="bg-white text-[#14141F] w-full max-w-md rounded-2xl p-5 space-y-4 border border-[#14141F]">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
               <div>
                 <span className="text-[10px] font-bold bg-[#D4F34A] text-[#14141F] px-2 py-0.5 rounded-md">
@@ -2634,7 +2771,7 @@ export default function HookyaMainApp() {
                 }
               }}
               placeholder="Masukkan PIN Admin..."
-              className="w-full bg-[#F4F5F7] border border-[#E2E8F0] rounded-lg px-4 py-3 text-center text-base sm:text-sm font-bold outline-none"
+              className="w-full bg-[#F4F5F7] border border-[#E2E8F0] rounded-lg px-4 py-3 text-center text-[16px] sm:text-sm font-bold outline-none"
             />
             <div className="flex gap-2">
               <button

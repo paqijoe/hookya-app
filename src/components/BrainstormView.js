@@ -1,6 +1,6 @@
-"use client"
-import { useState, useEffect, useRef } from "react"
-import { supabase } from "../lib/supabase"
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabase";
 import {
   FlatIcon,
   AILoadingBox,
@@ -11,7 +11,7 @@ import {
   rekamKetikanKeGudangIngatan,
   ambilDataGudangIngatan,
   simpanAnalisaGudangIngatan,
-} from "./SharedUI"
+} from "./SharedUI";
 
 const PILIHAN_TUJUAN_AWAL = [
   {
@@ -29,25 +29,25 @@ const PILIHAN_TUJUAN_AWAL = [
     judul: "3. Konten Jualan",
     ket: "Fokus konversi produk atau jasa lewat masalah pembeli, 7 angle & 10 hook.",
   },
-]
+];
 
 const PILIHAN_FORMAT_KONTEN = [
   { id: "TikTok / Reels", label: "TikTok / Reels" },
   { id: "Carousel", label: "Carousel (Pilih Jumlah Slide)" },
   { id: "Threads", label: "Threads (Pilih Bentuk Format)" },
-]
+];
 
 const PILIHAN_SLIDE_CAROUSEL = [
   "5 Slide Padat",
   "7 Slide Storytelling",
   "10 Slide Edukasi Mendalam",
-]
+];
 
 const PILIHAN_MODEL_THREADS = [
   "Threads Utas 6 Langkah Konversi",
   "Threads Utas Storytelling Pengalaman",
   "Threads Single Post Padat & Menohok",
-]
+];
 
 const PILIHAN_DURASI_KONTEN = [
   "15 Detik",
@@ -55,62 +55,62 @@ const PILIHAN_DURASI_KONTEN = [
   "60 Detik",
   "90 Detik",
   "3 Menit",
-]
+];
 
 function kompresGambarChat(file) {
   return new Promise((resolve) => {
     try {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        const img = new Image()
+        const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement("canvas")
-          const maxDim = 800
-          let w = img.width
-          let h = img.height
+          const canvas = document.createElement("canvas");
+          const maxDim = 800;
+          let w = img.width;
+          let h = img.height;
           if (w > maxDim || h > maxDim) {
             if (w > h) {
-              h = Math.round((h * maxDim) / w)
-              w = maxDim
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
             } else {
-              w = Math.round((w * maxDim) / h)
-              h = maxDim
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
             }
           }
-          canvas.width = w
-          canvas.height = h
-          const ctx = canvas.getContext("2d")
-          ctx.drawImage(img, 0, 0, w, h)
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.72)
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
           resolve({
             previewUrl: dataUrl,
             base64: dataUrl.split(",")[1] || "",
             mimeType: "image/jpeg",
             namaFile: file.name,
-          })
-        }
-        img.onerror = () => resolve(null)
-        img.src = e.target.result
-      }
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(file)
+          });
+        };
+        img.onerror = () => resolve(null);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
     } catch {
-      resolve(null)
+      resolve(null);
     }
-  })
+  });
 }
 
-function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@cuanistsociety") {
+function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "") {
   const waktuSkr = new Date().toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
-  })
+  });
   return {
     id: `sesi_${Date.now()}`,
     nomorSesi: nomorUrut,
     judul: "Diskusi Topik Konten Baru",
-    akunLabel: akunDefault,
-    gunakanPersona: false,
+    akunLabel: akunDefault || "",
+    gunakanPersona: Boolean(akunDefault),
     format: "TikTok / Reels",
     statusLabel: "Draf Baru",
     statusTahap: "Sedang diskusi",
@@ -159,7 +159,7 @@ function buatSesiTopikBaru(nomorUrut = 1, akunDefault = "@cuanistsociety") {
         naskahFinal: null,
       },
     ],
-  }
+  };
 }
 
 export default function BrainstormView({
@@ -169,7 +169,10 @@ export default function BrainstormView({
   coins,
   updateKoinDatabase,
   personaProfile,
-  preferredModel = "google/gemini-2.5-flash",
+  aiModel1 = "anthropic/claude-3.5-haiku",
+  aiModel2 = "anthropic/claude-3.5-sonnet",
+  selectedPersonaHeader = "",
+  setSelectedPersonaHeader,
   simpanAtauUpdateSkripDatabase,
   setKoleksiSkripTersimpan,
   setHasilSkrip,
@@ -180,61 +183,60 @@ export default function BrainstormView({
   isInsideChatRoom,
   setIsInsideChatRoom,
 }) {
-  const latestBotMsgRef = useRef(null)
-  const textareaInputRef = useRef(null)
-  const speechRecRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
-  const audioChunksRef = useRef([])
-  const baseTextBeforeRecRef = useRef("")
+  const latestBotMsgRef = useRef(null);
+  const textareaInputRef = useRef(null);
+  const speechRecRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const baseTextBeforeRecRef = useRef("");
 
-  const storageSessionsKey = `hookya_topic_sessions_v3_${userId || "guest"}`
+  const storageSessionsKey = `hookya_topic_sessions_v3_${userId || "guest"}`;
 
-  const [internalSubView, setInternalSubView] = useState("list")
+  const [internalSubView, setInternalSubView] = useState("list");
   const subView =
     isInsideChatRoom !== undefined
       ? isInsideChatRoom
         ? "chat"
         : "list"
-      : internalSubView
+      : internalSubView;
 
   const ubahSubView = (modeBaru) => {
-    setInternalSubView(modeBaru)
+    setInternalSubView(modeBaru);
     if (setIsInsideChatRoom) {
-      setIsInsideChatRoom(modeBaru === "chat")
+      setIsInsideChatRoom(modeBaru === "chat");
     }
-  }
+  };
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterAkunPill, setFilterAkunPill] = useState("ALL")
-  const [openSwipeId, setOpenSwipeId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterAkunPill, setFilterAkunPill] = useState("ALL");
+  const [openSwipeId, setOpenSwipeId] = useState(null);
 
-  const [daftarAkunSosmed, setDaftarAkunSosmed] = useState([])
-  const [daftarSesiTopik, setDaftarSesiTopik] = useState([])
-  const [activeSessionId, setActiveSessionId] = useState("")
+  const [daftarAkunSosmed, setDaftarAkunSosmed] = useState([]);
+  const [daftarSesiTopik, setDaftarSesiTopik] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState("");
 
-  const [pesanInput, setPesanInput] = useState("")
-  const [isExpandedTextbox, setIsExpandedTextbox] = useState(false)
-  const pesanInputRef = useRef("")
+  const [pesanInput, setPesanInput] = useState("");
+  const [isExpandedTextbox, setIsExpandedTextbox] = useState(false);
+  const pesanInputRef = useRef("");
   useEffect(() => {
-    pesanInputRef.current = pesanInput
-  }, [pesanInput])
+    pesanInputRef.current = pesanInput;
+  }, [pesanInput]);
 
-  // Auto-resize tinggi textarea hingga maksimal 10 baris (~200px) atau mode diperluas (~320px)
   useEffect(() => {
-    const el = textareaInputRef.current
-    if (!el) return
-    el.style.height = "auto"
-    const batasTinggi = isExpandedTextbox ? 300 : 200
-    const tinggiBaru = Math.min(el.scrollHeight, batasTinggi)
-    el.style.height = `${Math.max(38, tinggiBaru)}px`
-  }, [pesanInput, isExpandedTextbox])
+    const el = textareaInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const batasTinggi = isExpandedTextbox ? 280 : 190;
+    const tinggiBaru = Math.min(el.scrollHeight, batasTinggi);
+    el.style.height = `${Math.max(36, tinggiBaru)}px`;
+  }, [pesanInput, isExpandedTextbox]);
 
-  const [lampiranMedia, setLampiranMedia] = useState([])
-  const [isSendingChat, setIsSendingChat] = useState(false)
-  const [isGeneratingScript, setIsGeneratingScript] = useState(false)
-  const [isRecordingMic, setIsRecordingMic] = useState(false)
-  const [isTranscribingMic, setIsTranscribingMic] = useState(false)
-  const [isScanningProductSS, setIsScanningProductSS] = useState(false)
+  const [lampiranMedia, setLampiranMedia] = useState([]);
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [isRecordingMic, setIsRecordingMic] = useState(false);
+  const [isTranscribingMic, setIsTranscribingMic] = useState(false);
+  const [isScanningProductSS, setIsScanningProductSS] = useState(false);
 
   const [formKartuProduk, setFormKartuProduk] = useState({
     namaProduk: "",
@@ -242,23 +244,23 @@ export default function BrainstormView({
     spesifikasi: "",
     fungsiUtama: "",
     harga: "",
-  })
+  });
 
   const akunDefaultLabel =
     personaProfile?.account_label ||
-    `@${(namaUser || "creator").toLowerCase().replace(/\s+/g, ".")}`
+    `@${(namaUser || "creator").toLowerCase().replace(/\s+/g, ".")}`;
 
   useEffect(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined") return;
 
     try {
       const rawTernak = localStorage.getItem(
-        `hookya_ternak_akun_${userId || "guest"}`,
-      )
+        `hookya_ternak_akun_${userId || "guest"}`
+      );
       if (rawTernak) {
-        const parsed = JSON.parse(rawTernak)
+        const parsed = JSON.parse(rawTernak);
         if (Array.isArray(parsed.daftarAkun) && parsed.daftarAkun.length > 0) {
-          setDaftarAkunSosmed(parsed.daftarAkun)
+          setDaftarAkunSosmed(parsed.daftarAkun);
         }
       }
     } catch {
@@ -266,29 +268,29 @@ export default function BrainstormView({
     }
 
     try {
-      const rawSesi = localStorage.getItem(storageSessionsKey)
+      const rawSesi = localStorage.getItem(storageSessionsKey);
       if (rawSesi) {
-        const parsedSesi = JSON.parse(rawSesi)
+        const parsedSesi = JSON.parse(rawSesi);
         if (Array.isArray(parsedSesi) && parsedSesi.length > 0) {
-          setDaftarSesiTopik(parsedSesi)
-          setActiveSessionId(parsedSesi[0].id)
-          return
+          setDaftarSesiTopik(parsedSesi);
+          setActiveSessionId(parsedSesi[0].id);
+          return;
         }
       }
     } catch {
       // Ignore parse error
     }
 
-    const sesiAwal = buatSesiTopikBaru(1, akunDefaultLabel)
-    setDaftarSesiTopik([sesiAwal])
-    setActiveSessionId(sesiAwal.id)
-  }, [userId, storageSessionsKey, akunDefaultLabel])
+    const sesiAwal = buatSesiTopikBaru(1, selectedPersonaHeader || "");
+    setDaftarSesiTopik([sesiAwal]);
+    setActiveSessionId(sesiAwal.id);
+  }, [userId, storageSessionsKey]);
 
   const simpanDaftarSesiKeStorageDanDB = async (listBaru) => {
-    setDaftarSesiTopik(listBaru)
+    setDaftarSesiTopik(listBaru);
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(storageSessionsKey, JSON.stringify(listBaru))
+        localStorage.setItem(storageSessionsKey, JSON.stringify(listBaru));
       } catch {
         // Ignore local quota error
       }
@@ -299,7 +301,7 @@ export default function BrainstormView({
           .from("users")
           .select("profil_dna")
           .eq("id", userId)
-          .single()
+          .single();
         if (uRow) {
           const ringkasanDB = listBaru.slice(0, 25).map((s) => ({
             id: s.id,
@@ -316,7 +318,7 @@ export default function BrainstormView({
               ...m,
               images: [],
             })),
-          }))
+          }));
           await supabase
             .from("users")
             .update({
@@ -325,94 +327,112 @@ export default function BrainstormView({
                 chat_sessions_backup: ringkasanDB,
               },
             })
-            .eq("id", userId)
+            .eq("id", userId);
         }
       } catch {
         // Ignore background sync error
       }
     }
-  }
+  };
 
   const sesiAktif =
     daftarSesiTopik.find((s) => s.id === activeSessionId) ||
     daftarSesiTopik[0] ||
-    buatSesiTopikBaru(1, akunDefaultLabel)
+    buatSesiTopikBaru(1, selectedPersonaHeader || "");
 
-  const flowAktif = sesiAktif.flowState || {}
+  const flowAktif = sesiAktif.flowState || {};
+
+  // Sinkronisasi pilihan persona dari tengah Header ke sesi aktif
+  useEffect(() => {
+    if (!sesiAktif?.id) return;
+    const pakaiPersona = Boolean(selectedPersonaHeader);
+    if (
+      sesiAktif.akunLabel !== selectedPersonaHeader ||
+      Boolean(sesiAktif.gunakanPersona) !== pakaiPersona
+    ) {
+      const listUpdate = daftarSesiTopik.map((s) =>
+        s.id === sesiAktif.id
+          ? {
+              ...s,
+              akunLabel: selectedPersonaHeader || "",
+              gunakanPersona: pakaiPersona,
+            }
+          : s
+      );
+      setDaftarSesiTopik(listUpdate);
+    }
+  }, [selectedPersonaHeader]);
 
   useEffect(() => {
     if (flowAktif.dataProduk) {
       setFormKartuProduk((prev) => ({
         ...prev,
         ...flowAktif.dataProduk,
-      }))
+      }));
     }
-  }, [sesiAktif.id])
+  }, [sesiAktif.id]);
 
-  // Hanya menggulir halus ketika jawaban baru dari Bot sudah muncul, tanpa membuat area kosong di bawah
   const gulirKePesanBaruBotTanpaAreaKosong = () => {
     setTimeout(() => {
       if (latestBotMsgRef.current) {
         latestBotMsgRef.current.scrollIntoView({
           behavior: "smooth",
           block: "nearest",
-        })
+        });
       }
-    }, 100)
-  }
+    }, 100);
+  };
 
   const updateSesiAktif = (perubahanObj) => {
     const listUpdate = daftarSesiTopik.map((s) =>
-      s.id === sesiAktif.id ? { ...s, ...perubahanObj } : s,
-    )
-    simpanDaftarSesiKeStorageDanDB(listUpdate)
-  }
+      s.id === sesiAktif.id ? { ...s, ...perubahanObj } : s
+    );
+    simpanDaftarSesiKeStorageDanDB(listUpdate);
+  };
 
   const handleBuatTopikBaru = () => {
-    const nomorBaru = daftarSesiTopik.length + 1
-    const akunAktif =
-      filterAkunPill !== "ALL" ? filterAkunPill : akunDefaultLabel
-    const baru = buatSesiTopikBaru(nomorBaru, akunAktif)
-    const listBaru = [baru, ...daftarSesiTopik]
-    simpanDaftarSesiKeStorageDanDB(listBaru)
-    setActiveSessionId(baru.id)
-    ubahSubView("chat")
-    setPesanInput("")
-    setLampiranMedia([])
-  }
+    const nomorBaru = daftarSesiTopik.length + 1;
+    const baru = buatSesiTopikBaru(nomorBaru, selectedPersonaHeader || "");
+    const listBaru = [baru, ...daftarSesiTopik];
+    simpanDaftarSesiKeStorageDanDB(listBaru);
+    setActiveSessionId(baru.id);
+    ubahSubView("chat");
+    setPesanInput("");
+    setLampiranMedia([]);
+  };
 
   const handleHapusSesiTopik = (idTarget) => {
-    const sisa = daftarSesiTopik.filter((s) => s.id !== idTarget)
+    const sisa = daftarSesiTopik.filter((s) => s.id !== idTarget);
     if (sisa.length === 0) {
-      const baru = buatSesiTopikBaru(1, akunDefaultLabel)
-      simpanDaftarSesiKeStorageDanDB([baru])
-      setActiveSessionId(baru.id)
+      const baru = buatSesiTopikBaru(1, selectedPersonaHeader || "");
+      simpanDaftarSesiKeStorageDanDB([baru]);
+      setActiveSessionId(baru.id);
     } else {
-      simpanDaftarSesiKeStorageDanDB(sisa)
+      simpanDaftarSesiKeStorageDanDB(sisa);
       if (activeSessionId === idTarget) {
-        setActiveSessionId(sisa[0].id)
+        setActiveSessionId(sisa[0].id);
       }
     }
-    setOpenSwipeId(null)
-    showToast("Sesi topik berhasil dihapus.")
-  }
+    setOpenSwipeId(null);
+    showToast("Sesi topik berhasil dihapus.");
+  };
 
   const kirimBlobVoiceNoteKeAI = async (audioBlob, mimeAsli) => {
-    if (!audioBlob || audioBlob.size < 200) return
-    setIsTranscribingMic(true)
+    if (!audioBlob || audioBlob.size < 200) return;
+    setIsTranscribingMic(true);
     try {
-      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob)
-      let base64Final = hasilWav?.base64 || ""
-      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav"
+      const hasilWav = await ubahBlobSuaraKeWavBase64(audioBlob);
+      let base64Final = hasilWav?.base64 || "";
+      let mimeFinal = hasilWav?.mimeType || mimeAsli || "audio/wav";
 
       if (!base64Final) {
         base64Final = await new Promise((resolve) => {
-          const reader = new FileReader()
+          const reader = new FileReader();
           reader.onloadend = () =>
-            resolve((reader.result || "").toString().split(",")[1] || "")
-          reader.onerror = () => resolve("")
-          reader.readAsDataURL(audioBlob)
-        })
+            resolve((reader.result || "").toString().split(",")[1] || "");
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(audioBlob);
+        });
       }
 
       const res = await fetch("/api/ai", {
@@ -424,150 +444,151 @@ export default function BrainstormView({
           audioBase64: base64Final,
           audioMimeType: mimeFinal,
         }),
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
       if (res.ok && data.teks) {
-        const teksSebelumnya = (pesanInputRef.current || "").trim()
+        const teksSebelumnya = (pesanInputRef.current || "").trim();
         const gabungan = teksSebelumnya
           ? `${teksSebelumnya} ${data.teks}`
-          : data.teks
-        setPesanInput(gabungan)
-        rekamKetikanKeGudangIngatan(userId, "Voice Note Chat", gabungan)
-        showToast("Rekaman suara ditambahkan ke teks.")
+          : data.teks;
+        setPesanInput(gabungan);
+        rekamKetikanKeGudangIngatan(userId, "Voice Note Chat", gabungan);
+        showToast("Rekaman suara ditambahkan ke teks.");
       }
     } catch {
-      showToast("Gagal menerjemahkan suara.")
+      showToast("Gagal menerjemahkan suara.");
     } finally {
-      setIsTranscribingMic(false)
+      setIsTranscribingMic(false);
     }
-  }
+  };
 
   const mulaiMediaRecorderFallback = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast("Browser tidak mendukung mikrofon.")
-      return
+      showToast("Browser tidak mendukung mikrofon.");
+      return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      audioChunksRef.current = []
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
-          audioChunksRef.current.push(e.data)
+          audioChunksRef.current.push(e.data);
         }
-      }
+      };
 
       recorder.onstop = () => {
-        setIsRecordingMic(false)
-        stream.getTracks().forEach((track) => track.stop())
-        const mime = recorder.mimeType || "audio/webm"
-        const audioBlob = new Blob(audioChunksRef.current, { type: mime })
-        kirimBlobVoiceNoteKeAI(audioBlob, mime)
-      }
+        setIsRecordingMic(false);
+        stream.getTracks().forEach((track) => track.stop());
+        const mime = recorder.mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
+        kirimBlobVoiceNoteKeAI(audioBlob, mime);
+      };
 
-      mediaRecorderRef.current = recorder
-      recorder.start()
-      setIsRecordingMic(true)
-      showToast("Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record.")
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecordingMic(true);
+      showToast("Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record.");
     } catch {
-      showToast("Izinkan akses mikrofon di browser kamu.")
+      showToast("Izinkan akses mikrofon di browser kamu.");
     }
-  }
+  };
 
   const handleToggleVoiceNoteInput = () => {
-    if (isTranscribingMic) return
+    if (isTranscribingMic) return;
 
     if (isRecordingMic) {
       if (speechRecRef.current) {
         try {
-          speechRecRef.current.stop()
+          speechRecRef.current.stop();
         } catch {
           // Ignore stop error
         }
-        speechRecRef.current = null
+        speechRecRef.current = null;
       }
       if (
         mediaRecorderRef.current &&
         mediaRecorderRef.current.state !== "inactive"
       ) {
-        mediaRecorderRef.current.stop()
+        mediaRecorderRef.current.stop();
       } else {
-        setIsRecordingMic(false)
+        setIsRecordingMic(false);
       }
-      showToast("Mic OFF: Rekaman dihentikan, teks tersimpan.")
-      return
+      showToast("Mic OFF: Rekaman dihentikan, teks tersimpan.");
+      return;
     }
 
-    baseTextBeforeRecRef.current = (pesanInputRef.current || "").trim()
+    baseTextBeforeRecRef.current = (pesanInputRef.current || "").trim();
 
-    if (typeof window === "undefined") return
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (typeof window === "undefined") return;
+    const SpeechRec =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRec && !navigator.userAgent.includes("iPhone")) {
       try {
-        const rec = new SpeechRec()
-        rec.lang = "id-ID"
-        rec.continuous = true
-        rec.interimResults = true
+        const rec = new SpeechRec();
+        rec.lang = "id-ID";
+        rec.continuous = true;
+        rec.interimResults = true;
 
         rec.onstart = () => {
-          setIsRecordingMic(true)
+          setIsRecordingMic(true);
           showToast(
-            "Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record.",
-          )
-        }
+            "Mic ON: Silakan bicara. Pencet sekali lagi untuk Off Record."
+          );
+        };
 
         rec.onresult = (ev) => {
-          let transkripSesiIni = ""
+          let transkripSesiIni = "";
           for (let i = 0; i < ev.results.length; i++) {
-            transkripSesiIni += ev.results[i][0].transcript + " "
+            transkripSesiIni += ev.results[i][0].transcript + " ";
           }
-          const bersih = transkripSesiIni.trim()
+          const bersih = transkripSesiIni.trim();
           if (bersih) {
             const gabungan = baseTextBeforeRecRef.current
               ? `${baseTextBeforeRecRef.current} ${bersih}`
-              : bersih
-            setPesanInput(gabungan)
+              : bersih;
+            setPesanInput(gabungan);
           }
-        }
+        };
 
         rec.onerror = () => {
-          setIsRecordingMic(false)
-          speechRecRef.current = null
-        }
+          setIsRecordingMic(false);
+          speechRecRef.current = null;
+        };
 
         rec.onend = () => {
-          setIsRecordingMic(false)
-          speechRecRef.current = null
+          setIsRecordingMic(false);
+          speechRecRef.current = null;
           if (pesanInputRef.current) {
             rekamKetikanKeGudangIngatan(
               userId,
               "Voice Note Chat",
-              pesanInputRef.current,
-            )
+              pesanInputRef.current
+            );
           }
-        }
+        };
 
-        speechRecRef.current = rec
-        rec.start()
-        return
+        speechRecRef.current = rec;
+        rec.start();
+        return;
       } catch {
         // Fallback to MediaRecorder
       }
     }
 
-    mulaiMediaRecorderFallback()
-  }
+    mulaiMediaRecorderFallback();
+  };
 
   const handlePilihMediaUpload = async (e) => {
-    const files = Array.from(e.target.files || []).slice(0, 2)
-    if (files.length === 0) return
-    const hasil = []
+    const files = Array.from(e.target.files || []).slice(0, 2);
+    if (files.length === 0) return;
+    const hasil = [];
     for (const f of files) {
       if (f.type.startsWith("image/")) {
-        const k = await kompresGambarChat(f)
-        if (k) hasil.push({ ...k, tipeMedia: "foto" })
+        const k = await kompresGambarChat(f);
+        if (k) hasil.push({ ...k, tipeMedia: "foto" });
       } else {
         hasil.push({
           previewUrl: "",
@@ -575,21 +596,21 @@ export default function BrainstormView({
           mimeType: f.type || "video/mp4",
           namaFile: f.name,
           tipeMedia: "video",
-        })
+        });
       }
     }
-    setLampiranMedia((prev) => [...prev, ...hasil].slice(0, 2))
-    e.target.value = ""
-  }
+    setLampiranMedia((prev) => [...prev, ...hasil].slice(0, 2));
+    e.target.value = "";
+  };
 
   const handleScanScreenshotProduk = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setIsScanningProductSS(true)
-    showToast("Menganalisa screenshot produk dari marketplace...")
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsScanningProductSS(true);
+    showToast("Menganalisa screenshot produk dari marketplace...");
     try {
-      const k = await kompresGambarChat(file)
-      if (!k) throw new Error("Gagal membaca gambar")
+      const k = await kompresGambarChat(file);
+      if (!k) throw new Error("Gagal membaca gambar");
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -598,11 +619,12 @@ export default function BrainstormView({
           action: "analyze_product_card_screenshot",
           userId,
           namaUser,
-          preferredModel,
+          aiModel1,
+          aiModel2,
           uploadedImages: [k],
         }),
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
       if (res.ok) {
         const nextProduk = {
           namaProduk: data.namaProduk || formKartuProduk.namaProduk,
@@ -610,40 +632,42 @@ export default function BrainstormView({
           spesifikasi: data.spesifikasi || formKartuProduk.spesifikasi,
           fungsiUtama: data.fungsiUtama || formKartuProduk.fungsiUtama,
           harga: data.harga || formKartuProduk.harga,
-        }
-        setFormKartuProduk(nextProduk)
-        showToast("Data produk berhasil diekstrak dari screenshot!")
+        };
+        setFormKartuProduk(nextProduk);
+        showToast("Data produk berhasil diekstrak dari screenshot!");
       }
     } catch {
-      showToast("Gagal menganalisa screenshot produk.")
+      showToast("Gagal menganalisa screenshot produk.");
     } finally {
-      setIsScanningProductSS(false)
-      e.target.value = ""
+      setIsScanningProductSS(false);
+      e.target.value = "";
     }
-  }
+  };
 
-  // Ketika user mengirim pesan / memilih opsi, layar TIDAK ditarik ke atas agar tetap menampilkan proses typing
+  // Mengirim pesan ke AI 1 (Asesmen & Brainstorming)
   const handleKirimPesanKeBot = async ({
     teksOverride = null,
     flowPatch = {},
   } = {}) => {
-    const teksFinal = (teksOverride !== null ? teksOverride : pesanInput).trim()
-    if (!teksFinal && lampiranMedia.length === 0) return
-    if (isSendingChat) return
+    const teksFinal = (
+      teksOverride !== null ? teksOverride : pesanInput
+    ).trim();
+    if (!teksFinal && lampiranMedia.length === 0) return;
+    if (isSendingChat) return;
 
     const waktuSkr = new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
-    })
+    });
 
     if (teksFinal) {
-      rekamKetikanKeGudangIngatan(userId, "Chat Sesi Topik", teksFinal)
+      rekamKetikanKeGudangIngatan(userId, "Chat Sesi Topik", teksFinal);
     }
 
     const flowTerbaru = {
       ...flowAktif,
       ...flowPatch,
-    }
+    };
 
     const msgUser = {
       id: `usr_${Date.now()}`,
@@ -655,35 +679,40 @@ export default function BrainstormView({
       images: lampiranMedia
         .filter((m) => m.previewUrl)
         .map((m) => m.previewUrl),
-    }
+    };
 
-    const messagesSementara = [...(sesiAktif.messages || []), msgUser]
+    const messagesSementara = [...(sesiAktif.messages || []), msgUser];
     const judulSementara =
       sesiAktif.judul === "Diskusi Topik Konten Baru" &&
       teksFinal &&
       !teksFinal.startsWith("Saya pilih:")
         ? teksFinal.slice(0, 48)
-        : sesiAktif.judul
+        : sesiAktif.judul;
+
+    const aktifPakaiPersona = Boolean(selectedPersonaHeader);
+    const labelPersonaAktif = selectedPersonaHeader || "";
 
     updateSesiAktif({
       judul: judulSementara,
+      akunLabel: labelPersonaAktif,
+      gunakanPersona: aktifPakaiPersona,
       waktuTerakhir: waktuSkr,
       flowState: flowTerbaru,
       messages: messagesSementara,
-    })
+    });
 
-    const gambarDikirim = lampiranMedia.filter((m) => m.base64)
+    const gambarDikirim = lampiranMedia.filter((m) => m.base64);
     if (teksOverride === null) {
-      setPesanInput("")
-      setIsExpandedTextbox(false)
+      setPesanInput("");
+      setIsExpandedTextbox(false);
     }
-    setLampiranMedia([])
-    setIsSendingChat(true)
+    setLampiranMedia([]);
+    setIsSendingChat(true);
 
     try {
       const akunObj = daftarAkunSosmed.find(
-        (a) => a.labelAkun === sesiAktif.akunLabel,
-      )
+        (a) => a.labelAkun === labelPersonaAktif
+      );
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -692,26 +721,29 @@ export default function BrainstormView({
           action: "ai_script_session_chat",
           userId,
           namaUser,
-          preferredModel,
+          aiModel1,
+          aiModel2,
           pesanUser: msgUser.teks,
-          riwayatChat: messagesSementara.slice(-6).map((m) => ({
-            role: m.role,
-            content: m.teks || m.balasanBot || "",
-          })),
+          riwayatChat: messagesSementara
+            .slice(-6)
+            .map((m) => ({
+              role: m.role,
+              content: m.teks || m.balasanBot || "",
+            })),
           flowState: flowTerbaru,
-          gunakanPersona: Boolean(sesiAktif.gunakanPersona),
-          akunPersonaTerpilih: sesiAktif.gunakanPersona ? akunObj : null,
+          gunakanPersona: aktifPakaiPersona,
+          akunPersonaTerpilih: aktifPakaiPersona ? akunObj : null,
           personaProfile,
           memoryVaultSamples: ambilDataGudangIngatan(userId).samples || [],
           uploadedImages: gambarDikirim,
         }),
-      })
+      });
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Gagal memproses chat")
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memproses chat");
 
       if (data.analisaGudangIngatan) {
-        simpanAnalisaGudangIngatan(userId, data.analisaGudangIngatan)
+        simpanAnalisaGudangIngatan(userId, data.analisaGudangIngatan);
       }
 
       const nextFlow = {
@@ -725,7 +757,7 @@ export default function BrainstormView({
           data.terdeteksiFormat && data.terdeteksiFormat !== "belum_dipilih"
             ? data.terdeteksiFormat
             : flowTerbaru.formatKonten,
-      }
+      };
 
       const msgBot = {
         id: `bot_${Date.now()}`,
@@ -751,12 +783,12 @@ export default function BrainstormView({
           : [],
         ctaOptions: Array.isArray(data.ctaOptions) ? data.ctaOptions : [],
         naskahFinal: null,
-      }
+      };
 
       const judulFinal =
         sesiAktif.judul === "Diskusi Topik Konten Baru" && data.judulSesiTopik
           ? data.judulSesiTopik
-          : judulSementara
+          : judulSementara;
 
       updateSesiAktif({
         judul: judulFinal,
@@ -765,37 +797,41 @@ export default function BrainstormView({
         statusTahap: "Sedang diskusi",
         flowState: nextFlow,
         messages: [...messagesSementara, msgBot],
-      })
+      });
 
-      if (onRefreshDataUser) onRefreshDataUser()
-      gulirKePesanBaruBotTanpaAreaKosong()
+      if (onRefreshDataUser) onRefreshDataUser();
+      gulirKePesanBaruBotTanpaAreaKosong();
     } catch {
-      showToast("Error sistem, silakan refresh atau hubungi admin.")
+      showToast("Error sistem, silakan refresh atau hubungi admin.");
     } finally {
-      setIsSendingChat(false)
+      setIsSendingChat(false);
     }
-  }
+  };
 
+  // Menyusun Naskah Akhir menggunakan AI 2 (Generate Naskah)
   const handleGenerateSatuNaskahUtuh = async () => {
-    if (isGeneratingScript) return
+    if (isGeneratingScript) return;
     if (coins < 1) {
-      alert("Saldo koin belum mencukupi (Perlu 1 Koin). Silakan Top-Up koin.")
-      setActiveMenu("topup")
-      return
+      alert("Saldo koin belum mencukupi (Perlu 1 Koin). Silakan Top-Up koin.");
+      setActiveMenu("topup");
+      return;
     }
 
-    setIsGeneratingScript(true)
-    await updateKoinDatabase(coins - 1)
+    setIsGeneratingScript(true);
+    await updateKoinDatabase(coins - 1);
 
     const waktuSkr = new Date().toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
-    })
+    });
+
+    const aktifPakaiPersona = Boolean(selectedPersonaHeader);
+    const labelPersonaAktif = selectedPersonaHeader || "";
 
     try {
       const akunObj = daftarAkunSosmed.find(
-        (a) => a.labelAkun === sesiAktif.akunLabel,
-      )
+        (a) => a.labelAkun === labelPersonaAktif
+      );
 
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -804,41 +840,43 @@ export default function BrainstormView({
           action: "generate_6step_script",
           userId,
           namaUser,
-          preferredModel,
+          aiModel1,
+          aiModel2,
           pesanUser: flowAktif.topikAtauProduk || sesiAktif.judul,
           formatKonten: flowAktif.formatKonten || sesiAktif.format,
           flowState: flowAktif,
           hookTerpilih: flowAktif.hookTerpilih,
           ctaTerpilih: flowAktif.ctaTerpilih,
-          gunakanPersona: Boolean(sesiAktif.gunakanPersona),
-          akunPersonaTerpilih: sesiAktif.gunakanPersona ? akunObj : null,
+          gunakanPersona: aktifPakaiPersona,
+          akunPersonaTerpilih: aktifPakaiPersona ? akunObj : null,
           personaProfile,
           memoryVaultSamples: ambilDataGudangIngatan(userId).samples || [],
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
       if (!res.ok) {
         if (data.silentCoinUpdated != null) {
-          updateKoinDatabase(data.silentCoinUpdated)
+          updateKoinDatabase(data.silentCoinUpdated);
         }
-        if (onRefreshDataUser) onRefreshDataUser()
-        throw new Error("Gagal menyusun naskah")
+        if (onRefreshDataUser) onRefreshDataUser();
+        throw new Error("Gagal menyusun naskah");
       }
 
       const tglHariIni = new Date().toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "short",
         year: "numeric",
-      })
+      });
 
       const skripBaru = {
         id: Date.now(),
         dbId: null,
         judul: data.judul || sesiAktif.judul,
         kategori: flowAktif.tujuanKonten || "Naskah AI",
-        bentuk: flowAktif.formatKonten || sesiAktif.format || "TikTok / Reels",
-        akunLabel: sesiAktif.akunLabel,
+        bentuk:
+          flowAktif.formatKonten || sesiAktif.format || "TikTok / Reels",
+        akunLabel: labelPersonaAktif || "Mode Umum",
         waktuDibuat: tglHariIni,
         targetDuration:
           data.targetDuration || flowAktif.durasiKonten || "60 Detik",
@@ -850,10 +888,10 @@ export default function BrainstormView({
         tanggalUpload: "",
         sections: data.sections || [],
         segmen: data.segmen || data.sections || [],
-      }
+      };
 
-      const tersimpanDB = await simpanAtauUpdateSkripDatabase(skripBaru)
-      setKoleksiSkripTersimpan((prev) => [tersimpanDB, ...prev])
+      const tersimpanDB = await simpanAtauUpdateSkripDatabase(skripBaru);
+      setKoleksiSkripTersimpan((prev) => [tersimpanDB, ...prev]);
 
       const msgNaskah = {
         id: `script_${Date.now()}`,
@@ -863,52 +901,51 @@ export default function BrainstormView({
         balasanBot:
           "Berikut adalah naskah lengkap yang sudah disusun sesuai pilihanmu dan otomatis tersimpan ke Arsip:",
         naskahFinal: tersimpanDB,
-      }
+      };
 
       updateSesiAktif({
         statusLabel: "Siap Rekam",
         statusTahap: "AI Final",
         waktuTerakhir: waktuSkr,
         messages: [...(sesiAktif.messages || []), msgNaskah],
-      })
+      });
 
-      if (onRefreshDataUser) onRefreshDataUser()
-      showToast("Naskah selesai disusun & tersimpan ke Arsip.")
-      gulirKePesanBaruBotTanpaAreaKosong()
+      if (onRefreshDataUser) onRefreshDataUser();
+      showToast("Naskah selesai disusun & tersimpan ke Arsip.");
+      gulirKePesanBaruBotTanpaAreaKosong();
     } catch {
       showToast(
-        "Request gagal diproses. Koin Anda telah dikembalikan otomatis (Auto-Refund).",
-      )
+        "Request gagal diproses. Koin Anda telah dikembalikan otomatis (Auto-Refund)."
+      );
     } finally {
-      setIsGeneratingScript(false)
+      setIsGeneratingScript(false);
     }
-  }
+  };
 
   const semuaAkunUnik = [
     akunDefaultLabel,
     ...daftarAkunSosmed.map((a) => a.labelAkun),
-  ].filter((v, i, arr) => v && arr.indexOf(v) === i)
+  ].filter((v, i, arr) => v && arr.indexOf(v) === i);
 
   const daftarSesiTerfilter = daftarSesiTopik.filter((s) => {
     if (filterAkunPill !== "ALL" && s.akunLabel !== filterAkunPill) {
-      return false
+      return false;
     }
-    if (!searchQuery.trim()) return true
-    const q = searchQuery.toLowerCase()
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
     return (
       (s.judul || "").toLowerCase().includes(q) ||
       (s.format || "").toLowerCase().includes(q) ||
       (s.akunLabel || "").toLowerCase().includes(q)
-    )
-  })
+    );
+  });
 
   // ============================================================================
-  // TAMPILAN 1: HALAMAN LIST CHAT TOPIK (TANPA KETERANGAN PENYIMPANAN)
+  // TAMPILAN 1: HALAMAN LIST CHAT TOPIK
   // ============================================================================
   if (subView === "list") {
     return (
       <div className="w-full max-w-3xl mx-auto space-y-3 pb-10">
-        {/* Search Bar & Tombol + Buat Topik Baru */}
         <div className="flex items-center gap-2">
           <div className="flex-1 relative flex items-center bg-white rounded-xl border border-[#E2E8F0] px-3 h-11">
             <FlatIcon
@@ -920,7 +957,7 @@ export default function BrainstormView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari topik naskah, percakapan bot..."
-              className="w-full bg-transparent text-xs sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none"
+              className="w-full bg-transparent text-[16px] sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none"
             />
             {searchQuery && (
               <button
@@ -943,7 +980,6 @@ export default function BrainstormView({
           </button>
         </div>
 
-        {/* Filter Pills Akun Sosial Media */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           <button
             type="button"
@@ -968,9 +1004,9 @@ export default function BrainstormView({
 
           {semuaAkunUnik.slice(0, kuotaAkunMaksimal).map((akLabel) => {
             const jmlSesiAkun = daftarSesiTopik.filter(
-              (s) => s.akunLabel === akLabel,
-            ).length
-            const aktif = filterAkunPill === akLabel
+              (s) => s.akunLabel === akLabel
+            ).length;
+            const aktif = filterAkunPill === akLabel;
 
             return (
               <button
@@ -988,15 +1024,14 @@ export default function BrainstormView({
                   {jmlSesiAkun}
                 </span>
               </button>
-            )
+            );
           })}
         </div>
 
-        {/* Daftar Baris Sesi Topik */}
         <div className="bg-white rounded-2xl border border-[#E2E8F0] divide-y divide-[#E2E8F0] overflow-hidden">
           {daftarSesiTerfilter.map((sesi, idx) => {
-            const sedangBukaAksi = openSwipeId === sesi.id
-            const isSiapRekam = sesi.statusLabel === "Siap Rekam"
+            const sedangBukaAksi = openSwipeId === sesi.id;
+            const isSiapRekam = sesi.statusLabel === "Siap Rekam";
 
             return (
               <div
@@ -1005,8 +1040,13 @@ export default function BrainstormView({
               >
                 <div
                   onClick={() => {
-                    setActiveSessionId(sesi.id)
-                    ubahSubView("chat")
+                    setActiveSessionId(sesi.id);
+                    if (setSelectedPersonaHeader) {
+                      setSelectedPersonaHeader(
+                        sesi.gunakanPersona ? sesi.akunLabel || "" : ""
+                      );
+                    }
+                    ubahSubView("chat");
                   }}
                   className="cursor-pointer flex-1 p-3.5 space-y-1.5 min-w-0"
                 >
@@ -1031,7 +1071,9 @@ export default function BrainstormView({
                   <div className="flex items-center justify-between gap-2 pt-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                       <span className="px-2 py-0.5 rounded bg-[#F4F5F7] text-[#14141F] text-[11px] font-semibold truncate max-w-[140px]">
-                        {sesi.gunakanPersona ? sesi.akunLabel : "Mode Umum"}
+                        {sesi.gunakanPersona && sesi.akunLabel
+                          ? sesi.akunLabel
+                          : "Tanpa Persona"}
                       </span>
 
                       <span
@@ -1049,8 +1091,8 @@ export default function BrainstormView({
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        setOpenSwipeId(sedangBukaAksi ? null : sesi.id)
+                        e.stopPropagation();
+                        setOpenSwipeId(sedangBukaAksi ? null : sesi.id);
                       }}
                       className="cursor-pointer px-2 py-0.5 rounded bg-[#F4F5F7] hover:bg-[#E2E8F0] text-xs font-bold text-[#14141F] shrink-0"
                     >
@@ -1072,79 +1114,35 @@ export default function BrainstormView({
                   </div>
                 )}
               </div>
-            )
+            );
           })}
         </div>
       </div>
-    )
+    );
   }
 
   // ============================================================================
-  // TAMPILAN 2: RUANG CHAT TOPIK (GAYA BALON TELEGRAM + DROPDOWN RESPONSIF)
+  // TAMPILAN 2: RUANG CHAT TOPIK (BALON BOT TANPA EKOR & TEXTBOX TANPA JEDA KANAN)
   // ============================================================================
-  const listMessages = sesiAktif.messages || []
+  const listMessages = sesiAktif.messages || [];
   const lastBotIndex = listMessages.reduce(
     (acc, m, idx) => (m.role === "assistant" ? idx : acc),
-    0,
-  )
+    0
+  );
 
   return (
-    <div className="w-full max-w-2xl mx-auto pb-20">
-      {/* BAR PERSONA AKUN RESPONSIF (MENYESUAIKAN LEBAR RASIO LAYAR SEMPIT) */}
-      <div className="sticky top-14 z-30 bg-[#F4F5F7] py-1.5">
-        <div className="bg-white rounded-xl border border-[#E2E8F0] px-3 py-2 flex items-center justify-between gap-2 w-full overflow-hidden">
-          <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold text-[#14141F] select-none shrink-0">
-            <input
-              type="checkbox"
-              checked={Boolean(sesiAktif.gunakanPersona)}
-              onChange={(e) =>
-                updateSesiAktif({ gunakanPersona: e.target.checked })
-              }
-              className="w-4 h-4 accent-[#14141F] rounded cursor-pointer shrink-0"
-            />
-            <span>Gunakan Persona Akun</span>
-          </label>
-
-          {sesiAktif.gunakanPersona ? (
-            <div className="relative flex-1 min-w-0 max-w-[180px] sm:max-w-[240px]">
-              <select
-                value={sesiAktif.akunLabel || akunDefaultLabel}
-                onChange={(e) => updateSesiAktif({ akunLabel: e.target.value })}
-                className="w-full h-8 pl-2.5 pr-7 rounded-lg bg-[#F4F5F7] border border-[#14141F] text-xs font-bold text-[#14141F] truncate appearance-none cursor-pointer focus:outline-none"
-              >
-                {semuaAkunUnik.slice(0, kuotaAkunMaksimal).map((ak) => (
-                  <option key={ak} value={ak}>
-                    {ak}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#14141F]">
-                <FlatIcon name="chevronDown" className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          ) : (
-            <span className="text-[11px] font-medium text-[#64748B] truncate">
-              Mode Bahasa Umum
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ALIRAN GELEMBUNG CHAT GAYA TELEGRAM (PADDING RAPAT & EKOR KOMIK) */}
-      <div className="space-y-2.5 pt-1 px-1">
+    <div className="w-full max-w-2xl mx-auto flex flex-col h-full">
+      {/* AREA ISI CHAT YANG BISA DISCROLL TANPA MENGGESER HEADER */}
+      <div className="flex-1 space-y-2.5 pt-1 pb-24 px-1">
         {listMessages.map((msg, mIdx) => {
-          // BALON CHAT USER (KANAN, HITAM #14141F DENGAN EKOR KANAN BAWAH)
+          // BALON CHAT USER (KANAN, HITAM #14141F)
           if (msg.role === "user") {
             return (
               <div
                 key={msg.id || mIdx}
-                className="flex items-end justify-end pr-1.5"
+                className="flex items-end justify-end pr-1"
               >
-                <div className="relative max-w-[85%] bg-[#14141F] text-white rounded-2xl rounded-br-none px-3 py-2">
-                  <span
-                    aria-hidden="true"
-                    className="absolute -right-1.5 bottom-0 w-2.5 h-2.5 bg-[#14141F] [clip-path:polygon(0_0,0_100%,100%_100%)]"
-                  />
+                <div className="relative max-w-[85%] bg-[#14141F] text-white rounded-2xl rounded-br-sm px-3 py-2">
                   {Array.isArray(msg.images) && msg.images.length > 0 && (
                     <div className="flex gap-1.5 flex-wrap pb-1.5">
                       {msg.images.map((src, i) => (
@@ -1165,26 +1163,21 @@ export default function BrainstormView({
                   </div>
                 </div>
               </div>
-            )
+            );
           }
 
-          // BALON CHAT BOT (KIRI, PUTIH #FFFFFF DENGAN EKOR KIRI BAWAH & MARGIN RAPAT)
-          const isLatestBotMsg = mIdx === lastBotIndex
-          const tahap = msg.tahapBerikutnya || ""
-          const skripFinal = msg.naskahFinal
+          // BALON CHAT BOT (KIRI, PUTIH #FFFFFF TANPA EKOR)
+          const isLatestBotMsg = mIdx === lastBotIndex;
+          const tahap = msg.tahapBerikutnya || "";
+          const skripFinal = msg.naskahFinal;
 
           return (
             <div
               key={msg.id || mIdx}
               ref={isLatestBotMsg ? latestBotMsgRef : null}
-              className="flex items-end justify-start pl-1.5"
+              className="flex items-end justify-start"
             >
-              <div className="relative max-w-[92%] sm:max-w-[86%] bg-white border border-[#E2E8F0] rounded-2xl rounded-bl-none px-3 py-2 space-y-2">
-                <span
-                  aria-hidden="true"
-                  className="absolute -left-1.5 bottom-[-1px] w-2.5 h-2.5 bg-white border-l border-b border-[#E2E8F0] [clip-path:polygon(100%_0,0_100%,100%_100%)]"
-                />
-
+              <div className="w-full max-w-[94%] sm:max-w-[88%] bg-white border border-[#E2E8F0] rounded-2xl px-3.5 py-2.5 space-y-2">
                 <p className="text-xs sm:text-sm text-[#14141F] leading-snug whitespace-pre-line break-words">
                   {msg.balasanBot}
                 </p>
@@ -1205,7 +1198,7 @@ export default function BrainstormView({
                             },
                           })
                         }
-                        className="cursor-pointer px-2.5 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#D4F34A] border border-[#E2E8F0] text-left transition"
+                        className="cursor-pointer px-3 py-2 rounded-xl bg-[#F4F5F7] hover:bg-[#D4F34A] border border-[#E2E8F0] text-left transition"
                       >
                         <div className="text-xs font-bold text-[#14141F]">
                           {tj.judul}
@@ -1223,7 +1216,7 @@ export default function BrainstormView({
                   <div className="space-y-2 pt-0.5">
                     <div className="grid grid-cols-1 gap-1.5">
                       {PILIHAN_FORMAT_KONTEN.map((fmt) => {
-                        const dipilih = flowAktif.formatKonten === fmt.id
+                        const dipilih = flowAktif.formatKonten === fmt.id;
                         return (
                           <button
                             key={fmt.id}
@@ -1235,14 +1228,14 @@ export default function BrainstormView({
                                   flowPatch: {
                                     formatKonten: "TikTok / Reels",
                                   },
-                                })
+                                });
                               } else {
                                 updateSesiAktif({
                                   flowState: {
                                     ...flowAktif,
                                     formatKonten: fmt.id,
                                   },
-                                })
+                                });
                               }
                             }}
                             className={`cursor-pointer px-3 py-2 rounded-xl border text-xs font-bold text-left transition ${
@@ -1253,7 +1246,7 @@ export default function BrainstormView({
                           >
                             {fmt.label}
                           </button>
-                        )
+                        );
                       })}
                     </div>
 
@@ -1367,7 +1360,7 @@ export default function BrainstormView({
                         >
                           {jns}
                         </button>
-                      ),
+                      )
                     )}
                   </div>
                 )}
@@ -1411,7 +1404,7 @@ export default function BrainstormView({
                             })
                           }
                           placeholder="Nama produk..."
-                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[16px] sm:text-xs text-[#14141F]"
                         />
                       </div>
 
@@ -1429,7 +1422,7 @@ export default function BrainstormView({
                             })
                           }
                           placeholder="Kategori..."
-                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[16px] sm:text-xs text-[#14141F]"
                         />
                       </div>
 
@@ -1447,7 +1440,7 @@ export default function BrainstormView({
                             })
                           }
                           placeholder="Bahan, fitur, ukuran..."
-                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[16px] sm:text-xs text-[#14141F]"
                         />
                       </div>
 
@@ -1465,7 +1458,7 @@ export default function BrainstormView({
                             })
                           }
                           placeholder="Rp..."
-                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[16px] sm:text-xs text-[#14141F]"
                         />
                       </div>
 
@@ -1483,7 +1476,7 @@ export default function BrainstormView({
                             })
                           }
                           placeholder="Manfaat utama bagi pembeli..."
-                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[#14141F]"
+                          className="w-full h-9 px-2.5 rounded-lg bg-white border border-[#E2E8F0] text-[16px] sm:text-xs text-[#14141F]"
                         />
                       </div>
                     </div>
@@ -1491,7 +1484,7 @@ export default function BrainstormView({
                     <button
                       type="button"
                       onClick={() => {
-                        const ringkasan = `Produk: ${formKartuProduk.namaProduk} (${formKartuProduk.jenisProduk}) | Spek: ${formKartuProduk.spesifikasi} | Fungsi: ${formKartuProduk.fungsiUtama} | Harga: ${formKartuProduk.harga}`
+                        const ringkasan = `Produk: ${formKartuProduk.namaProduk} (${formKartuProduk.jenisProduk}) | Spek: ${formKartuProduk.spesifikasi} | Fungsi: ${formKartuProduk.fungsiUtama} | Harga: ${formKartuProduk.harga}`;
                         handleKirimPesanKeBot({
                           teksOverride: ringkasan,
                           flowPatch: {
@@ -1499,7 +1492,7 @@ export default function BrainstormView({
                             dataProduk: formKartuProduk,
                             tahap: "jualan_10_masalah",
                           },
-                        })
+                        });
                       }}
                       className="cursor-pointer w-full h-9 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1.5"
                     >
@@ -1518,7 +1511,7 @@ export default function BrainstormView({
                       </span>
                       <div className="grid grid-cols-1 gap-1 max-h-52 overflow-y-auto pr-1">
                         {msg.rekomendasi10.map((rek, rIdx) => {
-                          const dipilih = flowAktif.masalahAtauGoals === rek
+                          const dipilih = flowAktif.masalahAtauGoals === rek;
                           return (
                             <button
                               key={rIdx}
@@ -1537,7 +1530,7 @@ export default function BrainstormView({
                             >
                               {rek}
                             </button>
-                          )
+                          );
                         })}
                       </div>
                     </div>
@@ -1554,7 +1547,8 @@ export default function BrainstormView({
                       </span>
                       <div className="grid grid-cols-1 gap-1.5">
                         {ENAM_FAKTOR_VIRAL.map((fv) => {
-                          const dipilih = flowAktif.faktorAtauAngle === fv.label
+                          const dipilih =
+                            flowAktif.faktorAtauAngle === fv.label;
                           return (
                             <button
                               key={fv.id}
@@ -1576,7 +1570,7 @@ export default function BrainstormView({
                                 {fv.ket}
                               </div>
                             </button>
-                          )
+                          );
                         })}
                       </div>
                     </div>
@@ -1594,7 +1588,7 @@ export default function BrainstormView({
                         type="button"
                         onClick={() =>
                           showToast(
-                            "Silakan ketik, rekam voice note, atau klik ikon penjepit kertas di bawah.",
+                            "Silakan ketik, rekam voice note, atau klik ikon penjepit kertas di bawah."
                           )
                         }
                         className="cursor-pointer px-3 py-1.5 rounded-lg bg-white border border-[#14141F] text-xs font-bold text-[#14141F]"
@@ -1635,9 +1629,10 @@ export default function BrainstormView({
                           ? msg.sevenAngles
                           : TUJUH_ANGLE_PRODUK
                         ).map((ang, aIdx) => {
-                          const labelAng = ang.label || ang.judul
-                          const ketAng = ang.ide || ang.ket
-                          const aktif = flowAktif.faktorAtauAngle === labelAng
+                          const labelAng = ang.label || ang.judul;
+                          const ketAng = ang.ide || ang.ket;
+                          const aktif =
+                            flowAktif.faktorAtauAngle === labelAng;
                           return (
                             <button
                               key={aIdx}
@@ -1669,7 +1664,7 @@ export default function BrainstormView({
                                 {ketAng}
                               </p>
                             </button>
-                          )
+                          );
                         })}
                       </div>
                     </div>
@@ -1685,7 +1680,7 @@ export default function BrainstormView({
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {PILIHAN_DURASI_KONTEN.map((dur) => {
-                        const aktif = flowAktif.durasiKonten === dur
+                        const aktif = flowAktif.durasiKonten === dur;
                         return (
                           <button
                             key={dur}
@@ -1707,7 +1702,7 @@ export default function BrainstormView({
                           >
                             {dur}
                           </button>
-                        )
+                        );
                       })}
                     </div>
                   </div>
@@ -1724,7 +1719,7 @@ export default function BrainstormView({
                         <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
                           {msg.hookOptions10.map((hk, hIdx) => {
                             const dipilih =
-                              flowAktif.hookTerpilih === hk.teksHook
+                              flowAktif.hookTerpilih === hk.teksHook;
                             return (
                               <button
                                 key={hIdx}
@@ -1763,7 +1758,7 @@ export default function BrainstormView({
                                   &ldquo;{hk.teksHook}&rdquo;
                                 </p>
                               </button>
-                            )
+                            );
                           })}
                         </div>
                       </div>
@@ -1777,7 +1772,7 @@ export default function BrainstormView({
                             <div className="grid grid-cols-1 gap-1.5">
                               {msg.ctaOptions.map((ct, cIdx) => {
                                 const dipilih =
-                                  flowAktif.ctaTerpilih === ct.teksCta
+                                  flowAktif.ctaTerpilih === ct.teksCta;
                                 return (
                                   <button
                                     key={cIdx}
@@ -1809,7 +1804,7 @@ export default function BrainstormView({
                                       &ldquo;{ct.teksCta}&rdquo;
                                     </div>
                                   </button>
-                                )
+                                );
                               })}
                             </div>
                           </div>
@@ -1875,11 +1870,11 @@ export default function BrainstormView({
                               (s) =>
                                 `[${s.partTitle}]\n${
                                   s.spokenText || s.voiceover
-                                }`,
+                                }`
                             )
-                            .join("\n\n")
-                          navigator.clipboard.writeText(teksSalin)
-                          showToast("Naskah berhasil disalin.")
+                            .join("\n\n");
+                          navigator.clipboard.writeText(teksSalin);
+                          showToast("Naskah berhasil disalin.");
                         }}
                         className="cursor-pointer flex-1 h-9 px-3 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold flex items-center justify-center gap-1"
                       >
@@ -1890,9 +1885,9 @@ export default function BrainstormView({
                       <button
                         type="button"
                         onClick={() => {
-                          setHasilSkrip(skripFinal)
-                          setStage(5)
-                          setActiveMenu("produksi")
+                          setHasilSkrip(skripFinal);
+                          setStage(5);
+                          setActiveMenu("produksi");
                         }}
                         className="cursor-pointer h-9 px-3 rounded-lg bg-[#14141F] text-white text-xs font-bold flex items-center justify-center gap-1"
                       >
@@ -1903,7 +1898,6 @@ export default function BrainstormView({
                   </div>
                 )}
 
-                {/* WAKTU SAJA DI KANAN BAWAH TANPA NAMA MODEL AI & TANPA TOMBOL LANJUT */}
                 <div className="flex justify-end pt-0.5">
                   <span className="text-[10px] text-[#64748B] leading-none select-none">
                     {msg.waktu}
@@ -1911,26 +1905,25 @@ export default function BrainstormView({
                 </div>
               </div>
             </div>
-          )
+          );
         })}
 
-        {/* Gelembung Titik-Titik Tanpa Teks "typing..." */}
         {(isSendingChat || isGeneratingScript) && (
           <AILoadingBox
             onRefresh={() => {
               const lastUserMsg = [...listMessages]
                 .reverse()
-                .find((m) => m.role === "user")
+                .find((m) => m.role === "user");
               if (lastUserMsg) {
-                handleKirimPesanKeBot({ teksOverride: lastUserMsg.teks })
+                handleKirimPesanKeBot({ teksOverride: lastUserMsg.teks });
               }
             }}
           />
         )}
       </div>
 
-      {/* BAR INPUT TEKS MELEBAR OTOMATIS (MAKS 10 BARIS + EXPAND + IKON PENJEPIT KERTAS) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#F4F5F7] border-t border-[#E2E8F0] px-3 py-2">
+      {/* BAR INPUT TEKS STATIS DI BAWAH TANPA JEDA KOSONG DI SEBELAH KANAN */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#F4F5F7] border-t border-[#E2E8F0] px-2.5 py-2">
         <div className="max-w-2xl mx-auto space-y-1.5">
           {lampiranMedia.length > 0 && (
             <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-[#E2E8F0]">
@@ -1953,7 +1946,7 @@ export default function BrainstormView({
                     type="button"
                     onClick={() =>
                       setLampiranMedia((prev) =>
-                        prev.filter((_, idx) => idx !== i),
+                        prev.filter((_, idx) => idx !== i)
                       )
                     }
                     className="cursor-pointer ml-1 text-[#EF4444]"
@@ -1966,7 +1959,6 @@ export default function BrainstormView({
           )}
 
           <div className="flex items-end gap-1.5">
-            {/* Tombol Penjepit Kertas (Paperclip) */}
             <label
               title="Lampirkan Foto atau Video"
               className="cursor-pointer w-10 h-10 rounded-xl bg-white hover:bg-[#F4F5F7] border border-[#E2E8F0] text-[#14141F] flex items-center justify-center shrink-0 transition"
@@ -1981,8 +1973,8 @@ export default function BrainstormView({
               />
             </label>
 
-            {/* Kotak Textbox Auto-Expand Maks 10 Baris + Opsi Perluasan */}
-            <div className="relative flex-1 flex items-end bg-white rounded-xl border border-[#E2E8F0] focus-within:border-[#14141F] pl-3 pr-2 py-1">
+            {/* Kotak Textbox Tanpa Jeda Kosong: Teks penuh di kiri, ikon rapat di kolom kanan */}
+            <div className="flex-1 min-w-0 flex items-end gap-1 bg-white rounded-xl border border-[#14141F] pl-2.5 pr-1.5 py-1">
               <textarea
                 ref={textareaInputRef}
                 rows={1}
@@ -1990,8 +1982,8 @@ export default function BrainstormView({
                 onChange={(e) => setPesanInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleKirimPesanKeBot()
+                    e.preventDefault();
+                    handleKirimPesanKeBot();
                   }
                 }}
                 placeholder={
@@ -1999,55 +1991,55 @@ export default function BrainstormView({
                     ? "Mic ON: Silakan bicara..."
                     : "Tulis pesan atau ide konten..."
                 }
-                className={`w-full bg-transparent text-xs sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none resize-none leading-5 overflow-y-auto pr-14 ${
-                  isExpandedTextbox ? "max-h-[300px]" : "max-h-[200px]"
+                className={`flex-1 min-w-0 bg-transparent text-[16px] sm:text-sm text-[#14141F] placeholder:text-[#64748B] focus:outline-none resize-none leading-5 overflow-y-auto py-0.5 ${
+                  isExpandedTextbox ? "max-h-[280px]" : "max-h-[190px]"
                 }`}
               />
 
-              {/* Tombol Perluasan (Expand) di Sudut Kanan Atas saat Teks Panjang */}
-              {(pesanInput.length > 45 ||
-                pesanInput.includes("\n") ||
-                isExpandedTextbox) && (
+              <div className="flex flex-col items-center justify-between self-stretch shrink-0 py-0.5 gap-1">
+                {(pesanInput.length > 35 ||
+                  pesanInput.includes("\n") ||
+                  isExpandedTextbox) ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsExpandedTextbox(!isExpandedTextbox)}
+                    title={
+                      isExpandedTextbox
+                        ? "Kecilkan Kotak Teks"
+                        : "Perluas Kotak Teks"
+                    }
+                    className="cursor-pointer w-6 h-6 rounded-md bg-[#F4F5F7] hover:bg-[#E2E8F0] text-[#14141F] flex items-center justify-center"
+                  >
+                    <FlatIcon
+                      name={isExpandedTextbox ? "minimize" : "expand"}
+                      className="w-3 h-3"
+                    />
+                  </button>
+                ) : (
+                  <span className="w-6 h-1" />
+                )}
+
                 <button
                   type="button"
-                  onClick={() => setIsExpandedTextbox(!isExpandedTextbox)}
+                  onClick={handleToggleVoiceNoteInput}
                   title={
-                    isExpandedTextbox
-                      ? "Kecilkan Kotak Teks"
-                      : "Perluas Kotak Teks"
+                    isRecordingMic
+                      ? "Klik untuk Off Record"
+                      : "Klik untuk Voice Note (Menyambung Teks)"
                   }
-                  className="cursor-pointer absolute top-1.5 right-2 w-6 h-6 rounded-md bg-[#F4F5F7] hover:bg-[#E2E8F0] text-[#14141F] flex items-center justify-center"
-                >
-                  <FlatIcon
-                    name={isExpandedTextbox ? "minimize" : "expand"}
-                    className="w-3 h-3"
-                  />
-                </button>
-              )}
-
-              {/* Tombol Voice Note (On/Off Menyambung Teks) */}
-              <button
-                type="button"
-                onClick={handleToggleVoiceNoteInput}
-                title={
-                  isRecordingMic
-                    ? "Klik untuk Off Record"
-                    : "Klik untuk Voice Note (Menyambung Teks)"
-                }
-                className={`cursor-pointer px-2 h-7 rounded-lg flex items-center justify-center gap-1 shrink-0 text-[11px] font-bold transition mb-0.5 ${
-                  isRecordingMic
-                    ? "bg-[#EF4444] text-white animate-pulse"
-                    : isTranscribingMic
+                  className={`cursor-pointer w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition ${
+                    isRecordingMic
+                      ? "bg-[#EF4444] text-white animate-pulse"
+                      : isTranscribingMic
                       ? "bg-[#D4F34A] text-[#14141F]"
                       : "text-[#14141F] hover:bg-[#F4F5F7]"
-                }`}
-              >
-                <FlatIcon name="mic" className="w-3.5 h-3.5" />
-                {isRecordingMic && <span className="text-[10px]">OFF</span>}
-              </button>
+                  }`}
+                >
+                  <FlatIcon name="mic" className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Tombol Kirim */}
             <button
               type="button"
               disabled={isSendingChat}
@@ -2061,5 +2053,5 @@ export default function BrainstormView({
         </div>
       </div>
     </div>
-  )
+  );
 }

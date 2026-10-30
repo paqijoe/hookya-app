@@ -1,6 +1,6 @@
-"use client"
-import { useState } from "react"
-import { FlatIcon, DAFTAR_MODEL_OPENROUTER } from "../SharedUI"
+"use client";
+import { useState } from "react";
+import { FlatIcon, DAFTAR_MODEL_OPENROUTER } from "../SharedUI";
 
 export default function DevTelemetryAndModels({
   activeTab,
@@ -12,39 +12,54 @@ export default function DevTelemetryAndModels({
   updateKoinDatabase,
   showToast,
 }) {
-  const [searchTokenUser, setSearchTokenUser] = useState("")
+  const [searchTokenUser, setSearchTokenUser] = useState("");
 
-  const modelAktifId =
-    pengaturanPayment?.preferredModel || "google/gemini-2.5-flash"
+  const aiModel1Aktif =
+    pengaturanPayment?.aiModel1 ||
+    pengaturanPayment?.preferredModel ||
+    "anthropic/claude-3.5-haiku";
+  const aiModel2Aktif =
+    pengaturanPayment?.aiModel2 ||
+    pengaturanPayment?.preferredModel ||
+    "anthropic/claude-3.5-sonnet";
 
-  const handlePilihModelOpenRouter = (modelId) => {
+  const [inputCustomAI1, setInputCustomAI1] = useState(aiModel1Aktif);
+  const [inputCustomAI2, setInputCustomAI2] = useState(aiModel2Aktif);
+
+  const handleSimpanDualAI = (newModel1, newModel2) => {
+    const m1 = (newModel1 || aiModel1Aktif).trim();
+    const m2 = (newModel2 || aiModel2Aktif).trim();
     const updated = {
       ...pengaturanPayment,
-      preferredModel: modelId,
-    }
-    setPengaturanPayment(updated)
-    simpanPengaturanDevKeDB(updated)
-    showToast(`Model AI utama diubah ke: ${modelId}`)
-  }
+      aiModel1: m1,
+      aiModel2: m2,
+      preferredModel: m2,
+    };
+    setInputCustomAI1(m1);
+    setInputCustomAI2(m2);
+    setPengaturanPayment(updated);
+    simpanPengaturanDevKeDB(updated);
+    showToast(`Skema Dual AI disimpan! AI 1: ${m1} | AI 2: ${m2}`);
+  };
 
   const formatTokenSingkat = (n) => {
-    const angka = Number(n) || 0
-    if (angka >= 1000000) return `${(angka / 1000000).toFixed(2)}M`
-    if (angka >= 1000) return `${(angka / 1000).toFixed(1)}K`
-    return String(angka)
-  }
+    const angka = Number(n) || 0;
+    if (angka >= 1000000) return `${(angka / 1000000).toFixed(2)}M`;
+    if (angka >= 1000) return `${(angka / 1000).toFixed(1)}K`;
+    return String(angka);
+  };
 
   const daftarLeaderboardTerfilter = (
     telemetriAgregat?.peringkatUser || []
   ).filter((u) => {
-    if (!searchTokenUser.trim()) return true
-    const q = searchTokenUser.toLowerCase()
+    if (!searchTokenUser.trim()) return true;
+    const q = searchTokenUser.toLowerCase();
     return (
       (u.nama || "").toLowerCase().includes(q) ||
       (u.email || "").toLowerCase().includes(q) ||
       (u.username || "").toLowerCase().includes(q)
-    )
-  })
+    );
+  });
 
   if (activeTab === "telemetri") {
     return (
@@ -55,13 +70,17 @@ export default function DevTelemetryAndModels({
               Telemetri Finansial & Likuiditas Operasional
             </h2>
             <p className="text-xs text-[#64748B]">
-              Ikhtisar uang masuk lunas, beban komputasi token AI, dan margin
-              keuntungan bersih
+              Ikhtisar uang masuk lunas, beban komputasi token Dual AI, dan margin keuntungan bersih
             </p>
           </div>
-          <span className="px-3 py-1.5 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F] self-start">
-            Model Aktif: {modelAktifId.split("/").pop()}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E2E8F0] text-[11px] font-bold text-[#14141F]">
+              AI 1 (Brainstorm): {aiModel1Aktif.split("/").pop()}
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-[#14141F] text-[#D4F34A] text-[11px] font-bold">
+              AI 2 (Naskah): {aiModel2Aktif.split("/").pop()}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -107,7 +126,7 @@ export default function DevTelemetryAndModels({
               </div>
             </div>
             <div className="mt-4 pt-3 border-t border-[#E2E8F0] text-[11px] text-[#64748B]">
-              Dihitung akurat sesuai tarif model OpenRouter
+              Akumulasi pemakaian AI 1 & AI 2 di OpenRouter
             </div>
           </div>
 
@@ -167,117 +186,261 @@ export default function DevTelemetryAndModels({
                 onClick={() => setActiveTab("models")}
                 className="cursor-pointer text-xs font-bold text-[#14141F] underline"
               >
-                Atur Model AI & Biaya
+                Atur Skema AI 1 & AI 2
               </button>
             </div>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Bagian 1: Pilihan Uji Coba Model OpenRouter & Daftar Biaya */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E2E8F0]">
+      {/* PANEL UTAMA: SKEMA DUAL AI KUSTOM (AI 1: ASESMEN/BRAINSTORMING vs AI 2: GENERATE NASKAH) */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-5">
+        <div className="pb-3 border-b border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-[#14141F]">
-              Pengaturan Uji Coba Model OpenRouter & Daftar Biaya
+              Konfigurasi Skema Dual AI (AI 1 Asesmen/Brainstorm & AI 2 Generate Naskah)
             </h2>
             <p className="text-xs text-[#64748B]">
-              Pilih model AI utama yang akan memproses sesi chat, peracik Hook 3
-              detik, dan naskah 6 langkah seluruh pengguna
+              Pilih dari daftar model OpenRouter atau ketik langsung ID model kustom sesuai kebutuhanmu
             </p>
           </div>
-          <span className="px-3 py-1.5 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold self-start">
-            Aktif: {modelAktifId}
-          </span>
+          <button
+            type="button"
+            onClick={() => handleSimpanDualAI(inputCustomAI1, inputCustomAI2)}
+            className="cursor-pointer h-10 px-4 rounded-xl bg-[#D4F34A] hover:bg-[#C5E738] text-[#14141F] text-xs font-extrabold flex items-center gap-1.5 self-start shrink-0"
+          >
+            <FlatIcon name="check" className="w-4 h-4" />
+            <span>Simpan AI 1 & AI 2</span>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {DAFTAR_MODEL_OPENROUTER.map((m) => {
-            const sedangDipilih = modelAktifId === m.id
-            const statPemakaian = telemetriAgregat.rekapPerModel?.[m.id] || {
-              requests: 0,
-              tokens: 0,
-              costRp: 0,
-            }
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* KOTAK AI 1: ASESMEN & BRAINSTORMING */}
+          <div className="p-4 rounded-2xl bg-[#F4F5F7] border border-[#E2E8F0] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-2.5 py-0.5 rounded-md bg-[#14141F] text-[#D4F34A] text-[11px] font-extrabold uppercase">
+                AI 1 • Asesmen & Brainstorming Chat
+              </span>
+              <span className="text-[11px] font-mono font-bold text-[#14141F]">
+                Aktif: {aiModel1Aktif.split("/").pop()}
+              </span>
+            </div>
+            <p className="text-xs text-[#64748B]">
+              Digunakan saat tanya-jawab chat topik, menggali 10 masalah audiens, 7 angle produk, dan memilih opsi hook.
+            </p>
 
-            return (
-              <div
-                key={m.id}
-                onClick={() => handlePilihModelOpenRouter(m.id)}
-                className={`cursor-pointer rounded-2xl p-4 border transition flex flex-col justify-between gap-3 ${
-                  sedangDipilih
-                    ? "border-2 border-[#14141F] bg-[#F8F9FA]"
-                    : "border border-[#E2E8F0] bg-white hover:border-[#14141F]"
-                }`}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#14141F] block">
+                Pilih Cepat Model AI 1:
+              </label>
+              <select
+                value={
+                  DAFTAR_MODEL_OPENROUTER.some((m) => m.id === inputCustomAI1)
+                    ? inputCustomAI1
+                    : "__CUSTOM__"
+                }
+                onChange={(e) => {
+                  if (e.target.value !== "__CUSTOM__") {
+                    setInputCustomAI1(e.target.value);
+                    handleSimpanDualAI(e.target.value, inputCustomAI2);
+                  }
+                }}
+                className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F]"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-[#F4F5F7] border border-[#E2E8F0] text-[10px] font-bold text-[#14141F] uppercase">
-                      {m.provider}
-                    </span>
-                    {sedangDipilih ? (
-                      <span className="px-2.5 py-0.5 rounded-md bg-[#D4F34A] text-[#14141F] text-[10px] font-extrabold">
-                        MODEL AKTIF
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-[#64748B]">
-                        Klik untuk Pakai
-                      </span>
-                    )}
-                  </div>
+                {DAFTAR_MODEL_OPENROUTER.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nama} ({m.id})
+                  </option>
+                ))}
+                <option value="__CUSTOM__">Model ID Kustom OpenRouter...</option>
+              </select>
+            </div>
 
-                  <div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-[#64748B] block">
+                Atau Ketik Kustom ID Model OpenRouter untuk AI 1:
+              </label>
+              <input
+                type="text"
+                value={inputCustomAI1}
+                onChange={(e) => setInputCustomAI1(e.target.value)}
+                placeholder="Contoh: anthropic/claude-3.5-haiku"
+                className="w-full h-10 px-3 rounded-lg bg-white border border-[#14141F] font-mono text-xs text-[#14141F]"
+              />
+            </div>
+          </div>
+
+          {/* KOTAK AI 2: GENERATE NASKAH SKRIP */}
+          <div className="p-4 rounded-2xl bg-[#F4F5F7] border border-[#14141F] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-2.5 py-0.5 rounded-md bg-[#D4F34A] text-[#14141F] text-[11px] font-extrabold uppercase">
+                AI 2 • Generate Naskah Final
+              </span>
+              <span className="text-[11px] font-mono font-bold text-[#14141F]">
+                Aktif: {aiModel2Aktif.split("/").pop()}
+              </span>
+            </div>
+            <p className="text-xs text-[#64748B]">
+              Digunakan khusus saat pengguna menekan tombol Generate Teks Naskah untuk menyusun skrip akhir yang natural.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#14141F] block">
+                Pilih Cepat Model AI 2:
+              </label>
+              <select
+                value={
+                  DAFTAR_MODEL_OPENROUTER.some((m) => m.id === inputCustomAI2)
+                    ? inputCustomAI2
+                    : "__CUSTOM__"
+                }
+                onChange={(e) => {
+                  if (e.target.value !== "__CUSTOM__") {
+                    setInputCustomAI2(e.target.value);
+                    handleSimpanDualAI(inputCustomAI1, e.target.value);
+                  }
+                }}
+                className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F]"
+              >
+                {DAFTAR_MODEL_OPENROUTER.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nama} ({m.id})
+                  </option>
+                ))}
+                <option value="__CUSTOM__">Model ID Kustom OpenRouter...</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-[#64748B] block">
+                Atau Ketik Kustom ID Model OpenRouter untuk AI 2:
+              </label>
+              <input
+                type="text"
+                value={inputCustomAI2}
+                onChange={(e) => setInputCustomAI2(e.target.value)}
+                placeholder="Contoh: anthropic/claude-3.5-sonnet"
+                className="w-full h-10 px-3 rounded-lg bg-white border border-[#14141F] font-mono text-xs text-[#14141F]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Katalog Referensi Model & Tarif Biaya */}
+        <div className="pt-2 space-y-2.5">
+          <span className="text-xs font-bold text-[#14141F] block">
+            Katalog Model & Daftar Biaya per 1K Token (Klik tombol di kartu untuk menerapkan ke AI 1 atau AI 2):
+          </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {DAFTAR_MODEL_OPENROUTER.map((m) => {
+              const isAI1 = aiModel1Aktif === m.id;
+              const isAI2 = aiModel2Aktif === m.id;
+              const statPemakaian = telemetriAgregat.rekapPerModel?.[m.id] || {
+                requests: 0,
+                tokens: 0,
+                costRp: 0,
+              };
+
+              return (
+                <div
+                  key={m.id}
+                  className={`rounded-2xl p-3.5 border flex flex-col justify-between gap-3 ${
+                    isAI1 || isAI2
+                      ? "border-2 border-[#14141F] bg-[#F8F9FA]"
+                      : "border border-[#E2E8F0] bg-white"
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <span className="px-2 py-0.5 rounded bg-[#F4F5F7] border border-[#E2E8F0] text-[10px] font-bold text-[#14141F] uppercase">
+                        {m.provider}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {isAI1 && (
+                          <span className="px-2 py-0.5 rounded bg-[#14141F] text-[#D4F34A] text-[10px] font-extrabold">
+                            AI 1 Aktif
+                          </span>
+                        )}
+                        {isAI2 && (
+                          <span className="px-2 py-0.5 rounded bg-[#D4F34A] text-[#14141F] text-[10px] font-extrabold">
+                            AI 2 Aktif
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <h3 className="text-sm font-bold text-[#14141F]">
                       {m.nama}
                     </h3>
-                    <span className="text-[11px] font-semibold text-[#556500] block">
-                      {m.kategori}
-                    </span>
+                    <p className="text-[11px] text-[#64748B] leading-snug">
+                      {m.ket}
+                    </p>
                   </div>
 
-                  <p className="text-xs text-[#64748B] leading-relaxed">
-                    {m.ket}
-                  </p>
-                </div>
+                  <div className="space-y-2 pt-2 border-t border-[#E2E8F0] text-xs">
+                    <div className="grid grid-cols-2 gap-1.5 bg-[#F4F5F7] p-2 rounded-lg">
+                      <div>
+                        <span className="text-[10px] text-[#64748B] block">
+                          Input / 1K:
+                        </span>
+                        <strong className="font-mono text-[#14141F]">
+                          Rp {m.inputPer1kRp}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#64748B] block">
+                          Output / 1K:
+                        </span>
+                        <strong className="font-mono text-[#14141F]">
+                          Rp {m.outputPer1kRp}
+                        </strong>
+                      </div>
+                    </div>
 
-                <div className="pt-3 border-t border-[#E2E8F0] space-y-2 text-xs">
-                  <div className="grid grid-cols-2 gap-2 bg-[#F4F5F7] p-2 rounded-lg">
-                    <div>
-                      <span className="text-[10px] text-[#64748B] block">
-                        Tarif Input / 1K:
-                      </span>
+                    <div className="flex items-center justify-between text-[11px] text-[#64748B]">
+                      <span>Terpakai: {statPemakaian.requests}x</span>
                       <strong className="font-mono text-[#14141F]">
-                        Rp {m.inputPer1kRp}
+                        Rp {statPemakaian.costRp.toLocaleString("id-ID")}
                       </strong>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-[#64748B] block">
-                        Tarif Output / 1K:
-                      </span>
-                      <strong className="font-mono text-[#14141F]">
-                        Rp {m.outputPer1kRp}
-                      </strong>
+
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSimpanDualAI(m.id, aiModel2Aktif)}
+                        className={`cursor-pointer py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                          isAI1
+                            ? "bg-[#14141F] text-[#D4F34A] border-[#14141F]"
+                            : "bg-white text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                        }`}
+                      >
+                        Jadikan AI 1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSimpanDualAI(aiModel1Aktif, m.id)}
+                        className={`cursor-pointer py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                          isAI2
+                            ? "bg-[#D4F34A] text-[#14141F] border-[#14141F]"
+                            : "bg-white text-[#14141F] border-[#E2E8F0] hover:border-[#14141F]"
+                        }`}
+                      >
+                        Jadikan AI 2
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-[#64748B] px-1">
-                    <span>Terpakai: {statPemakaian.requests}x Req</span>
-                    <strong className="font-mono text-[#14141F]">
-                      Total: Rp {statPemakaian.costRp.toLocaleString("id-ID")}
-                    </strong>
-                  </div>
                 </div>
-              </div>
-            )
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Bagian 2: Tabel Peringkat & Audit Biaya Token per User */}
+      {/* Tabel Peringkat & Audit Biaya Token per User */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#E2E8F0]">
           <div>
@@ -285,8 +448,7 @@ export default function DevTelemetryAndModels({
               Peringkat & Audit Biaya Penggunaan Token per User
             </h3>
             <p className="text-xs text-[#64748B]">
-              Pantau total permintaan AI, jumlah token masuk/keluar, dan biaya
-              riil Rupiah setiap pengguna
+              Pantau total permintaan AI 1 & AI 2, jumlah token masuk/keluar, dan biaya riil Rupiah setiap pengguna
             </p>
           </div>
           <input
@@ -294,7 +456,7 @@ export default function DevTelemetryAndModels({
             value={searchTokenUser}
             onChange={(e) => setSearchTokenUser(e.target.value)}
             placeholder="Cari nama, email, atau username..."
-            className="w-full md:w-64 h-11 px-3.5 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:border-[#14141F] focus:outline-none"
+            className="w-full md:w-64 h-10 px-3.5 rounded-lg border border-[#E2E8F0] text-xs bg-white focus:border-[#14141F] focus:outline-none"
           />
         </div>
 
@@ -315,7 +477,7 @@ export default function DevTelemetryAndModels({
             </thead>
             <tbody className="divide-y divide-[#E2E8F0]">
               {daftarLeaderboardTerfilter.map((u, idx) => {
-                const boros = u.marginPersen < 40
+                const boros = u.marginPersen < 40;
                 return (
                   <tr key={u.id} className="hover:bg-[#F4F5F7]/60">
                     <td className="py-3.5 px-3 font-mono font-bold text-center">
@@ -382,11 +544,11 @@ export default function DevTelemetryAndModels({
                         onClick={() => {
                           const jml = prompt(
                             `Ubah jumlah koin untuk ${u.nama}:`,
-                            String(u.koin || 0),
-                          )
+                            String(u.koin || 0)
+                          );
                           if (jml !== null) {
-                            updateKoinDatabase(parseInt(jml) || 0, u.id)
-                            showToast(`Saldo koin ${u.nama} diperbarui.`)
+                            updateKoinDatabase(parseInt(jml) || 0, u.id);
+                            showToast(`Saldo koin ${u.nama} diperbarui.`);
                           }
                         }}
                         className="cursor-pointer h-9 px-3 rounded-lg bg-[#14141F] text-[#D4F34A] font-bold text-[11px]"
@@ -395,12 +557,12 @@ export default function DevTelemetryAndModels({
                       </button>
                     </td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  )
+  );
 }

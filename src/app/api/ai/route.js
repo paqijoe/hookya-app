@@ -23,18 +23,58 @@ function formatWaktuLengkapID() {
 }
 
 const TARIF_MODEL_OPENROUTER = {
-  "google/gemini-2.5-flash": { inRp: 2.5, outRp: 10.0 },
   "anthropic/claude-3.5-sonnet": { inRp: 48.0, outRp: 240.0 },
   "anthropic/claude-3.5-haiku": { inRp: 13.0, outRp: 65.0 },
+  "google/gemini-2.5-flash": { inRp: 2.5, outRp: 10.0 },
   "deepseek/deepseek-chat": { inRp: 2.3, outRp: 4.5 },
   "openai/gpt-4o-mini": { inRp: 2.5, outRp: 10.0 },
   "google/gemini-2.0-flash-001": { inRp: 1.8, outRp: 7.2 },
 }
 
 function hitungBiayaTokenModelRp(modelId, inTok = 0, outTok = 0) {
-  const tarif = TARIF_MODEL_OPENROUTER[modelId] || { inRp: 2.5, outRp: 10.0 }
+  const tarif = TARIF_MODEL_OPENROUTER[modelId] || { inRp: 10.0, outRp: 35.0 }
   const total = (inTok / 1000) * tarif.inRp + (outTok / 1000) * tarif.outRp
   return Math.max(5, Math.round(total))
+}
+
+// Membaca konfigurasi AI 1 & AI 2 langsung dari database Admin jika client belum mengirimkannya
+async function ambilKonfigurasiDualAIDariDB() {
+  const supabase = getSupabase()
+  if (!supabase) {
+    return {
+      aiModel1: "anthropic/claude-3.5-haiku",
+      aiModel2: "anthropic/claude-3.5-sonnet",
+    }
+  }
+  try {
+    const { data: rows } = await supabase
+      .from("users")
+      .select("role, profil_dna")
+      .order("created_at", { ascending: true })
+
+    if (rows && rows.length > 0) {
+      const rowAdmin =
+        rows.find(
+          (r) =>
+            r.profil_dna?.pengaturanPayment?.aiModel1 ||
+            r.profil_dna?.pengaturanPayment?.aiModel2 ||
+            r.profil_dna?.pengaturanPayment?.preferredModel,
+        ) || rows[0]
+
+      const p = rowAdmin?.profil_dna?.pengaturanPayment || {}
+      const fallback = p.preferredModel || "google/gemini-2.5-flash"
+      return {
+        aiModel1: p.aiModel1 || fallback,
+        aiModel2: p.aiModel2 || fallback,
+      }
+    }
+  } catch {
+    // Ignore DB read error
+  }
+  return {
+    aiModel1: "google/gemini-2.5-flash",
+    aiModel2: "anthropic/claude-3.5-sonnet",
+  }
 }
 
 const ATURAN_BAHASA_INDONESIA = `
@@ -95,6 +135,7 @@ async function catatTelemetriDanGlobalBrain({
   userId,
   namaUser,
   action,
+  peranAI = "AI 1 (Brainstorm)",
   modelDigunakan = "google/gemini-2.5-flash",
   detailKeterangan = "",
   promptTokens = 0,
@@ -154,9 +195,9 @@ async function catatTelemetriDanGlobalBrain({
         waktu: formatWaktuLengkapID(),
         timestamp: new Date().toISOString(),
         username: uRow.username || namaUser || uRow.nama || "user",
-        action,
+        action: `[${peranAI}] ${action}`,
         model: modelDigunakan,
-        detail: detailKeterangan || `Model: ${modelDigunakan}`,
+        detail: detailKeterangan || `${peranAI} • ${modelDigunakan}`,
         status: "sukses",
         promptTokens: inTok,
         completionTokens: outTok,
@@ -177,7 +218,7 @@ async function catatTelemetriDanGlobalBrain({
             id: `gb_${Date.now()}`,
             waktu: formatWaktuLengkapID(),
             username: uRow.username || namaUser || "user",
-            model: modelDigunakan,
+            model: `${peranAI}: ${modelDigunakan}`,
             userPrompt: (cuplikanPertanyaanUser || "").slice(0, 280),
             botResponse: (cuplikanJawabanBot || "").slice(0, 350),
             costRp: biayaRp,
@@ -368,29 +409,32 @@ function normalisasiHasilSkripDinamis(rawObj) {
   }
 }
 
+// Pemanggil Utama OpenRouter yang mematuhi model pilihan Admin (Claude, GPT, DeepSeek, Gemini, atau Kustom)
 async function panggilOpenRouterAtauGemini({
   openRouterKey,
   geminiKey,
-  preferredModel = "google/gemini-2.5-flash",
+  targetModel = "anthropic/claude-3.5-sonnet",
   promptText,
   imagesList = [],
   audioItem = null,
 }) {
   let errorCatatan = ""
-  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA}\nPENTING: Balas HANYA dengan JSON murni yang diawali { dan diakhiri }.`
+  const promptLengkap = `${promptText}\n\n${ATURAN_BAHASA_INDONESIA}\nPENTING: Balas HANYA dengan objek JSON valid yang diawali kurung kurawal buka { dan diakhiri kurung kurawal tutup }. Jangan tambahkan teks pengantar di luar JSON.`
 
+  const modelBersih = (targetModel || "google/gemini-2.5-flash").trim()
+
+  // Urutan prioritas: wajib mengeksekusi modelBersih yang dipilih Admin terlebih dahulu
   const urutanModel = [
-    preferredModel,
+    modelBersih,
+    "anthropic/claude-3.5-haiku",
     "google/gemini-2.5-flash",
-    "google/gemini-2.0-flash-001",
     "openai/gpt-4o-mini",
-    "deepseek/deepseek-chat",
   ].filter((v, i, a) => v && a.indexOf(v) === i)
 
   if (openRouterKey && openRouterKey.trim() !== "") {
     for (const model of urutanModel) {
       if (
-        model === "deepseek/deepseek-chat" &&
+        model.includes("deepseek") &&
         (imagesList.length > 0 || audioItem?.data)
       ) {
         continue
@@ -427,26 +471,27 @@ async function panggilOpenRouterAtauGemini({
             {
               role: "system",
               content:
-                "Kamu adalah Master Copywriter & Strategist Konten Hookya untuk TikTok, Reels, Carousel, dan Threads. Kamu selalu merespons dalam format JSON yang valid.",
+                "Kamu adalah Master Copywriter & Strategist Konten Hookya untuk TikTok, Reels, Carousel, dan Threads. Balas HANYA dengan JSON murni yang valid.",
             },
             { role: "user", content: promptLengkap },
           ]
         }
 
+        // Gunakan max_tokens 2000 agar OpenRouter tidak menolak Claude karena reservasi saldo tinggi
         const response = await fetch(
           "https://openrouter.ai/api/v1/chat/completions",
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${openRouterKey}`,
+              Authorization: `Bearer ${openRouterKey.trim()}`,
               "Content-Type": "application/json",
               "HTTP-Referer": "https://hookya.site",
-              "X-Title": "Hookya AI Script Session",
+              "X-Title": "Hookya Dual AI Engine",
             },
             body: JSON.stringify({
               model,
               messages: messagesPayload,
-              max_tokens: 4096,
+              max_tokens: 2000,
               temperature: 0.68,
             }),
           },
@@ -457,7 +502,7 @@ async function panggilOpenRouterAtauGemini({
           const parsed = uraiJSONAman(data.choices[0].message.content)
           return {
             parsed,
-            modelUsed: model,
+            modelUsed: data?.model || model,
             usage: data?.usage || null,
           }
         }
@@ -538,7 +583,9 @@ export async function POST(request) {
       action,
       userId,
       namaUser,
-      preferredModel = "google/gemini-2.5-flash",
+      preferredModel,
+      aiModel1,
+      aiModel2,
       personaProfile,
       akunPersonaTerpilih,
       gunakanPersona = false,
@@ -562,6 +609,16 @@ export async function POST(request) {
 
     const geminiKey = process.env.GEMINI_API_KEY
     const openRouterKey = process.env.OPENROUTER_API_KEY
+
+    // Pastikan AI 1 (Asesmen/Brainstorm) dan AI 2 (Generate Naskah) terbaca dari body atau DB
+    let modelAI1 = aiModel1 || preferredModel || ""
+    let modelAI2 = aiModel2 || preferredModel || ""
+
+    if (!modelAI1 || !modelAI2) {
+      const dbModels = await ambilKonfigurasiDualAIDariDB()
+      if (!modelAI1) modelAI1 = dbModels.aiModel1
+      if (!modelAI2) modelAI2 = dbModels.aiModel2
+    }
 
     const sapaanDiri = gunakanPersona
       ? akunPersonaTerpilih?.selfPronounInput ||
@@ -591,7 +648,7 @@ export async function POST(request) {
         : ""
 
     // =========================================================================
-    // 1. ANALISA SCREENSHOT PRODUK MARKETPLACE UNTUK KARTU JUALAN
+    // 1. ANALISA SCREENSHOT PRODUK MARKETPLACE (MENGGUNAKAN AI 1)
     // =========================================================================
     if (action === "analyze_product_card_screenshot") {
       const promptProdukSS = `
@@ -618,7 +675,7 @@ Keluarkan HANYA valid JSON:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI1,
         promptText: promptProdukSS,
         imagesList: listImg,
       })
@@ -626,6 +683,7 @@ Keluarkan HANYA valid JSON:
         userId,
         namaUser,
         action: "Analisa Screenshot Kartu Produk",
+        peranAI: "AI 1 (Asesmen)",
         modelDigunakan: modelUsed,
         detailKeterangan: parsed?.namaProduk || "Ekstraksi kartu produk",
         promptTokens: usage?.prompt_tokens,
@@ -635,7 +693,7 @@ Keluarkan HANYA valid JSON:
     }
 
     // =========================================================================
-    // 2. ENDPOINT UTAMA ALUR PERCAKAPAN CERDAS ("ai_script_session_chat")
+    // 2. ENDPOINT BRAINSTORMING & ASESMEN CHAT TOPIK (MENGGUNAKAN AI 1)
     // =========================================================================
     if (action === "ai_script_session_chat") {
       const promptAlurTerpadu = `
@@ -662,13 +720,13 @@ TUGAS ANALISA CERDAS & URUTAN PERTANYAAN:
    - Tahap "pilih_tujuan": Tanyakan pengguna mau buat konten apa: (1) Konten Cari Viral, (2) Konten Cari Trust, atau (3) Konten Jualan.
    - Tahap "pilih_format": Tanyakan bentuk format konten:
      * TikTok / Reels
-     * Carousel (tanyakan/tentukan berapa slide: misal 5 Slide, 7 Slide, atau 10 Slide)
-     * Threads (tentukan bentuk format Threads: misal Utas 6 Langkah, Utas Storytelling, atau Single Post Padat)
+     * Carousel (tentukan berapa slide: 5 Slide, 7 Slide, atau 10 Slide)
+     * Threads (tentukan bentuk format Threads: Utas 6 Langkah, Utas Storytelling, atau Single Post Padat)
 
    - CABANG 1: JIKA MEMILIH "Konten Cari Viral":
      * Langkah A ("viral_topik"): Tanyakan topik apa yang ingin dibahas (bisa diketik, voice note, atau upload foto/video beserta keterangan).
      * Langkah B ("viral_goals_dan_faktor"): Tanyakan goals/tujuan dari topik ini & harapan apa yang diinginkan dari penonton setelah menonton. Berikan 10 rekomendasi arah/goals berdasarkan topik yang disebutkan pada properti "rekomendasi10", serta pandu memilih salah satu dari 6 Faktor Viral (1. Membahas hal besar/terkenal seperti figur/tokoh/brand, 2. Realitas kehidupan yang relate, 3. Memberikan fakta, 4. Unsur komedi, 5. Memancing emosional, 6. Membahas sesuatu yang lagi viral).
-     * Langkah C ("viral_referensi"): Tanyakan apakah ada referensi materi tambahan untuk memperkuat topik ini (Ada atau Tidak). Jika ada, instruksikan untuk mengetik teks, voice note, atau upload foto/video.
+     * Langkah C ("viral_referensi"): Tanyakan apakah ada referensi materi tambahan untuk memperkuat topik ini (Ada atau Tidak).
      * Langkah D ("pilih_durasi"): Tanyakan durasi konten yang diinginkan (15 Detik, 30 Detik, 60 Detik, 90 Detik, atau 3 Menit).
      * Langkah E ("pilih_hook_dan_cta"): Berikan 10 rekomendasi Hook dari berbagai macam jenis hook pada properti "hookOptions10" dan berikan rekomendasi pilihan CTA pada properti "ctaOptions".
 
@@ -691,7 +749,6 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
   "terdeteksiTujuan": "Konten Cari Viral | Konten Cari Trust | Konten Jualan | belum_dipilih",
   "terdeteksiFormat": "TikTok / Reels | Carousel | Threads | belum_dipilih",
   "balasanBot": "Tanggapan bot yang natural, ramah, dan langsung menanyakan langkah saat ini secara jelas...",
-  "saranAutoLanjut": "Kalimat jawaban otomatis terbaik jika pengguna menekan tombol Lanjut karena bingung...",
   "tampilkanKartuProduk": false,
   "opsiPilihanCepat": ["Pilihan 1", "Pilihan 2"],
   "rekomendasi10": [
@@ -760,7 +817,7 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI1,
         promptText: promptAlurTerpadu,
         imagesList: listImg,
       })
@@ -768,7 +825,8 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
       await catatTelemetriDanGlobalBrain({
         userId,
         namaUser,
-        action: "Diskusi Chat Topik AI",
+        action: "Diskusi Chat Topik",
+        peranAI: "AI 1 (Brainstorm)",
         modelDigunakan: modelUsed,
         detailKeterangan: `Tahap: ${parsed?.tahapBerikutnya || "diskusi"}`,
         promptTokens: usage?.prompt_tokens,
@@ -782,7 +840,7 @@ Keluarkan HANYA valid JSON dengan struktur berikut:
     }
 
     // =========================================================================
-    // 3. ENDPOINT GENERATE 1 TEKS NASKAH FINAL ("generate_6step_script")
+    // 3. ENDPOINT GENERATE NASKAH FINAL (MENGGUNAKAN AI 2)
     // =========================================================================
     if (action === "generate_6step_script") {
       const infoFlow = flowState || {}
@@ -852,7 +910,7 @@ Keluarkan HANYA valid JSON:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI2,
         promptText: promptNaskahUtuh,
       })
 
@@ -862,6 +920,7 @@ Keluarkan HANYA valid JSON:
         userId,
         namaUser,
         action: `Generate Naskah (${infoFlow.tujuanKonten || "Konten"})`,
+        peranAI: "AI 2 (Generate Naskah)",
         modelDigunakan: modelUsed,
         detailKeterangan: `Judul: ${hasilNormal?.judul || "Naskah Baru"}`,
         promptTokens: usage?.prompt_tokens,
@@ -877,7 +936,7 @@ Keluarkan HANYA valid JSON:
     }
 
     // =========================================================================
-    // 4. ENDPOINT PENDUKUNG (GUDANG INGATAN, PROFIL DNA, & VOICE MIC)
+    // 4. ENDPOINT PENDUKUNG (OTOMATIS MEMILIH AI 1 ATAU AI 2 SESUAI TUGAS)
     // =========================================================================
     if (action === "analyze_memory_vault") {
       const promptMemory = `
@@ -898,13 +957,14 @@ Keluarkan HANYA valid JSON:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI1,
         promptText: promptMemory,
       })
       await catatTelemetriDanGlobalBrain({
         userId,
         namaUser,
         action: "Analisa Otak AI Gudang Ingatan",
+        peranAI: "AI 1 (Asesmen)",
         modelDigunakan: modelUsed,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
@@ -951,13 +1011,14 @@ Keluarkan HANYA valid JSON:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI1,
         promptText: promptPersona,
       })
       await catatTelemetriDanGlobalBrain({
         userId,
         namaUser,
         action: "Simpan & Analisis Profil Persona",
+        peranAI: "AI 1 (Asesmen)",
         modelDigunakan: modelUsed,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
@@ -977,7 +1038,7 @@ Keluarkan HANYA valid JSON:
       const { parsed } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel,
+        targetModel: modelAI1,
         promptText: promptSaran,
       })
       return NextResponse.json(parsed)
@@ -988,7 +1049,7 @@ Keluarkan HANYA valid JSON:
       const { parsed } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel: "google/gemini-2.0-flash-001",
+        targetModel: "google/gemini-2.0-flash-001",
         promptText: promptAudio,
         audioItem: {
           mimeType: audioMimeType || "audio/wav",
@@ -1032,7 +1093,7 @@ Keluarkan HANYA valid JSON:
       const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
         openRouterKey,
         geminiKey,
-        preferredModel: "google/gemini-2.0-flash-001",
+        targetModel: action === "rewrite_video" ? modelAI2 : modelAI1,
         promptText: promptVid,
         imagesList: listFrames,
         audioItem: itemAudio,
@@ -1041,6 +1102,10 @@ Keluarkan HANYA valid JSON:
         userId,
         namaUser,
         action: `Ekstrak Video ke Naskah (${namaFileVideo || "video"})`,
+        peranAI:
+          action === "rewrite_video"
+            ? "AI 2 (Generate Naskah)"
+            : "AI 1 (Asesmen)",
         modelDigunakan: modelUsed,
         promptTokens: usage?.prompt_tokens,
         completionTokens: usage?.completion_tokens,
@@ -1049,17 +1114,28 @@ Keluarkan HANYA valid JSON:
       return NextResponse.json(parsed)
     }
 
+    const isGenerateNaskahAction =
+      action === "assemble_humanized_script" ||
+      action === "multiply_script_variations" ||
+      action === "ubah_durasi_skrip" ||
+      action === "ubah_bentuk_konten" ||
+      action === "regenerate_satu_kerangka"
+
+    const modelTargetFallback = isGenerateNaskahAction ? modelAI2 : modelAI1
+
     const promptFallback = `
-Susun naskah konten untuk topik "${
+Susun respons JSON untuk "${action || "konten"}" pada topik "${
       body.subyek || body.contentBrief?.core_idea || "Konten"
     }".
-Data: ${JSON.stringify(body.skripSebelumnya || body.contentBrief || {})}
-Keluarkan HANYA valid JSON dengan properti "sections".`
+Data: ${JSON.stringify(
+      body.skripSebelumnya || body.contentBrief || body.stageInput || {},
+    )}
+Keluarkan HANYA valid JSON.`
 
     const { parsed, modelUsed, usage } = await panggilOpenRouterAtauGemini({
       openRouterKey,
       geminiKey,
-      preferredModel,
+      targetModel: modelTargetFallback,
       promptText: promptFallback,
     })
     const norm = normalisasiHasilSkripDinamis(parsed)
@@ -1067,6 +1143,9 @@ Keluarkan HANYA valid JSON dengan properti "sections".`
       userId,
       namaUser,
       action: action || "AI Script Action",
+      peranAI: isGenerateNaskahAction
+        ? "AI 2 (Generate Naskah)"
+        : "AI 1 (Asesmen)",
       modelDigunakan: modelUsed,
       promptTokens: usage?.prompt_tokens,
       completionTokens: usage?.completion_tokens,
