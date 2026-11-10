@@ -1,6 +1,111 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 
+// ============================================================================
+// KONFIGURASI GATING PAKET, RATE LIMIT, & BOBOT SKOR NICHE PROFILING (IKIGAI)
+// ============================================================================
+export const NICHE_PROFILING_MIN_PLAN_PRICE = 20000
+export const NICHE_PROFILING_COMPARISON = "greater_than" // ubah ke "greater_or_equal" jika paket 20rb ikut diizinkan
+export const PROFILING_MAX_PER_DAY = 3
+export const TOPIC_GENERATION_MAX_PER_DAY = 5
+
+export const NICHE_SCORE_WEIGHTS = {
+  love: 1,
+  skill: 1,
+  need: 1.2,
+  monetize: 1.2,
+  feasibility: 1.1,
+}
+
+export function ekstrakHargaDariNamaPaket(namaPaket = "", nominalAsli = 0) {
+  const nom = Number(nominalAsli) || 0
+  if (nom > 0) return nom
+  const p = (namaPaket || "").toLowerCase()
+  if (p.includes("90k") || p.includes("90.000")) return 90000
+  if (p.includes("50k") || p.includes("50.000")) return 50000
+  if (p.includes("25k") || p.includes("25.000")) return 25000
+  if (p.includes("20k") || p.includes("20.000")) return 20000
+  if (p.includes("15k") || p.includes("15.000")) return 15000
+  if (p.includes("10k") || p.includes("10.000")) return 10000
+  if (p.includes("5k") || p.includes("5.000")) return 5000
+  return 0
+}
+
+export function cekAksesNicheProfiling({
+  namaPaket = "",
+  nominalPaket = 0,
+  expiredAt = null,
+  isAdmin = false,
+} = {}) {
+  if (isAdmin) {
+    return {
+      eligible: true,
+      planPrice: 90000,
+      isExpired: false,
+      reason: "Akses penuh Administrator.",
+    }
+  }
+
+  let isExpired = false
+  if (expiredAt) {
+    const sisaMs = new Date(expiredAt).getTime() - Date.now()
+    if (sisaMs <= 0) isExpired = true
+  }
+
+  const planPrice = ekstrakHargaDariNamaPaket(namaPaket, nominalPaket)
+  const memenuhiHarga =
+    NICHE_PROFILING_COMPARISON === "greater_or_equal"
+      ? planPrice >= NICHE_PROFILING_MIN_PLAN_PRICE
+      : planPrice > NICHE_PROFILING_MIN_PLAN_PRICE
+
+  const eligible = !isExpired && memenuhiHarga
+
+  let reason = ""
+  if (isExpired) {
+    reason =
+      "Masa aktif paket kamu sudah berakhir. Perpanjang paket di atas Rp20.000 untuk membuka kembali Analisa Niche."
+  } else if (!memenuhiHarga) {
+    reason =
+      NICHE_PROFILING_COMPARISON === "greater_or_equal"
+        ? `Fitur Analisa Niche (Ikigai) khusus untuk paket minimal Rp${NICHE_PROFILING_MIN_PLAN_PRICE.toLocaleString("id-ID")}.`
+        : `Fitur Analisa Niche (Ikigai) khusus untuk paket di atas Rp${NICHE_PROFILING_MIN_PLAN_PRICE.toLocaleString("id-ID")} (mulai Paket 25K VIP).`
+  }
+
+  return {
+    eligible,
+    planPrice,
+    isExpired,
+    minPriceRequired: NICHE_PROFILING_MIN_PLAN_PRICE,
+    comparisonMode: NICHE_PROFILING_COMPARISON,
+    reason,
+  }
+}
+
+export function hitungTotalSkorKandidatNiche(scores = {}) {
+  const love = Math.min(5, Math.max(1, Number(scores.love) || 3))
+  const skill = Math.min(5, Math.max(1, Number(scores.skill) || 3))
+  const need = Math.min(5, Math.max(1, Number(scores.need) || 3))
+  const monetize = Math.min(5, Math.max(1, Number(scores.monetize) || 3))
+  const feasibility = Math.min(5, Math.max(1, Number(scores.feasibility) || 3))
+
+  const rawTotal =
+    love * NICHE_SCORE_WEIGHTS.love +
+    skill * NICHE_SCORE_WEIGHTS.skill +
+    need * NICHE_SCORE_WEIGHTS.need +
+    monetize * NICHE_SCORE_WEIGHTS.monetize +
+    feasibility * NICHE_SCORE_WEIGHTS.feasibility
+
+  const maxPossible =
+    5 *
+    (NICHE_SCORE_WEIGHTS.love +
+      NICHE_SCORE_WEIGHTS.skill +
+      NICHE_SCORE_WEIGHTS.need +
+      NICHE_SCORE_WEIGHTS.monetize +
+      NICHE_SCORE_WEIGHTS.feasibility)
+
+  return Math.round((rawTotal / maxPossible) * 100)
+}
+
 export const DAFTAR_MODEL_OPENROUTER = [
   {
     id: "anthropic/claude-3.5-sonnet",
@@ -10,7 +115,7 @@ export const DAFTAR_MODEL_OPENROUTER = [
     inputPer1kRp: 48.0,
     outputPer1kRp: 240.0,
     supportVision: true,
-    ket: "Sangat tajam dan natural untuk menyusun naskah akhir (AI 2) maupun brainstorming mendalam.",
+    ket: "Sangat tajam dan natural untuk menyusun naskah akhir (AI 2) maupun analisis Ikigai mendalam.",
   },
   {
     id: "anthropic/claude-3.5-haiku",
@@ -502,6 +607,19 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
         <path d="M9 12l2 2 4-4" />
       </>
     ),
+    compass: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+      </>
+    ),
+    target: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+      </>
+    ),
     paperclip: (
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     ),
@@ -744,7 +862,6 @@ export function FlatIcon({ name, className = "w-5 h-5" }) {
   )
 }
 
-// Gelembung Loading Titik-Titik Tanpa Ekor & Tanpa Kata "typing..." (+ Count-Up mulai 31s & Refresh)
 export function AILoadingBox({ onRefresh }) {
   const [detik, setDetik] = useState(0)
 

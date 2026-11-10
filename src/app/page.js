@@ -5,6 +5,7 @@ import {
   FlatIcon,
   AvatarCropModal,
   EMPAT_JENDELA_WAKTU,
+  ekstrakHargaDariNamaPaket,
   hitungKuotaAkunDariPaket,
   hitungUkuranBytesObjek,
   formatUkuranStorage,
@@ -15,6 +16,7 @@ import PersonaDNAView from "../components/PersonaDNAView"
 import ScriptProducerView from "../components/ScriptProducerView"
 import VideoExtractorView from "../components/VideoExtractorView"
 import BrainstormView from "../components/BrainstormView"
+import NicheProfilingView from "../components/NicheProfilingView"
 import DeveloperDashboardView from "../components/DeveloperDashboardView"
 
 const SEPULUH_BENTUK_KONTEN = [
@@ -159,14 +161,14 @@ const DAFTAR_PAKET_KOIN = [
   {
     tier: "VIP TIER 1",
     nama: "Paket 25K VIP",
-    subjudul: "Optimal untuk 3 akun sosial media",
+    subjudul: "Membuka Analisa Niche (Ikigai) + 3 Akun Sosmed",
     harga: "Rp 25.000",
     nominalAngka: 25000,
     koin: 55,
     kuotaAkun: 3,
     isVIP: true,
     fiturList: [
-      "Prioritas antrian AI engine",
+      "Buka fitur Analisa Niche (Ikigai) & 24 Ide Topik",
       "Semua fitur ekstrak & skrip",
       "Rollover aktif 30 hari",
     ],
@@ -174,7 +176,7 @@ const DAFTAR_PAKET_KOIN = [
   {
     tier: "PRO",
     nama: "Paket 50K VIP",
-    subjudul: "Produksi konten rutin skala penuh",
+    subjudul: "Produksi konten rutin skala penuh + Analisa Niche",
     harga: "Rp 50.000",
     nominalAngka: 50000,
     koin: 120,
@@ -182,7 +184,7 @@ const DAFTAR_PAKET_KOIN = [
     isVIP: true,
     bestValue: true,
     fiturList: [
-      "Prioritas antrian AI engine",
+      "Buka fitur Analisa Niche (Ikigai) & 24 Ide Topik",
       "Semua fitur ekstrak & skrip",
       "Rollover aktif 30 hari",
     ],
@@ -199,7 +201,7 @@ const DAFTAR_PAKET_KOIN = [
     isVIP: true,
     agency: true,
     fiturList: [
-      "Prioritas antrian AI engine (Dual AI)",
+      "Akses penuh Analisa Niche (Ikigai) & Dual AI",
       "Maksimal 10 akun persona sosmed",
       "Rollover aktif 30 hari",
     ],
@@ -245,11 +247,12 @@ export default function HookyaMainApp() {
   const [isInsideChatRoom, setIsInsideChatRoomState] = useState(false)
   const [stage, setStageState] = useState(0)
   const [subTabKalender, setSubTabKalender] = useState("jadwal")
-  const [subTabAsesmen, setSubTabAsesmen] = useState("produksi")
+  // Sub-tab di dalam menu "Niche": "ikigai" (Analisa Niche Utama) | "produksi" (Asesmen & Editor Naskah) | "ekstrak" (Ekstrak Video)
+  const [subTabNiche, setSubTabNiche] = useState("ikigai")
   const [modeTeleprompter, setModeTeleprompter] = useState(false)
 
-  // Pilihan Persona di Tengah Header ("" = Watermark "Pilih Persona")
   const [selectedPersonaHeader, setSelectedPersonaHeader] = useState("")
+  const [prefillTopicFromNiche, setPrefillTopicFromNiche] = useState(null)
 
   const [showUpgradeVIPModal, setShowUpgradeVIPModal] = useState(false)
   const [showPinModal, setShowPinModal] = useState(false)
@@ -266,6 +269,7 @@ export default function HookyaMainApp() {
   const [expiredAt, setExpiredAt] = useState(null)
   const [sisaHariPaket, setSisaHariPaket] = useState(28)
   const [namaPaketAktif, setNamaPaketAktif] = useState("Paket 25K VIP")
+  const [nominalPaketAktif, setNominalPaketAktif] = useState(25000)
   const [kuotaAkunMaksimal, setKuotaAkunMaksimal] = useState(3)
   const [coins, setCoins] = useState(20)
   const [toastMsg, setToastMsg] = useState("")
@@ -294,6 +298,7 @@ export default function HookyaMainApp() {
     idAkunAktif: "akun_utama",
     labelAkunSosmed: "@cuanistsociety",
     daftarAkunTernak: [],
+    active_niche_profile: null,
     telemetry: { recentLogs: [], globalBrainPairs: [] },
   })
 
@@ -335,12 +340,17 @@ export default function HookyaMainApp() {
   const [filterRiwayatKoin, setFilterRiwayatKoin] = useState("semua")
   const [inputKodeVoucherUser, setInputKodeVoucherUser] = useState("")
   const [checkoutModal, setCheckoutModal] = useState(null)
+  const [duitkuInvoiceResult, setDuitkuInvoiceResult] = useState(null)
+  const [duitkuPaymentMethod, setDuitkuPaymentMethod] = useState("SP")
   const [buktiBayarBase64, setBuktiBayarBase64] = useState("")
   const [namaFileBukti, setNamaFileBukti] = useState("")
   const [sedangProsesBayar, setSedangProsesBayar] = useState(false)
 
   const [pengaturanPayment, setPengaturanPayment] = useState({
-    modePembayaranAktif: "qris_manual",
+    modePembayaranAktif: "duitku_otomatis",
+    duitkuEnv: "sandbox",
+    duitkuMerchantCode: "",
+    duitkuApiKey: "",
     preferredModel: "anthropic/claude-3.5-sonnet",
     aiModel1: "anthropic/claude-3.5-haiku",
     aiModel2: "anthropic/claude-3.5-sonnet",
@@ -373,7 +383,6 @@ export default function HookyaMainApp() {
   ])
   const isPoppingRef = useRef(false)
 
-  // Kunci Viewport Meta agar TIDAK Auto-Zoom saat mengetik di iOS/Android & Header tidak bergeser
   useEffect(() => {
     if (typeof document === "undefined") return
     let meta = document.querySelector('meta[name="viewport"]')
@@ -440,15 +449,20 @@ export default function HookyaMainApp() {
       return
     }
     if (menuTarget === "produksi") {
-      setSubTabAsesmen("produksi")
-      setActiveMenuState("asesmen")
-      dorongRiwayatNavigasi("asesmen", false, stage, subTabKalender)
+      setSubTabNiche("produksi")
+      setActiveMenuState("niche")
+      dorongRiwayatNavigasi("niche", false, stage, subTabKalender)
       return
     }
     if (menuTarget === "rewrite") {
-      setSubTabAsesmen("ekstrak")
-      setActiveMenuState("asesmen")
-      dorongRiwayatNavigasi("asesmen", false, stage, subTabKalender)
+      setSubTabNiche("ekstrak")
+      setActiveMenuState("niche")
+      dorongRiwayatNavigasi("niche", false, stage, subTabKalender)
+      return
+    }
+    if (menuTarget === "asesmen") {
+      setActiveMenuState("niche")
+      dorongRiwayatNavigasi("niche", false, stage, subTabKalender)
       return
     }
     if (menuTarget === "brainstorm") {
@@ -480,7 +494,7 @@ export default function HookyaMainApp() {
       setIsInsideChatRoomState(false)
       return
     }
-    if (activeMenu === "asesmen" && stage > 0) {
+    if (activeMenu === "niche" && stage > 0) {
       setStageState(0)
       return
     }
@@ -540,6 +554,39 @@ export default function HookyaMainApp() {
     }
   }
 
+  // Sinkronisasi Pre-Fill Otomatis dari Profil Niche ke Persona & Asesmen (Bagian 3 & 9)
+  const terapkanPreFillDariProfilNiche = (nicheProf) => {
+    if (!nicheProf?.result) return
+    const idPilih = nicheProf.selected_niche_id || "n1"
+    const cand =
+      (nicheProf.result.niche_candidates || []).find((n) => n.id === idPilih) ||
+      nicheProf.result.niche_candidates?.[0]
+    if (!cand) return
+
+    setPersonaProfile((prev) => ({
+      ...prev,
+      niche_badge: `Niche: ${cand.name} | Target: ${cand.audience}`,
+      target_audience: {
+        ...(prev.target_audience || {}),
+        segment_profile: cand.audience,
+        deepest_pain_points: cand.problem,
+      },
+      niche_context: {
+        ...(prev.niche_context || {}),
+        primary_niche: cand.name,
+        segment_profile: cand.audience,
+        deepest_pain_points: cand.problem,
+      },
+    }))
+
+    setProfil((prev) => ({
+      ...prev,
+      minatUtama: cand.name,
+      targetSegmenInput: cand.audience,
+      targetKetakutanInput: cand.problem,
+    }))
+  }
+
   const muatUlangDataSupabase = async (idTarget) => {
     try {
       const { data: trxRows } = await supabase
@@ -569,8 +616,7 @@ export default function HookyaMainApp() {
             (u) =>
               u.profil_dna?.pengaturanPayment?.aiModel1 ||
               u.profil_dna?.pengaturanPayment?.aiModel2 ||
-              u.profil_dna?.pengaturanPayment?.preferredModel ||
-              u.profil_dna?.pengaturanPayment?.qrisImageUrl,
+              u.profil_dna?.pengaturanPayment?.duitkuMerchantCode,
           ) ||
           userRows.find(
             (u) => u.role === "admin" && u.profil_dna?.pengaturanPayment,
@@ -612,10 +658,12 @@ export default function HookyaMainApp() {
             trxLunasTerakhir?.nama_paket ||
             activeUser.profil_dna?.paketAktif ||
             (activeUser.is_premium ? "Paket 25K VIP" : "Paket 10K")
-          const nominalTersimpan =
+          const nominalTersimpan = ekstrakHargaDariNamaPaket(
+            paketTersimpan,
             trxLunasTerakhir?.nominal_asli ||
-            trxLunasTerakhir?.nominal_bayar ||
-            0
+              trxLunasTerakhir?.nominal_bayar ||
+              0,
+          )
 
           const kuotaHitung = hitungKuotaAkunDariPaket(
             paketTersimpan,
@@ -628,6 +676,7 @@ export default function HookyaMainApp() {
           setExpiredAt(expStr)
           setSisaHariPaket(sisaHari)
           setNamaPaketAktif(isOwnerOrAdmin ? "Paket 90K VIP" : paketTersimpan)
+          setNominalPaketAktif(isOwnerOrAdmin ? 90000 : nominalTersimpan)
           setKuotaAkunMaksimal(kuotaHitung)
           setIsPremiumUser(
             Boolean(
@@ -665,6 +714,11 @@ export default function HookyaMainApp() {
           }
           if (activeUser.profil_dna?.bentukKonten) {
             setBentukKonten(activeUser.profil_dna.bentukKonten)
+          }
+          if (activeUser.profil_dna?.active_niche_profile) {
+            terapkanPreFillDariProfilNiche(
+              activeUser.profil_dna.active_niche_profile,
+            )
           }
 
           const savedSessionMode =
@@ -801,7 +855,7 @@ export default function HookyaMainApp() {
           .eq("id", idTarget)
       }
       await muatUlangDataSupabase(userId)
-      showToast("Konfigurasi Dual AI & Sistem berhasil disimpan.")
+      showToast("Konfigurasi Dual AI & Duitku Sandbox berhasil disimpan.")
     } catch (err) {
       showToast("Gagal menyimpan: " + err.message)
     }
@@ -981,6 +1035,7 @@ export default function HookyaMainApp() {
     const nomorInvoice = `HKY-${Date.now().toString().slice(-5)}`
     setBuktiBayarBase64("")
     setNamaFileBukti("")
+    setDuitkuInvoiceResult(null)
     setCheckoutModal({
       invoiceId: nomorInvoice,
       namaPaket: paketObj.nama,
@@ -990,6 +1045,73 @@ export default function HookyaMainApp() {
       kodeUnik,
       nominalBayar: paketObj.nominalAngka + kodeUnik,
     })
+  }
+
+  // Membuat Invoice Otomatis via Duitku Sandbox
+  const handleBuatInvoiceDuitkuSandbox = async () => {
+    if (!checkoutModal || sedangProsesBayar) return
+    setSedangProsesBayar(true)
+    try {
+      const res = await fetch("/api/duitku/create-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          namaUser: profil.nama,
+          emailUser: profil.kontak,
+          whatsappUser: profil.whatsapp,
+          namaPaket: checkoutModal.namaPaket,
+          jumlahKoin: checkoutModal.koin,
+          kuotaAkun: checkoutModal.kuotaAkun,
+          nominalBayar: checkoutModal.nominalAsli,
+          paymentMethod: duitkuPaymentMethod,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal membuat invoice Duitku Sandbox.")
+      }
+      setDuitkuInvoiceResult(data)
+      if (data.paymentUrl) {
+        window.open(data.paymentUrl, "_blank")
+      }
+      showToast("Halaman pembayaran Duitku Sandbox berhasil dibuka!")
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSedangProsesBayar(false)
+    }
+  }
+
+  // Mengecek Status Pembayaran Duitku Sandbox secara Langsung
+  const handleCekStatusPembayaranDuitku = async () => {
+    if (!duitkuInvoiceResult?.invoiceId || sedangProsesBayar) return
+    setSedangProsesBayar(true)
+    try {
+      const res = await fetch("/api/duitku/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "check_status",
+          merchantOrderId: duitkuInvoiceResult.invoiceId,
+        }),
+      })
+      const data = await res.json()
+      if (data.lunas) {
+        await muatUlangDataSupabase(userId)
+        setCheckoutModal(null)
+        setDuitkuInvoiceResult(null)
+        showToast(data.statusMessage || "Pembayaran Lunas! Koin bertambah.")
+      } else {
+        showToast(
+          data.statusMessage || "Pembayaran masih menunggu di Duitku Sandbox.",
+        )
+      }
+    } catch {
+      showToast("Gagal memeriksa status transaksi.")
+    } finally {
+      setSedangProsesBayar(false)
+    }
   }
 
   const handleUploadBuktiBayarUser = (e) => {
@@ -1079,6 +1201,133 @@ export default function HookyaMainApp() {
     }
   }
 
+  // Fungsi Integrasi Tombol "Buat Naskah" dari Ide Topik Niche (Pre-fill Otomatis - Bagian 3 & 9)
+  const handleGunakanTopikNicheKeNaskah = ({
+    topicIdea,
+    nicheCandidate,
+    deliveryStyle,
+  }) => {
+    if (!topicIdea) return
+    if (nicheCandidate) {
+      terapkanPreFillDariProfilNiche({
+        selected_niche_id: nicheCandidate.id,
+        result: {
+          niche_candidates: [nicheCandidate],
+          ikigai: { delivery_style: deliveryStyle },
+        },
+      })
+    }
+
+    const goalMap =
+      topicIdea.goal === "conversion"
+        ? "Konten Jualan"
+        : topicIdea.goal === "engagement"
+          ? "Konten Cari Trust"
+          : "Konten Cari Viral"
+
+    const durasiLabel = `${topicIdea.est_duration_sec || 30} Detik`
+    const ringkasanPreFill = `Buat naskah ${goalMap} untuk topik: "${topicIdea.title}". Target penonton: ${
+      nicheCandidate?.audience || "Audiens TikTok"
+    }. Masalah audiens: ${
+      nicheCandidate?.problem || "-"
+    }. Format: ${topicIdea.format} (${durasiLabel}). Gunakan kalimat Hook pembuka ini: "${
+      topicIdea.hook
+    }"`
+
+    // Simpan ke sesi Chat Topik baru yang langsung terisi otomatis
+    const storageKey = `hookya_topic_sessions_v3_${userId || "guest"}`
+    const waktuSkr = new Date().toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+
+    const sesiPreFill = {
+      id: `sesi_${Date.now()}`,
+      nomorSesi: 1,
+      judul: topicIdea.title,
+      akunLabel: selectedPersonaHeader || "",
+      gunakanPersona: Boolean(selectedPersonaHeader),
+      format: "TikTok / Reels",
+      statusLabel: "Pre-Fill Niche",
+      statusTahap: "Siap Generate",
+      waktuTerakhir: waktuSkr,
+      flowState: {
+        tahap: "pilih_hook_dan_cta",
+        tujuanKonten: goalMap,
+        formatKonten: "TikTok / Reels",
+        topikAtauProduk: topicIdea.title,
+        masalahAtauGoals: nicheCandidate?.problem || topicIdea.why || "",
+        faktorAtauAngle: `${topicIdea.format} • ${deliveryStyle || ""}`,
+        durasiKonten: durasiLabel,
+        hookTerpilih: topicIdea.hook,
+        ctaTerpilih:
+          topicIdea.goal === "conversion"
+            ? "Cek detail lengkapnya di tautan bio / keranjang kuning sekarang."
+            : "Tulis pendapatmu di kolom komentar dan save video ini biar gak hilang!",
+      },
+      messages: [
+        {
+          id: `msg_prefill_${Date.now()}`,
+          role: "assistant",
+          waktu: waktuSkr,
+          tahapBerikutnya: "pilih_hook_dan_cta",
+          balasanBot: `Data dari Profil Niche (${
+            nicheCandidate?.name || "Ikigai"
+          }) berhasil diisi otomatis!\n\n• Topik: ${
+            topicIdea.title
+          }\n• Target Penonton: ${
+            nicheCandidate?.audience || "-"
+          }\n• Format & Durasi: ${
+            topicIdea.format
+          } (${durasiLabel})\n\nHook 3 detik dan CTA sudah disiapkan di bawah. Kamu bisa langsung klik "Generate Teks Naskah Sekarang" atau pilih variasi lainnya:`,
+          hookOptions10: [
+            {
+              nomor: 1,
+              jenis: `Hook Rekomendasi Niche (${topicIdea.format})`,
+              teksHook: topicIdea.hook,
+            },
+          ],
+          ctaOptions: [
+            {
+              kategori: "CTA Sesuai Goal Topik (" + topicIdea.goal + ")",
+              teksCta:
+                topicIdea.goal === "conversion"
+                  ? "Kalau kamu sering ngalamin hal yang sama, cek solusi lengkapnya di tautan profil ya."
+                  : "Gimana menurut pengalamanmu? Ceritain di komentar dan simpan videonya buat dipraktikkan nanti.",
+            },
+            {
+              kategori: "CTA Lugas Satu Arah",
+              teksCta:
+                "Mau lanjut bahas bagian berikutnya? Cek pinned post di profil sekarang.",
+            },
+          ],
+        },
+      ],
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const rawLama = localStorage.getItem(storageKey)
+        const listLama = rawLama ? JSON.parse(rawLama) : []
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify([sesiPreFill, ...listLama]),
+        )
+      } catch {
+        // Ignore
+      }
+    }
+
+    setPrefillTopicFromNiche(ringkasanPreFill)
+    setDaftar10IdeTopik((prev) => [
+      { judul: topicIdea.title, alasan: topicIdea.why || topicIdea.hook },
+      ...prev,
+    ])
+    setIsInsideChatRoom(true)
+    setActiveMenu("chat")
+    showToast("Topik & Target Penonton otomatis terisi dari Profil Niche!")
+  }
+
   const isAdminAccount =
     userRole === "admin" ||
     profil.nama?.toLowerCase().includes("faqih") ||
@@ -1107,10 +1356,10 @@ export default function HookyaMainApp() {
       action: `Pembelian ${t.nama_paket} (#${t.invoice_id})`,
       detail:
         t.status === "lunas"
-          ? `Top-up paket disetujui Admin (+${t.jumlah_koin} Koin)`
+          ? `Top-up paket disetujui (+${t.jumlah_koin} Koin)`
           : t.status === "ditolak"
-            ? "Bukti transfer ditolak / tidak sesuai"
-            : "Menunggu verifikasi bukti transfer oleh Admin",
+            ? "Pembayaran dibatalkan / ditolak"
+            : "Menunggu penyelesaian pembayaran",
       status:
         t.status === "lunas"
           ? "topup_lunas"
@@ -1118,10 +1367,7 @@ export default function HookyaMainApp() {
             ? "gagal_refund"
             : "pending",
       koinDelta: t.status === "lunas" ? Number(t.jumlah_koin) || 0 : 0,
-      refundInfo:
-        t.status === "ditolak"
-          ? "Silakan unggah ulang bukti transfer yang sesuai"
-          : "",
+      refundInfo: "",
     }))
 
   const semuaRiwayatKoinUser = [...daftarLogTelemetryUser, ...daftarTopupUser]
@@ -1206,7 +1452,6 @@ export default function HookyaMainApp() {
   const namaHariTerpilih =
     NAMA_HARI_ID[new Date(tanggalKalenderTerpilih).getDay()] || "Hari Ini"
 
-  // Daftar opsi persona akun untuk Dropdown di tengah Header
   const semuaOpsiPersonaHeader = [
     profil.labelAkunSosmed || `@${profil.username || "utama"}`,
     ...(Array.isArray(profil.daftarAkunTernak)
@@ -1262,13 +1507,6 @@ export default function HookyaMainApp() {
             .update({ status: "lunas" })
             .eq("id", trx.id)
 
-          let infoCatatan = null
-          try {
-            if (trx.catatan_user) infoCatatan = JSON.parse(trx.catatan_user)
-          } catch {
-            infoCatatan = null
-          }
-
           const targetU = semuaUserDB.find((x) => x.id === trx.user_id)
           if (targetU) {
             const sisaLama = hitungSisaHariAktif(
@@ -1305,42 +1543,9 @@ export default function HookyaMainApp() {
                 },
               })
               .eq("id", targetU.id)
-
-            const rawWaUser =
-              infoCatatan?.whatsapp ||
-              targetU.whatsapp ||
-              targetU.profil_dna?.whatsapp ||
-              ""
-            const waBersih = rawWaUser.replace(/\D/g, "")
-            if (waBersih) {
-              const waFormatted = waBersih.startsWith("08")
-                ? "62" + waBersih.slice(1)
-                : waBersih
-              const usernameLogin =
-                infoCatatan?.username || targetU.username || targetU.email
-              const passwordLogin =
-                infoCatatan?.password ||
-                targetU.password_hash ||
-                targetU.profil_dna?.pin ||
-                "12345678"
-
-              const teksWA = encodeURIComponent(
-                `*KONFIRMASI AKTIVASI PAKET HOOKYA*\n\n` +
-                  `Halo Kak *${targetU.nama}*, pembayaran Invoice *#${trx.invoice_id}* (${trx.nama_paket}) telah diverifikasi:\n` +
-                  `• Tambahan Koin: *+${trx.jumlah_koin} Koin* (Total: *${totalKoinBaru} Koin*)\n` +
-                  `• Kuota Akun Sosmed: *Maks ${kuotaAkunBaru} Akun*\n` +
-                  `• Username: *${usernameLogin}*\n` +
-                  `• Password: *${passwordLogin}*\n\n` +
-                  `Silakan login di: https://hookya.site`,
-              )
-              window.open(
-                `https://wa.me/${waFormatted}?text=${teksWA}`,
-                "_blank",
-              )
-            }
           }
           await muatUlangDataSupabase(userId)
-          showToast("Pembayaran di-ACC & info login dikirim ke WA User.")
+          showToast("Pembayaran di-ACC & koin pengguna diaktifkan.")
         }}
         simpanPengaturanDevKeDB={simpanPengaturanDevPermanen}
         muatUlangDataSupabase={() => muatUlangDataSupabase(userId)}
@@ -1349,7 +1554,6 @@ export default function HookyaMainApp() {
     )
   }
 
-  // CONTAINER UTAMA DENGAN VIEWPORT TERKUNCI (100dvh) AGAR HEADER TIDAK BERGESER SAAT KEYBOARD MUNCUL
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-[#F4F5F7] text-[#14141F] flex flex-col font-sans antialiased overflow-hidden">
       {toastMsg && (
@@ -1368,7 +1572,6 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* POPUP KONFIRMASI HAPUS NASKAH */}
       {targetHapusSkrip && (
         <div className="fixed inset-0 bg-[#14141F]/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-[#14141F] w-full max-w-sm rounded-2xl p-6 space-y-4 text-center border border-[#14141F]">
@@ -1423,44 +1626,7 @@ export default function HookyaMainApp() {
         />
       )}
 
-      {showUpgradeVIPModal && (
-        <div className="fixed inset-0 bg-[#14141F]/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white text-[#14141F] w-full max-w-sm rounded-2xl p-6 space-y-4 text-center border border-[#14141F]">
-            <div className="w-11 h-11 rounded-xl bg-[#14141F] text-[#D4F34A] flex items-center justify-center text-xs font-bold mx-auto">
-              VIP
-            </div>
-            <h3 className="text-base font-bold">
-              Fitur Khusus Paket VIP (Rp 20.000+)
-            </h3>
-            <p className="text-xs text-[#64748B] leading-relaxed">
-              Upgrade ke Paket VIP untuk membuka fitur Rekam Suara, Scan
-              Screenshot Produk Marketplace, Ekstrak Audio Video, dan Kuota
-              Penyimpanan 5 MB.
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowUpgradeVIPModal(false)}
-                className="cursor-pointer w-1/3 bg-[#F4F5F7] font-bold text-xs py-3 rounded-lg"
-              >
-                Tutup
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUpgradeVIPModal(false)
-                  setActiveMenu("topup")
-                }}
-                className="cursor-pointer flex-1 bg-[#D4F34A] text-[#14141F] font-bold text-xs py-3 rounded-lg"
-              >
-                Lihat Paket Koin
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TOP HEADER TERKUNCI STATIS: TOMBOL '<' DI KIRI, DROPDOWN WATERMARK "PILIH PERSONA" DI TENGAH, & TOTAL KOIN DI KANAN */}
+      {/* TOP HEADER TERKUNCI STATIS */}
       <header className="shrink-0 h-14 bg-white border-b border-[#E2E8F0] px-3 flex items-center justify-between gap-2 z-40">
         <div className="flex items-center shrink-0">
           <button
@@ -1474,7 +1640,6 @@ export default function HookyaMainApp() {
           </button>
         </div>
 
-        {/* TENGAH HEADER: DROPDOWN PILIHAN PERSONA AKUN DENGAN WATERMARK "Pilih Persona" */}
         <div className="relative flex-1 min-w-0 max-w-[175px] sm:max-w-[230px] mx-auto">
           <select
             value={selectedPersonaHeader}
@@ -1507,7 +1672,7 @@ export default function HookyaMainApp() {
         </div>
       </header>
 
-      {/* MAIN WORKSPACE — HANYA AREA INI YANG BERGESER SAAT SCROLL / KEYBOARD MUNCUL */}
+      {/* MAIN WORKSPACE */}
       <main className="flex-1 w-full overflow-y-auto overscroll-contain px-3 pt-2.5 pb-24">
         <div className={activeMenu === "dna" ? "block" : "hidden"}>
           <PersonaDNAView
@@ -1515,7 +1680,7 @@ export default function HookyaMainApp() {
             isPremiumUser={statusVIPFinal}
             kuotaAkunMaksimal={kuotaAkunMaksimal}
             namaPaketAktif={namaPaketAktif}
-            onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
+            onTriggerUpgradeVIP={() => setActiveMenu("topup")}
             profil={profil}
             setProfil={setProfil}
             rawWritingSamples={rawWritingSamples}
@@ -1533,41 +1698,81 @@ export default function HookyaMainApp() {
           />
         </div>
 
-        <div className={activeMenu === "asesmen" ? "block" : "hidden"}>
-          <div className="max-w-4xl mx-auto mb-3 bg-white rounded-2xl p-1.5 border border-[#E2E8F0] grid grid-cols-2 gap-1.5">
+        {/* MENU "NICHE": ANALISA NICHE (IKIGAI), ASESMEN/EDITOR NASKAH, & EKSTRAK VIDEO */}
+        <div className={activeMenu === "niche" ? "block" : "hidden"}>
+          <div className="max-w-3xl mx-auto mb-3 bg-white rounded-2xl p-1.5 border border-[#E2E8F0] grid grid-cols-3 gap-1.5">
             <button
               type="button"
-              onClick={() => setSubTabAsesmen("produksi")}
+              onClick={() => setSubTabNiche("ikigai")}
               className={`cursor-pointer h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                subTabAsesmen === "produksi"
+                subTabNiche === "ikigai"
+                  ? "bg-[#14141F] text-[#D4F34A]"
+                  : "bg-[#F4F5F7] text-[#14141F]"
+              }`}
+            >
+              <FlatIcon name="compass" className="w-4 h-4" />
+              <span>Profil Niche</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSubTabNiche("produksi")}
+              className={`cursor-pointer h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                subTabNiche === "produksi"
                   ? "bg-[#14141F] text-[#D4F34A]"
                   : "bg-[#F4F5F7] text-[#14141F]"
               }`}
             >
               <FlatIcon name="edit" className="w-4 h-4" />
-              <span>Asesmen & Editor Skrip</span>
+              <span>Editor Naskah</span>
             </button>
+
             <button
               type="button"
-              onClick={() => setSubTabAsesmen("ekstrak")}
+              onClick={() => setSubTabNiche("ekstrak")}
               className={`cursor-pointer h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                subTabAsesmen === "ekstrak"
+                subTabNiche === "ekstrak"
                   ? "bg-[#14141F] text-[#D4F34A]"
                   : "bg-[#F4F5F7] text-[#14141F]"
               }`}
             >
               <FlatIcon name="mic" className="w-4 h-4" />
-              <span>Ekstrak Suara Video</span>
+              <span>Ekstrak Video</span>
             </button>
           </div>
 
-          <div className={subTabAsesmen === "produksi" ? "block" : "hidden"}>
+          <div className={subTabNiche === "ikigai" ? "block" : "hidden"}>
+            <NicheProfilingView
+              userId={userId}
+              namaUser={profil.nama}
+              namaPaketAktif={namaPaketAktif}
+              nominalPaketAktif={nominalPaketAktif}
+              expiredAt={expiredAt}
+              isAdmin={isAdminAccount}
+              aiModel1={
+                pengaturanPayment.aiModel1 ||
+                pengaturanPayment.preferredModel ||
+                "anthropic/claude-3.5-haiku"
+              }
+              onUpgradeClick={() => {
+                setTabMenuKoin("beli_paket")
+                setActiveMenu("topup")
+              }}
+              onUseTopicForScript={handleGunakanTopikNicheKeNaskah}
+              onProfileUpdated={(profBaru) =>
+                terapkanPreFillDariProfilNiche(profBaru)
+              }
+              showToast={showToast}
+            />
+          </div>
+
+          <div className={subTabNiche === "produksi" ? "block" : "hidden"}>
             <ScriptProducerView
               userId={userId}
               namaUser={profil.nama}
               isPremiumUser={statusVIPFinal}
               kuotaAkunMaksimal={kuotaAkunMaksimal}
-              onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
+              onTriggerUpgradeVIP={() => setActiveMenu("topup")}
               coins={coins}
               updateKoinDatabase={updateKoinDatabase}
               personaProfile={personaProfile}
@@ -1594,12 +1799,12 @@ export default function HookyaMainApp() {
             />
           </div>
 
-          <div className={subTabAsesmen === "ekstrak" ? "block" : "hidden"}>
+          <div className={subTabNiche === "ekstrak" ? "block" : "hidden"}>
             <VideoExtractorView
               userId={userId}
               namaUser={profil.nama}
               isPremiumUser={statusVIPFinal}
-              onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
+              onTriggerUpgradeVIP={() => setActiveMenu("topup")}
               coins={coins}
               updateKoinDatabase={updateKoinDatabase}
               personaProfile={personaProfile}
@@ -1614,14 +1819,15 @@ export default function HookyaMainApp() {
           </div>
         </div>
 
-        {/* MENU UTAMA CHAT PER TOPIK DENGAN DUAL AI */}
+        {/* MENU UTAMA CHAT PER TOPIK */}
         <div className={activeMenu === "chat" ? "block" : "hidden"}>
           <BrainstormView
+            key={prefillTopicFromNiche || "default_brainstorm"}
             userId={userId}
             namaUser={profil.nama}
             isPremiumUser={statusVIPFinal}
             kuotaAkunMaksimal={kuotaAkunMaksimal}
-            onTriggerUpgradeVIP={() => setShowUpgradeVIPModal(true)}
+            onTriggerUpgradeVIP={() => setActiveMenu("topup")}
             coins={coins}
             updateKoinDatabase={updateKoinDatabase}
             personaProfile={personaProfile}
@@ -1689,9 +1895,6 @@ export default function HookyaMainApp() {
                       <h1 className="text-lg font-bold text-[#14141F]">
                         Arsip Naskah Tersimpan
                       </h1>
-                      <p className="text-xs text-[#64748B]">
-                        Kelola, edit judul, atau hapus naskah lama.
-                      </p>
                     </div>
                     <button
                       type="button"
@@ -1715,15 +1918,6 @@ export default function HookyaMainApp() {
                       placeholder="Ketik kata kunci judul atau isi materi..."
                       className="w-full h-11 pl-10 pr-16 bg-white rounded-xl border border-[#E2E8F0] text-[16px] sm:text-sm focus:border-[#14141F] focus:outline-none"
                     />
-                    {keywordCariArsip && (
-                      <button
-                        type="button"
-                        onClick={() => setKeywordCariArsip("")}
-                        className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#64748B]"
-                      >
-                        Hapus
-                      </button>
-                    )}
                   </div>
                 </section>
 
@@ -1768,42 +1962,28 @@ export default function HookyaMainApp() {
 
                           <div className="space-y-1">
                             {sedangEditJudulIni ? (
-                              <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="flex gap-2">
                                 <input
                                   type="text"
                                   value={inputJudulArsipBaru}
                                   onChange={(e) =>
                                     setInputJudulArsipBaru(e.target.value)
                                   }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      handleSimpanEditJudulArsip(item)
-                                  }}
-                                  autoFocus
-                                  className="flex-1 h-10 px-3 rounded-lg border border-[#14141F] text-[16px] sm:text-xs font-bold text-[#14141F] focus:outline-none"
+                                  className="flex-1 h-9 px-3 rounded-lg border border-[#14141F] text-[16px] sm:text-xs font-bold"
                                 />
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleSimpanEditJudulArsip(item)
-                                    }
-                                    className="cursor-pointer h-10 px-3.5 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold"
-                                  >
-                                    Simpan
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingArsipId(null)}
-                                    className="cursor-pointer h-10 px-3 rounded-lg bg-[#F4F5F7] text-[#64748B] text-xs font-bold"
-                                  >
-                                    Batal
-                                  </button>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSimpanEditJudulArsip(item)
+                                  }
+                                  className="cursor-pointer h-9 px-3 rounded-lg bg-[#D4F34A] text-[#14141F] text-xs font-bold"
+                                >
+                                  Simpan
+                                </button>
                               </div>
                             ) : (
                               <div className="flex items-start justify-between gap-2">
-                                <h2 className="text-sm font-bold text-[#14141F] leading-snug">
+                                <h2 className="text-sm font-bold text-[#14141F]">
                                   {item.judul}
                                 </h2>
                                 <button
@@ -1812,19 +1992,12 @@ export default function HookyaMainApp() {
                                     setEditingArsipId(item.id)
                                     setInputJudulArsipBaru(item.judul || "")
                                   }}
-                                  className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#F4F5F7] text-[#14141F] text-[11px] font-bold border border-[#E2E8F0]"
+                                  className="cursor-pointer px-2 py-1 rounded bg-[#F4F5F7] text-[11px] font-bold"
                                 >
-                                  <FlatIcon name="edit" className="w-3 h-3" />
-                                  <span>Edit</span>
+                                  Edit
                                 </button>
                               </div>
                             )}
-
-                            <div>
-                              <span className="inline-flex items-center gap-1 bg-[#F4F5F7] text-[#14141F] px-2 py-0.5 rounded text-[11px] font-semibold border border-[#E2E8F0]">
-                                {item.bentuk}
-                              </span>
-                            </div>
                           </div>
 
                           <div className="flex items-center justify-between gap-2 pt-1">
@@ -1842,15 +2015,6 @@ export default function HookyaMainApp() {
                                 name="arrowRight"
                                 className="w-3.5 h-3.5"
                               />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setTargetHapusSkrip(item)}
-                              className="cursor-pointer inline-flex items-center gap-1 bg-[#FEF2F2] text-[#EF4444] rounded-lg px-3 py-2 text-xs font-bold"
-                            >
-                              <FlatIcon name="trash" className="w-3.5 h-3.5" />
-                              <span>Hapus</span>
                             </button>
                           </div>
                         </article>
@@ -2060,7 +2224,7 @@ export default function HookyaMainApp() {
                 </h1>
               </div>
               <span className="px-3 py-1 rounded-full bg-[#D4F34A] text-[#14141F] text-xs font-extrabold">
-                PRO CREATOR
+                {namaPaketAktif}
               </span>
             </div>
 
@@ -2118,7 +2282,7 @@ export default function HookyaMainApp() {
                         {coins.toLocaleString("id-ID")}
                       </span>
                       <span className="text-xs font-semibold text-[#64748B]">
-                        Koin Aktif
+                        Koin Aktif ({sisaHariPaket} Hari)
                       </span>
                     </div>
                   </div>
@@ -2193,35 +2357,29 @@ export default function HookyaMainApp() {
 
                 {showCleanerInSetting && (
                   <div className="pt-2 border-t border-[#E2E8F0] space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {koleksiSkripTersimpan.length === 0 ? (
-                      <p className="text-xs text-[#64748B] py-2">
-                        Tidak ada riwayat konten lama yang perlu dibersihkan.
-                      </p>
-                    ) : (
-                      koleksiSkripTersimpan.map((sk) => (
-                        <div
-                          key={sk.id}
-                          className="p-2.5 rounded-lg bg-[#F4F5F7] border border-[#E2E8F0] flex items-center justify-between gap-2 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <div className="font-bold text-[#14141F] truncate">
-                              {sk.judul}
-                            </div>
-                            <div className="text-[10px] text-[#64748B]">
-                              {sk.waktuDibuat} •{" "}
-                              {formatUkuranStorage(hitungUkuranBytesObjek(sk))}
-                            </div>
+                    {koleksiSkripTersimpan.map((sk) => (
+                      <div
+                        key={sk.id}
+                        className="p-2.5 rounded-lg bg-[#F4F5F7] border border-[#E2E8F0] flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-bold text-[#14141F] truncate">
+                            {sk.judul}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setTargetHapusSkrip(sk)}
-                            className="cursor-pointer px-2.5 py-1.5 rounded bg-[#FEF2F2] text-[#EF4444] font-bold text-[11px] shrink-0"
-                          >
-                            Hapus
-                          </button>
+                          <div className="text-[10px] text-[#64748B]">
+                            {sk.waktuDibuat} •{" "}
+                            {formatUkuranStorage(hitungUkuranBytesObjek(sk))}
+                          </div>
                         </div>
-                      ))
-                    )}
+                        <button
+                          type="button"
+                          onClick={() => setTargetHapusSkrip(sk)}
+                          className="cursor-pointer px-2.5 py-1.5 rounded bg-[#FEF2F2] text-[#EF4444] font-bold text-[11px] shrink-0"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -2271,7 +2429,7 @@ export default function HookyaMainApp() {
                       </div>
                       <div>
                         <div className="text-sm font-bold text-[#14141F]">
-                          Buka Developer Console (Atur AI 1 & AI 2)
+                          Buka Developer Console (Dual AI & Duitku Sandbox)
                         </div>
                         <div className="text-[11px] text-[#64748B]">
                           AI 1:{" "}
@@ -2310,7 +2468,7 @@ export default function HookyaMainApp() {
           </div>
         )}
 
-        {/* MENU TOPUP KOIN (DESAIN KARTU BARU SESUAI REFERENSI GAMBAR) */}
+        {/* MENU TOPUP KOIN */}
         {activeMenu === "topup" && (
           <div className="max-w-xl mx-auto space-y-4 pb-8">
             <h1 className="text-xl font-bold text-[#14141F]">
@@ -2379,7 +2537,6 @@ export default function HookyaMainApp() {
                   </div>
                 </section>
 
-                {/* DAFTAR KARTU PAKET KOIN DENGAN DESAIN BARU SESUAI GAMBAR */}
                 <div className="space-y-3.5">
                   {DAFTAR_PAKET_KOIN.map((pk) => {
                     const isHighlighted = Boolean(
@@ -2409,7 +2566,6 @@ export default function HookyaMainApp() {
                           </div>
                         )}
 
-                        {/* Baris Atas: Label Tier & Kuota Akun Sosmed */}
                         <div className="flex items-center justify-between gap-2">
                           {!isHighlighted ? (
                             <span className="px-2.5 py-0.5 rounded-md bg-[#EDEFF0] text-[#14141F] text-[10px] font-extrabold uppercase tracking-wider">
@@ -2430,7 +2586,6 @@ export default function HookyaMainApp() {
                           )}
                         </div>
 
-                        {/* Nama Paket & Subjudul */}
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
                             <h3 className="text-base sm:text-lg font-extrabold text-[#14141F]">
@@ -2448,7 +2603,6 @@ export default function HookyaMainApp() {
                           </p>
                         </div>
 
-                        {/* Kotak Abu-Abu Tengah: Jumlah Koin, Rp/Koin, & Harga */}
                         <div className="bg-[#F4F5F7] rounded-xl p-3.5 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div
@@ -2485,7 +2639,6 @@ export default function HookyaMainApp() {
                           </div>
                         </div>
 
-                        {/* Daftar Poin Keuntungan */}
                         <div className="space-y-1.5 pt-0.5">
                           {(pk.fiturList || []).map((ft, fIdx) => (
                             <div
@@ -2513,7 +2666,6 @@ export default function HookyaMainApp() {
                           ))}
                         </div>
 
-                        {/* Tombol Aksi */}
                         <button
                           type="button"
                           onClick={() => bukaLayarCheckoutPaket(pk)}
@@ -2542,93 +2694,58 @@ export default function HookyaMainApp() {
 
             {tabMenuKoin === "rincian_koin" && (
               <div className="space-y-3">
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  {[
-                    { id: "semua", label: "Semua Riwayat" },
-                    { id: "terpakai", label: "Pemakaian Koin" },
-                    {
-                      id: "refund",
-                      label: `Request Gagal & Refund (${jumlahLogGagalRefund})`,
-                    },
-                  ].map((flt) => (
-                    <button
-                      key={flt.id}
-                      type="button"
-                      onClick={() => setFilterRiwayatKoin(flt.id)}
-                      className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 ${
-                        filterRiwayatKoin === flt.id
-                          ? "bg-[#14141F] text-[#D4F34A]"
-                          : "bg-white border border-[#E2E8F0] text-[#64748B]"
-                      }`}
+                {semuaRiwayatKoinUser.map((logItem, idx) => {
+                  const isGagalRefund = logItem.status === "gagal_refund"
+                  const delta = Number(logItem.koinDelta) || 0
+                  return (
+                    <div
+                      key={logItem.id || idx}
+                      className="bg-white rounded-2xl p-3.5 border border-[#E2E8F0] flex items-start justify-between gap-2 text-xs"
                     >
-                      {flt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {semuaRiwayatKoinUser.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center text-xs text-[#64748B]">
-                    Belum ada riwayat penggunaan koin.
-                  </div>
-                ) : (
-                  semuaRiwayatKoinUser.map((logItem, idx) => {
-                    const isGagalRefund = logItem.status === "gagal_refund"
-                    const delta = Number(logItem.koinDelta) || 0
-                    return (
-                      <div
-                        key={logItem.id || idx}
-                        className="bg-white rounded-2xl p-3.5 border border-[#E2E8F0] flex items-start justify-between gap-2 text-xs"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="font-bold text-[#14141F]">
-                            {logItem.action}
-                          </div>
-                          <div className="text-[#64748B]">{logItem.detail}</div>
-                          <div className="text-[11px] text-[#64748B]">
-                            {logItem.waktu}
-                          </div>
-                          {logItem.refundInfo && (
-                            <div className="text-[#10B981] font-bold">
-                              {logItem.refundInfo}
-                            </div>
-                          )}
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-[#14141F]">
+                          {logItem.action}
                         </div>
-                        <span
-                          className={`px-2.5 py-1 rounded-md font-mono font-bold shrink-0 ${
-                            isGagalRefund
-                              ? "bg-[#D4F34A] text-[#14141F]"
-                              : delta < 0
-                                ? "bg-[#14141F] text-[#D4F34A]"
-                                : "bg-[#F4F5F7] text-[#14141F]"
-                          }`}
-                        >
-                          {delta > 0 ? `+${delta}` : delta} Koin
-                        </span>
+                        <div className="text-[#64748B]">{logItem.detail}</div>
+                        <div className="text-[11px] text-[#64748B]">
+                          {logItem.waktu}
+                        </div>
                       </div>
-                    )
-                  })
-                )}
+                      <span
+                        className={`px-2.5 py-1 rounded-md font-mono font-bold shrink-0 ${
+                          isGagalRefund
+                            ? "bg-[#D4F34A] text-[#14141F]"
+                            : delta < 0
+                              ? "bg-[#14141F] text-[#D4F34A]"
+                              : "bg-[#F4F5F7] text-[#14141F]"
+                        }`}
+                      >
+                        {delta > 0 ? `+${delta}` : delta} Koin
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION BAR WARNA PUTIH SEMULA — DISEMBUNYIKAN SAAT DI DALAM RUANG CHAT TOPIK */}
+      {/* BOTTOM NAVIGATION BAR WARNA PUTIH — MENU "NICHE" MENGGANTIKAN "ASESMEN" */}
       {!sembunyikanBottomNav && (
         <div className="fixed bottom-3 left-4 right-4 z-40 pointer-events-none flex justify-center">
           <nav className="pointer-events-auto bg-white text-[#14141F] rounded-full px-2.5 py-1.5 border border-[#E2E8F0] shadow-[0_4px_20px_rgba(0,0,0,0.06)] w-full max-w-md flex items-center justify-around">
             <button
               type="button"
-              onClick={() => setActiveMenu("asesmen")}
+              onClick={() => setActiveMenu("niche")}
               className={`cursor-pointer flex flex-col items-center justify-center px-4 py-1.5 rounded-full transition ${
-                activeMenu === "asesmen"
+                activeMenu === "niche"
                   ? "bg-[#D4F34A] text-[#14141F] font-extrabold"
                   : "text-[#64748B] hover:text-[#14141F] font-semibold"
               }`}
             >
-              <FlatIcon name="edit" className="w-5 h-5" />
-              <span className="text-[11px] mt-0.5">Asesmen</span>
+              <FlatIcon name="compass" className="w-5 h-5" />
+              <span className="text-[11px] mt-0.5">Niche</span>
             </button>
 
             <button
@@ -2676,14 +2793,15 @@ export default function HookyaMainApp() {
         </div>
       )}
 
-      {/* MODAL CHECKOUT QRIS */}
+      {/* MODAL CHECKOUT: MENDUKUNG DUITKU SANDBOX OTOMATIS & QRIS MANUAL */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-[#14141F]/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white text-[#14141F] w-full max-w-md rounded-2xl p-5 space-y-4 border border-[#14141F]">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
               <div>
                 <span className="text-[10px] font-bold bg-[#D4F34A] text-[#14141F] px-2 py-0.5 rounded-md">
-                  Invoice #{checkoutModal.invoiceId}
+                  Invoice #
+                  {duitkuInvoiceResult?.invoiceId || checkoutModal.invoiceId}
                 </span>
                 <h3 className="text-base font-bold mt-0.5">
                   {checkoutModal.namaPaket} (+{checkoutModal.koin} Koin)
@@ -2691,65 +2809,138 @@ export default function HookyaMainApp() {
               </div>
               <button
                 type="button"
-                onClick={() => setCheckoutModal(null)}
+                onClick={() => {
+                  setCheckoutModal(null)
+                  setDuitkuInvoiceResult(null)
+                }}
                 className="cursor-pointer w-8 h-8 rounded-lg bg-[#F4F5F7] flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-[#F4F5F7] p-4 rounded-xl text-center space-y-2 border border-[#E2E8F0]">
-              {pengaturanPayment.qrisImageUrl ? (
-                <img
-                  src={pengaturanPayment.qrisImageUrl}
-                  alt="QRIS Merchant"
-                  className="w-48 h-48 mx-auto rounded-lg object-contain bg-white p-2 border border-[#E2E8F0]"
-                />
-              ) : (
-                <FlatIcon
-                  name="qr"
-                  className="w-28 h-28 mx-auto text-[#14141F]"
-                />
-              )}
-              <div className="text-2xl font-bold text-[#14141F] tabular-nums">
-                Rp {checkoutModal.nominalBayar.toLocaleString("id-ID")}
-              </div>
-            </div>
-
-            <label className="cursor-pointer border border-dashed border-[#E2E8F0] bg-[#F4F5F7] rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0">
-                <FlatIcon name="upload" className="w-4 h-4" />
-              </div>
-              <div className="min-w-0 text-left">
-                <div className="text-xs font-bold text-[#14141F] truncate">
-                  {namaFileBukti || "Tap untuk Upload Bukti Transfer"}
+            {pengaturanPayment.modePembayaranAktif !== "qris_manual" ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-[#F4F5F7] border border-[#E2E8F0] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#14141F]">
+                      Metode Pembayaran Duitku Sandbox:
+                    </span>
+                    <span className="text-base font-extrabold text-[#14141F]">
+                      Rp {checkoutModal.nominalAsli.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <select
+                    value={duitkuPaymentMethod}
+                    onChange={(e) => setDuitkuPaymentMethod(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg bg-white border border-[#E2E8F0] text-xs font-bold text-[#14141F]"
+                  >
+                    <option value="SP">
+                      QRIS (ShopeePay / GoPay / Dana / BCA)
+                    </option>
+                    <option value="BV">BCA Virtual Account</option>
+                    <option value="M2">Mandiri Virtual Account</option>
+                    <option value="BR">BRI Virtual Account</option>
+                    <option value="B1">BNI Virtual Account</option>
+                    <option value="OV">OVO</option>
+                  </select>
                 </div>
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleUploadBuktiBayarUser}
-                className="hidden"
-              />
-            </label>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setCheckoutModal(null)}
-                className="cursor-pointer w-1/3 bg-[#F4F5F7] font-bold text-xs py-3 rounded-lg"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={sedangProsesBayar}
-                onClick={handleKonfirmasiBayarDanKirimWA}
-                className="cursor-pointer flex-1 bg-[#D4F34A] text-[#14141F] font-bold text-xs py-3 rounded-lg"
-              >
-                {sedangProsesBayar ? "Mengirim..." : "Konfirmasi ke WA Admin"}
-              </button>
-            </div>
+                {!duitkuInvoiceResult ? (
+                  <button
+                    type="button"
+                    disabled={sedangProsesBayar}
+                    onClick={handleBuatInvoiceDuitkuSandbox}
+                    className="cursor-pointer w-full h-11 rounded-xl bg-[#D4F34A] text-[#14141F] font-extrabold text-xs flex items-center justify-center gap-2"
+                  >
+                    <FlatIcon name="bolt" className="w-4 h-4" />
+                    <span>
+                      {sedangProsesBayar
+                        ? "Membuat Tagihan Duitku..."
+                        : "Bayar Otomatis via Duitku Sandbox"}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#14141F] space-y-2.5 text-xs">
+                    <div className="font-bold text-[#14141F]">
+                      Tagihan Duitku Sandbox Siap Dibayar:
+                    </div>
+                    {duitkuInvoiceResult.vaNumber && (
+                      <div className="p-2 rounded bg-white border border-[#E2E8F0] font-mono">
+                        Nomor VA:{" "}
+                        <strong>{duitkuInvoiceResult.vaNumber}</strong>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      <a
+                        href={duitkuInvoiceResult.paymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full h-10 rounded-lg bg-[#14141F] text-[#D4F34A] font-bold flex items-center justify-center"
+                      >
+                        Buka Halaman Pembayaran Duitku
+                      </a>
+                      <button
+                        type="button"
+                        disabled={sedangProsesBayar}
+                        onClick={handleCekStatusPembayaranDuitku}
+                        className="cursor-pointer w-full h-10 rounded-lg bg-[#D4F34A] text-[#14141F] font-extrabold"
+                      >
+                        {sedangProsesBayar
+                          ? "Memeriksa Status..."
+                          : "Saya Sudah Bayar (Cek Status Otomatis)"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="bg-[#F4F5F7] p-4 rounded-xl text-center space-y-2 border border-[#E2E8F0]">
+                  {pengaturanPayment.qrisImageUrl ? (
+                    <img
+                      src={pengaturanPayment.qrisImageUrl}
+                      alt="QRIS Merchant"
+                      className="w-48 h-48 mx-auto rounded-lg object-contain bg-white p-2 border border-[#E2E8F0]"
+                    />
+                  ) : (
+                    <FlatIcon
+                      name="qr"
+                      className="w-28 h-28 mx-auto text-[#14141F]"
+                    />
+                  )}
+                  <div className="text-2xl font-bold text-[#14141F] tabular-nums">
+                    Rp {checkoutModal.nominalBayar.toLocaleString("id-ID")}
+                  </div>
+                </div>
+
+                <label className="cursor-pointer border border-dashed border-[#E2E8F0] bg-[#F4F5F7] rounded-xl p-3.5 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#14141F] text-[#D4F34A] flex items-center justify-center shrink-0">
+                    <FlatIcon name="upload" className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <div className="text-xs font-bold text-[#14141F] truncate">
+                      {namaFileBukti || "Tap untuk Upload Bukti Transfer"}
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadBuktiBayarUser}
+                    className="hidden"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  disabled={sedangProsesBayar}
+                  onClick={handleKonfirmasiBayarDanKirimWA}
+                  className="cursor-pointer w-full bg-[#D4F34A] text-[#14141F] font-bold text-xs py-3 rounded-lg"
+                >
+                  {sedangProsesBayar ? "Mengirim..." : "Konfirmasi ke WA Admin"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
